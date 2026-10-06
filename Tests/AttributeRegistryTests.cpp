@@ -41,6 +41,8 @@ void AttributeRegistryTests::run() {
     testUnknownAttributeType();
     testDefaultConfig();
     testRegisteredAttributeInfo();
+    testAllAttributeTypes();
+    testParagraphScopes();
     testEqualValuesMergeRuns();
     testConcurrentAccess();
 }
@@ -59,7 +61,8 @@ void AttributeRegistryTests::testAttributeIDs() {
 
 void AttributeRegistryTests::testUnknownAttributeType() {
     assert(AttributeRegistryGetAttributeID(0) == SBAttributeIDNone);
-    assert(AttributeRegistryGetAttributeID(3) == SBAttributeIDNone);
+    assert(AttributeRegistryGetAttributeID(19) == SBAttributeIDNone);
+    assert(AttributeRegistryGetAttributeID(100) == SBAttributeIDNone);
     assert(AttributeRegistryGetAttributeID(0xFFFF) == SBAttributeIDNone);
 }
 
@@ -91,6 +94,95 @@ void AttributeRegistryTests::testRegisteredAttributeInfo() {
     assert(strcmp(info.name, "PointSize") == 0);
     assert(info.group == SBAttributeGroupNone);
     assert(info.scope == SBAttributeScopeCharacter);
+
+    SBTextRelease(text);
+}
+
+struct AttributeSpec {
+    TRAttributeType type;
+    const char *name;
+    SBAttributeScope scope;
+};
+
+static const AttributeSpec Specs[] = {
+    { TRAttributeTypeface, "Typeface", SBAttributeScopeCharacter },
+    { TRAttributePointSize, "PointSize", SBAttributeScopeCharacter },
+    { TRAttributeScaleX, "ScaleX", SBAttributeScopeCharacter },
+    { TRAttributeScaleY, "ScaleY", SBAttributeScopeCharacter },
+    { TRAttributeBaselineOffset, "BaselineOffset", SBAttributeScopeCharacter },
+    { TRAttributeObliqueness, "Obliqueness", SBAttributeScopeCharacter },
+    { TRAttributeReplacement, "Replacement", SBAttributeScopeCharacter },
+    { TRAttributeTextAlignment, "TextAlignment", SBAttributeScopeParagraph },
+    { TRAttributeFirstLineHeadIndent, "FirstLineHeadIndent", SBAttributeScopeParagraph },
+    { TRAttributeHeadIndent, "HeadIndent", SBAttributeScopeParagraph },
+    { TRAttributeTailIndent, "TailIndent", SBAttributeScopeParagraph },
+    { TRAttributeFirstIndentLineCount, "FirstIndentLineCount", SBAttributeScopeParagraph },
+    { TRAttributeParagraphSpacingBefore, "ParagraphSpacingBefore", SBAttributeScopeParagraph },
+    { TRAttributeParagraphSpacing, "ParagraphSpacing", SBAttributeScopeParagraph },
+    { TRAttributeLineHeightMultiple, "LineHeightMultiple", SBAttributeScopeParagraph },
+    { TRAttributeMinimumLineHeight, "MinimumLineHeight", SBAttributeScopeParagraph },
+    { TRAttributeMaximumLineHeight, "MaximumLineHeight", SBAttributeScopeParagraph },
+    { TRAttributeLineSpacing, "LineSpacing", SBAttributeScopeParagraph }
+};
+constexpr size_t SpecCount = sizeof(Specs) / sizeof(Specs[0]);
+
+void AttributeRegistryTests::testAllAttributeTypes() {
+    /* The types are numbered from one without gaps. */
+    for (size_t i = 0; i < SpecCount; i++) {
+        assert(Specs[i].type == i + 1);
+    }
+
+    SBMutableTextRef text = SBTextCreateMutable(SBStringEncodingUTF8,
+        AttributeRegistryGetDefaultConfig());
+    SBAttributeRegistryRef registry = SBTextGetAttributeRegistry(text);
+    vector<SBAttributeID> ids;
+
+    for (const AttributeSpec &spec : Specs) {
+        SBAttributeID id = AttributeRegistryGetAttributeID(spec.type);
+        SBAttributeInfo info;
+
+        assert(id != SBAttributeIDNone);
+        assert(SBAttributeRegistryGetAttributeID(registry, spec.name) == id);
+        assert(SBAttributeRegistryGetAttributeInfo(registry, id, &info) == SBTrue);
+        assert(strcmp(info.name, spec.name) == 0);
+        assert(info.group == SBAttributeGroupNone);
+        assert(info.scope == spec.scope);
+
+        for (SBAttributeID other : ids) {
+            assert(other != id);
+        }
+        ids.push_back(id);
+    }
+
+    SBTextRelease(text);
+}
+
+void AttributeRegistryTests::testParagraphScopes() {
+    /* A paragraph attribute that is set on a part of a paragraph covers all of it. */
+    SBMutableTextRef text = SBTextCreateMutable(SBStringEncodingUTF8,
+        AttributeRegistryGetDefaultConfig());
+    SBTextAppendCodeUnits(text, "ab\ncd\nef", 8);
+
+    TRAttribute attribute = {};
+    attribute.type = TRAttributeHeadIndent;
+    attribute.value.headIndent = 20.0f;
+    SBTextSetAttribute(text, 4, 1, AttributeRegistryGetAttributeID(TRAttributeHeadIndent), &attribute);
+
+    SBUInteger length = 0;
+    SBAttributeListRef list = SBTextGetAttributes(text, SBAttributeFilterMakeAny(), 0, &length);
+    assert(SBAttributeListGetCount(list) == 0);
+    assert(length == 3);
+    SBAttributeListRelease(list);
+
+    list = SBTextGetAttributes(text, SBAttributeFilterMakeAny(), 3, &length);
+    assert(SBAttributeListGetCount(list) == 1);
+    assert(length == 3);
+    SBAttributeListRelease(list);
+
+    list = SBTextGetAttributes(text, SBAttributeFilterMakeAny(), 6, &length);
+    assert(SBAttributeListGetCount(list) == 0);
+    assert(length == 2);
+    SBAttributeListRelease(list);
 
     SBTextRelease(text);
 }

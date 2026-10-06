@@ -14,26 +14,25 @@
  * limitations under the License.
  */
 
-#ifndef _TEHREER__ATTRIBUTE_REGISTRY_TESTS_H
-#define _TEHREER__ATTRIBUTE_REGISTRY_TESTS_H
+#ifndef _TEHREER__REPLACEMENT_TESTS_H
+#define _TEHREER__REPLACEMENT_TESTS_H
 
 namespace Tehreer {
 
-class AttributeRegistryTests {
+class ReplacementTests {
 public:
-    AttributeRegistryTests() = default;
+    ReplacementTests() = default;
 
     void run();
 
 private:
-    void testAttributeIDs();
-    void testUnknownAttributeType();
-    void testDefaultConfig();
-    void testRegisteredAttributeInfo();
-    void testAllAttributeTypes();
-    void testParagraphScopes();
-    void testEqualValuesMergeRuns();
-    void testConcurrentAccess();
+    void testCreate();
+    void testInvalidCreate();
+    void testComputeRoom();
+    void testMissingCallbacks();
+    void testRetainRelease();
+    void testFinalizeOnce();
+    void testConcurrentRoom();
 };
 
 }

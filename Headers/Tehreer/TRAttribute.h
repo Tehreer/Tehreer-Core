@@ -18,21 +18,83 @@
 #define _TEHREER_ATTRIBUTE_H
 
 #include <Tehreer/TRBase.h>
+#include <Tehreer/TRReplacement.h>
 #include <Tehreer/TRTypeface.h>
 
 TR_EXTERN_C_BEGIN
 
+/**
+ * The type of an attribute. The attributes of the first group apply to the exact range they are
+ * set on, while the paragraph attributes of the second group apply to every paragraph that the
+ * range touches.
+ */
 enum {
-    TRAttributeTypeface = 1,
-    TRAttributePointSize = 2
+    /* Run attributes */
+    TRAttributeTypeface = 1,                /**< The typeface of the text. */
+    TRAttributePointSize = 2,               /**< The size of the em square. */
+    TRAttributeScaleX = 3,                  /**< Horizontal scale of the glyphs; 1.0 by default. */
+    TRAttributeScaleY = 4,                  /**< Vertical scale of the glyphs; 1.0 by default. */
+    TRAttributeBaselineOffset = 5,          /**< Distance to raise the text above its baseline. */
+    TRAttributeObliqueness = 6,             /**< Skew of the glyphs. It keeps runs apart. */
+    TRAttributeReplacement = 7,             /**< Content that replaces the text of the range. */
+
+    /* Paragraph attributes */
+    TRAttributeTextAlignment = 8,           /**< The alignment of the lines. */
+    TRAttributeFirstLineHeadIndent = 9,     /**< Indent of the lines before the head indent. */
+    TRAttributeHeadIndent = 10,             /**< Indent of the other lines at the leading edge. */
+    TRAttributeTailIndent = 11,             /**< Indent at the trailing edge; see below. */
+    TRAttributeFirstIndentLineCount = 12,   /**< Number of lines that use the first line indent. */
+    TRAttributeParagraphSpacingBefore = 13, /**< Space before the paragraph. */
+    TRAttributeParagraphSpacing = 14,       /**< Space after the paragraph. */
+    TRAttributeLineHeightMultiple = 15,     /**< Factor that scales the height of the lines. */
+    TRAttributeMinimumLineHeight = 16,      /**< Least height of a line. */
+    TRAttributeMaximumLineHeight = 17,      /**< Greatest height of a line. */
+    TRAttributeLineSpacing = 18             /**< Extra space added below each line. */
 };
 typedef TRUInt32 TRAttributeType;
 
+/**
+ * The alignment of the lines of a paragraph. Leading and trailing follow the base direction of the
+ * paragraph, while left and right are absolute.
+ */
+enum {
+    TRTextAlignmentLeft = 0,
+    TRTextAlignmentCenter = 1,
+    TRTextAlignmentRight = 2,
+    TRTextAlignmentLeading = 3,
+    TRTextAlignmentTrailing = 4
+};
+typedef TRUInt32 TRTextAlignment;
+
 typedef TRFloat TRPointSize;
 
+/**
+ * The value of an attribute. The member to use depends on the type of the attribute.
+ *
+ * The indents of a paragraph are measured from the leading edge, except the tail indent: if it is
+ * positive, it is the distance from the leading edge to the trailing margin, and if it is zero or
+ * negative, its absolute value is the distance from the trailing edge. The first indent line count
+ * is the number of lines that use the first line head indent; it is 1 by default.
+ */
 typedef union _TRAttributeValue {
     TRTypefaceRef typeface;
     TRPointSize pointSize;
+    TRFloat scaleX;
+    TRFloat scaleY;
+    TRFloat baselineOffset;
+    TRFloat obliqueness;
+    TRReplacementRef replacement;
+    TRTextAlignment textAlignment;
+    TRFloat firstLineHeadIndent;
+    TRFloat headIndent;
+    TRFloat tailIndent;
+    TRUInteger firstIndentLineCount;
+    TRFloat paragraphSpacingBefore;
+    TRFloat paragraphSpacing;
+    TRFloat lineHeightMultiple;
+    TRFloat minimumLineHeight;
+    TRFloat maximumLineHeight;
+    TRFloat lineSpacing;
 } TRAttributeValue;
 
 typedef struct _TRAttribute {

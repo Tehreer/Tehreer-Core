@@ -25,6 +25,7 @@
 #include <Tehreer/TRNamedStyle.h>
 #include <Tehreer/TRPalette.h>
 #include <Tehreer/TRPath.h>
+#include <Tehreer/TRReplacement.h>
 #include <Tehreer/TRShapingEngine.h>
 #include <Tehreer/TRShapingResult.h>
 #include <Tehreer/TRString.h>

@@ -14,26 +14,30 @@
  * limitations under the License.
  */
 
-#ifndef _TEHREER__ATTRIBUTE_REGISTRY_TESTS_H
-#define _TEHREER__ATTRIBUTE_REGISTRY_TESTS_H
+#ifndef _TEHREER__BREAK_CLASSIFIER_TESTS_H
+#define _TEHREER__BREAK_CLASSIFIER_TESTS_H
 
 namespace Tehreer {
 
-class AttributeRegistryTests {
+class BreakClassifierTests {
 public:
-    AttributeRegistryTests() = default;
+    BreakClassifierTests() = default;
 
     void run();
 
 private:
-    void testAttributeIDs();
-    void testUnknownAttributeType();
-    void testDefaultConfig();
-    void testRegisteredAttributeInfo();
-    void testAllAttributeTypes();
-    void testParagraphScopes();
-    void testEqualValuesMergeRuns();
-    void testConcurrentAccess();
+    void testCreateInvalid();
+    void testEmptyText();
+    void testLineBreaks();
+    void testMandatoryBreaks();
+    void testGraphemeBreaks();
+    void testSurrogatePairs();
+    void testEncodingsAgree();
+    void testForwardSearch();
+    void testBackwardSearch();
+    void testSearchesVisitEveryBreak();
+    void testRetainRelease();
+    void testConcurrentQueries();
 };
 
 }

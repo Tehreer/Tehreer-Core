@@ -21,6 +21,7 @@
 #include <API/TRAttributeList.c>
 #include <API/TRFontFile.c>
 #include <API/TRPath.c>
+#include <API/TRReplacement.c>
 #include <API/TRShapingEngine.c>
 #include <API/TRShapingResult.c>
 #include <API/TRText.c>
@@ -38,6 +39,7 @@
 #include <Graphics/ShapableFace.c>
 #include <SFNT/Utilities.c>
 #include <Text/AttributeRegistry.c>
+#include <Text/BreakClassifier.c>
 #include <Text/CaretEdgesBuilder.c>
 
 #endif

@@ -223,6 +223,7 @@ if(BUILD_TESTS)
     AttributeListTests
     AttributeRegistryTests
     BaseTests
+    BreakClassifierTests
     CaretEdgesBuilderTests
     FaceMetadataTests
     FontFileTests
@@ -234,6 +235,7 @@ if(BUILD_TESTS)
     ObjectTests
     OnceTests
     RenderableFaceTests
+    ReplacementTests
     PathTests
     SFNTUtilitiesTests
     ShapableFaceTests
@@ -250,6 +252,10 @@ if(BUILD_TESTS)
   set(AdvanceCacheTests
     Tests/AdvanceCacheTests.h
     Tests/AdvanceCacheTests.cpp
+  )
+  set(BreakClassifierTests
+    Tests/BreakClassifierTests.h
+    Tests/BreakClassifierTests.cpp
   )
   set(CaretEdgesBuilderTests
     Tests/CaretEdgesBuilderTests.h
@@ -278,6 +284,10 @@ if(BUILD_TESTS)
   set(ObjectTests
     Tests/ObjectTests.h
     Tests/ObjectTests.cpp
+  )
+  set(ReplacementTests
+    Tests/ReplacementTests.h
+    Tests/ReplacementTests.cpp
   )
   set(ShapingEngineTests
     Tests/ShapingEngineTests.h

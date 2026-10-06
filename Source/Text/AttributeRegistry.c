@@ -16,6 +16,7 @@
 
 #include <SheenBidi/SheenBidi.h>
 #include <Tehreer/TRAttribute.h>
+#include <Tehreer/TRReplacement.h>
 #include <Tehreer/TRTypeface.h>
 
 #include <API/TRBase.h>
@@ -23,13 +24,38 @@
 
 #include "AttributeRegistry.h"
 
-static const char TypefaceAttributeName[] = "Typeface";
-static const char PointSizeAttributeName[] = "PointSize";
+#define AttributeCount  18
+
+typedef struct _AttributeDescription {
+    const char *name;
+    SBAttributeScope scope;
+} AttributeDescription;
+
+/* The descriptions are in the order of the attribute types, which start from one. */
+static const AttributeDescription AttributeDescriptions[AttributeCount] = {
+    { "Typeface",               SBAttributeScopeCharacter },
+    { "PointSize",              SBAttributeScopeCharacter },
+    { "ScaleX",                 SBAttributeScopeCharacter },
+    { "ScaleY",                 SBAttributeScopeCharacter },
+    { "BaselineOffset",         SBAttributeScopeCharacter },
+    { "Obliqueness",            SBAttributeScopeCharacter },
+    { "Replacement",            SBAttributeScopeCharacter },
+    { "TextAlignment",          SBAttributeScopeParagraph },
+    { "FirstLineHeadIndent",    SBAttributeScopeParagraph },
+    { "HeadIndent",             SBAttributeScopeParagraph },
+    { "TailIndent",             SBAttributeScopeParagraph },
+    { "FirstIndentLineCount",   SBAttributeScopeParagraph },
+    { "ParagraphSpacingBefore", SBAttributeScopeParagraph },
+    { "ParagraphSpacing",       SBAttributeScopeParagraph },
+    { "LineHeightMultiple",     SBAttributeScopeParagraph },
+    { "MinimumLineHeight",      SBAttributeScopeParagraph },
+    { "MaximumLineHeight",      SBAttributeScopeParagraph },
+    { "LineSpacing",            SBAttributeScopeParagraph }
+};
 
 static AttributeRegistry GlobalAttributeRegistry;
 static SBTextConfigRef DefaultTextConfig;
-static SBAttributeID TypefaceAttributeID = SBAttributeIDNone;
-static SBAttributeID PointSizeAttributeID = SBAttributeIDNone;
+static SBAttributeID AttributeIDs[AttributeCount + 1];
 
 static SBBoolean EqualAttributeItem(const void *firstPtr, const void *secondPtr)
 {
@@ -39,12 +65,47 @@ static SBBoolean EqualAttributeItem(const void *firstPtr, const void *secondPtr)
     if (firstItem == secondItem) {
         return SBTrue;
     }
+    if (firstItem->type != secondItem->type) {
+        return SBFalse;
+    }
 
     switch (firstItem->type) {
     case TRAttributeTypeface:
         return firstItem->value.typeface == secondItem->value.typeface;
     case TRAttributePointSize:
         return firstItem->value.pointSize == secondItem->value.pointSize;
+    case TRAttributeScaleX:
+        return firstItem->value.scaleX == secondItem->value.scaleX;
+    case TRAttributeScaleY:
+        return firstItem->value.scaleY == secondItem->value.scaleY;
+    case TRAttributeBaselineOffset:
+        return firstItem->value.baselineOffset == secondItem->value.baselineOffset;
+    case TRAttributeObliqueness:
+        return firstItem->value.obliqueness == secondItem->value.obliqueness;
+    case TRAttributeReplacement:
+        return firstItem->value.replacement == secondItem->value.replacement;
+    case TRAttributeTextAlignment:
+        return firstItem->value.textAlignment == secondItem->value.textAlignment;
+    case TRAttributeFirstLineHeadIndent:
+        return firstItem->value.firstLineHeadIndent == secondItem->value.firstLineHeadIndent;
+    case TRAttributeHeadIndent:
+        return firstItem->value.headIndent == secondItem->value.headIndent;
+    case TRAttributeTailIndent:
+        return firstItem->value.tailIndent == secondItem->value.tailIndent;
+    case TRAttributeFirstIndentLineCount:
+        return firstItem->value.firstIndentLineCount == secondItem->value.firstIndentLineCount;
+    case TRAttributeParagraphSpacingBefore:
+        return firstItem->value.paragraphSpacingBefore == secondItem->value.paragraphSpacingBefore;
+    case TRAttributeParagraphSpacing:
+        return firstItem->value.paragraphSpacing == secondItem->value.paragraphSpacing;
+    case TRAttributeLineHeightMultiple:
+        return firstItem->value.lineHeightMultiple == secondItem->value.lineHeightMultiple;
+    case TRAttributeMinimumLineHeight:
+        return firstItem->value.minimumLineHeight == secondItem->value.minimumLineHeight;
+    case TRAttributeMaximumLineHeight:
+        return firstItem->value.maximumLineHeight == secondItem->value.maximumLineHeight;
+    case TRAttributeLineSpacing:
+        return firstItem->value.lineSpacing == secondItem->value.lineSpacing;
     }
 
     return SBFalse;
@@ -56,6 +117,8 @@ static const void *RetainAttributeItem(const void *pointer)
 
     if (item->type == TRAttributeTypeface) {
         TRTypefaceRetain(item->value.typeface);
+    } else if (item->type == TRAttributeReplacement) {
+        TRReplacementRetain(item->value.replacement);
     }
 
     return pointer;
@@ -67,6 +130,8 @@ static void ReleaseAttributeItem(const void *pointer)
 
     if (item->type == TRAttributeTypeface) {
         TRTypefaceRelease(item->value.typeface);
+    } else if (item->type == TRAttributeReplacement) {
+        TRReplacementRelease(item->value.replacement);
     }
 }
 
@@ -78,19 +143,25 @@ static SBAttributeValueCallbacks AttributeItemCallbacks = {
 
 static void InitializeAttributeRegistry(void)
 {
-    SBAttributeInfo attributeInfos[] = {
-        { TypefaceAttributeName, SBAttributeGroupNone, SBAttributeScopeCharacter },
-        { PointSizeAttributeName, SBAttributeGroupNone, SBAttributeScopeCharacter }
-    };
+    SBAttributeInfo attributeInfos[AttributeCount];
     SBAttributeRegistryRef internalRegistry;
+    unsigned int index;
 
-    internalRegistry = SBAttributeRegistryCreate(attributeInfos, 2, sizeof(TRAttribute),
-        &AttributeItemCallbacks);
+    for (index = 0; index < AttributeCount; index++) {
+        attributeInfos[index].name = AttributeDescriptions[index].name;
+        attributeInfos[index].group = SBAttributeGroupNone;
+        attributeInfos[index].scope = AttributeDescriptions[index].scope;
+    }
+
+    internalRegistry = SBAttributeRegistryCreate(attributeInfos, AttributeCount,
+        sizeof(TRAttribute), &AttributeItemCallbacks);
 
     if (internalRegistry) {
         /* Cache the IDs once so TRTextSetAttribute/RemoveAttribute can route without a name lookup. */
-        TypefaceAttributeID = SBAttributeRegistryGetAttributeID(internalRegistry, TypefaceAttributeName);
-        PointSizeAttributeID = SBAttributeRegistryGetAttributeID(internalRegistry, PointSizeAttributeName);
+        for (index = 0; index < AttributeCount; index++) {
+            AttributeIDs[index + 1] = SBAttributeRegistryGetAttributeID(internalRegistry,
+                AttributeDescriptions[index].name);
+        }
 
         GlobalAttributeRegistry._registry = internalRegistry;
 
@@ -111,11 +182,8 @@ TR_INTERNAL SBAttributeID AttributeRegistryGetAttributeID(TRAttributeType type)
 {
     TryLazyInitializeAttributeRegistry();
 
-    switch (type) {
-    case TRAttributeTypeface:
-        return TypefaceAttributeID;
-    case TRAttributePointSize:
-        return PointSizeAttributeID;
+    if (type >= 1 && type <= AttributeCount) {
+        return AttributeIDs[type];
     }
 
     return SBAttributeIDNone;

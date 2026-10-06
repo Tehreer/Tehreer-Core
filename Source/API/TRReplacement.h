@@ -14,28 +14,20 @@
  * limitations under the License.
  */
 
-#ifndef _TEHREER__ATTRIBUTE_REGISTRY_TESTS_H
-#define _TEHREER__ATTRIBUTE_REGISTRY_TESTS_H
+#ifndef _TEHREER_API_REPLACEMENT_H
+#define _TEHREER_API_REPLACEMENT_H
 
-namespace Tehreer {
+#include <Tehreer/TRBase.h>
+#include <Tehreer/TRReplacement.h>
 
-class AttributeRegistryTests {
-public:
-    AttributeRegistryTests() = default;
+#include <Core/Object.h>
 
-    void run();
-
-private:
-    void testAttributeIDs();
-    void testUnknownAttributeType();
-    void testDefaultConfig();
-    void testRegisteredAttributeInfo();
-    void testAllAttributeTypes();
-    void testParagraphScopes();
-    void testEqualValuesMergeRuns();
-    void testConcurrentAccess();
-};
-
-}
+typedef struct _TRReplacement {
+    ObjectBase _base;
+    TRReplacementCallbacks callbacks;
+    void *userData;
+    TRFloat leading;
+    TRBoolean isBlock;
+} TRReplacement;
 
 #endif

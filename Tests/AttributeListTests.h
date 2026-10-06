@@ -36,6 +36,12 @@ private:
     void testTypefaceRetainBalance();
     void testUnknownAttributeType();
     void testListOutlivesText();
+    void testRunAttributeValues();
+    void testParagraphAttributeValues();
+    void testParagraphAttributesCoverParagraphs();
+    void testEqualParagraphAttributesMerge();
+    void testReplacementAttribute();
+    void testReplacementRetainBalance();
 };
 
 }
