@@ -167,7 +167,25 @@ TR_INTERNAL TRTypefaceRef TRTypefaceCreateDerived(RenderableFaceRef renderableFa
 TR_INTERNAL TRTypefaceRef TRTypefaceCreateDefault(RenderableFaceRef renderableFace,
     ShapableFaceRef shapableFace, const TRFloat *variationCoordinates)
 {
-    return TRTypefaceCreateDerived(renderableFace, shapableFace, variationCoordinates, NULL);
+    TRUInteger axisCount = renderableFace->metadata->variationAxisCount;
+    ShapableFaceRef typefaceFace;
+    TRTypefaceRef typeface;
+
+    /* The shapable face has to follow the variation coordinates of the typeface. */
+    if (variationCoordinates && axisCount > 0) {
+        typefaceFace = ShapableFaceCreateDerived(shapableFace, variationCoordinates, axisCount);
+    } else {
+        typefaceFace = ShapableFaceRetain(shapableFace);
+    }
+
+    if (!typefaceFace) {
+        return NULL;
+    }
+
+    typeface = TRTypefaceCreateDerived(renderableFace, typefaceFace, variationCoordinates, NULL);
+    ShapableFaceRelease(typefaceFace);
+
+    return typeface;
 }
 
 TRTypefaceRef TRTypefaceCreate(TRFontFileRef fontFile, TRUInteger faceIndex)
@@ -202,6 +220,7 @@ TRTypefaceRef TRTypefaceCreateWithVariation(TRTypefaceRef typeface, const TRFloa
     FaceMetadataRef metadata = typeface->renderableFace->metadata;
     TRUInteger axisCount = metadata->variationAxisCount;
     TRTypefaceRef derived = NULL;
+    ShapableFaceRef shapableFace;
     TRFloat *resolved;
     TRUInteger index;
 
@@ -231,8 +250,13 @@ TRTypefaceRef TRTypefaceCreateWithVariation(TRTypefaceRef typeface, const TRFloa
         resolved[index] = value;
     }
 
-    derived = TRTypefaceCreateDerived(typeface->renderableFace, typeface->shapableFace, resolved,
-        typeface->faceColors);
+    shapableFace = ShapableFaceCreateDerived(typeface->shapableFace, resolved, axisCount);
+
+    if (shapableFace) {
+        derived = TRTypefaceCreateDerived(typeface->renderableFace, shapableFace, resolved,
+            typeface->faceColors);
+        ShapableFaceRelease(shapableFace);
+    }
 
     AllocatorDeallocateBlock(resolved);
 

@@ -31,6 +31,16 @@ private:
     void testMissingTable();
     void testShaping();
     void testRetainRelease();
+    void testNominalGlyphs();
+    void testVariationGlyph();
+    void testAdvances();
+    void testAdvancesAreCached();
+    void testShapingUsesFontFuncs();
+    void testDerived();
+    void testDerivedOfDerived();
+    void testDerivedKeepsRootAlive();
+    void testSharedFaceDoesNotLeakCoordinates();
+    void testConcurrentAdvances();
 };
 
 }

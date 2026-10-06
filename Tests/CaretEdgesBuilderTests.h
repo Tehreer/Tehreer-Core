@@ -14,23 +14,30 @@
  * limitations under the License.
  */
 
-#ifndef _TEHREER_H
-#define _TEHREER_H
+#ifndef _TEHREER__CARET_EDGES_BUILDER_TESTS_H
+#define _TEHREER__CARET_EDGES_BUILDER_TESTS_H
 
-#include <Tehreer/TRAttribute.h>
-#include <Tehreer/TRAttributeList.h>
-#include <Tehreer/TRBase.h>
-#include <Tehreer/TRFontFile.h>
-#include <Tehreer/TRGeometry.h>
-#include <Tehreer/TRNamedStyle.h>
-#include <Tehreer/TRPalette.h>
-#include <Tehreer/TRPath.h>
-#include <Tehreer/TRShapingEngine.h>
-#include <Tehreer/TRShapingResult.h>
-#include <Tehreer/TRString.h>
-#include <Tehreer/TRText.h>
-#include <Tehreer/TRTypeface.h>
-#include <Tehreer/TRVariationAxis.h>
-#include <Tehreer/TRVersion.h>
+namespace Tehreer {
+
+class CaretEdgesBuilderTests {
+public:
+    CaretEdgesBuilderTests() = default;
+
+    void run();
+
+private:
+    void testOneGlyphPerCodeUnit();
+    void testRightToLeft();
+    void testLigature();
+    void testDecomposition();
+    void testCaretStops();
+    void testBackward();
+    void testBackwardLigature();
+    void testSingleCodeUnit();
+    void testSurrogatePair();
+    void testEmpty();
+};
+
+}
 
 #endif

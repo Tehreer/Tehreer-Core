@@ -14,23 +14,26 @@
  * limitations under the License.
  */
 
-#ifndef _TEHREER_H
-#define _TEHREER_H
+#ifndef _TEHREER_API_SHAPING_ENGINE_H
+#define _TEHREER_API_SHAPING_ENGINE_H
 
-#include <Tehreer/TRAttribute.h>
-#include <Tehreer/TRAttributeList.h>
 #include <Tehreer/TRBase.h>
-#include <Tehreer/TRFontFile.h>
-#include <Tehreer/TRGeometry.h>
-#include <Tehreer/TRNamedStyle.h>
-#include <Tehreer/TRPalette.h>
-#include <Tehreer/TRPath.h>
 #include <Tehreer/TRShapingEngine.h>
-#include <Tehreer/TRShapingResult.h>
-#include <Tehreer/TRString.h>
-#include <Tehreer/TRText.h>
 #include <Tehreer/TRTypeface.h>
-#include <Tehreer/TRVariationAxis.h>
-#include <Tehreer/TRVersion.h>
+
+#include <API/TRBase.h>
+#include <Core/Object.h>
+
+typedef struct _TRShapingEngine {
+    ObjectBase _base;
+    TRTypefaceRef typeface;
+    TRFloat typeSize;
+    TRTag scriptTag;
+    TRTag languageTag;
+    TRWritingDirection writingDirection;
+    TRShapingOrder shapingOrder;
+    TROpenTypeFeature *features;
+    TRUInteger featureCount;
+} TRShapingEngine;
 
 #endif

@@ -217,11 +217,13 @@ if(BUILD_TESTS)
   )
 
   set(TEST_TARGETS
+    AdvanceCacheTests
     AllocatorTests
     AtomicTests
     AttributeListTests
     AttributeRegistryTests
     BaseTests
+    CaretEdgesBuilderTests
     FaceMetadataTests
     FontFileTests
     FreeTypeTests
@@ -235,6 +237,7 @@ if(BUILD_TESTS)
     PathTests
     SFNTUtilitiesTests
     ShapableFaceTests
+    ShapingEngineTests
     SpinOnceTests
     TextTests
     TypefaceTests
@@ -243,6 +246,14 @@ if(BUILD_TESTS)
   set(PathTests
     Tests/PathTests.h
     Tests/PathTests.cpp
+  )
+  set(AdvanceCacheTests
+    Tests/AdvanceCacheTests.h
+    Tests/AdvanceCacheTests.cpp
+  )
+  set(CaretEdgesBuilderTests
+    Tests/CaretEdgesBuilderTests.h
+    Tests/CaretEdgesBuilderTests.cpp
   )
   set(AtomicTests
     Tests/AtomicTests.h
@@ -267,6 +278,10 @@ if(BUILD_TESTS)
   set(ObjectTests
     Tests/ObjectTests.h
     Tests/ObjectTests.cpp
+  )
+  set(ShapingEngineTests
+    Tests/ShapingEngineTests.h
+    Tests/ShapingEngineTests.cpp
   )
   set(SFNTUtilitiesTests
     Tests/SFNTUtilitiesTests.h

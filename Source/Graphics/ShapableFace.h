@@ -21,15 +21,34 @@
 
 #include <API/TRBase.h>
 #include <Core/Object.h>
+#include <Graphics/AdvanceCache.h>
 #include <Graphics/RenderableFace.h>
 
+/**
+ * Provides a HarfBuzz font whose glyph lookups and advances come from the FreeType faces of a
+ * `RenderableFace`. A root shapable face uses the default variation coordinates, and a derived one
+ * uses its own coordinates and advance cache while sharing the HarfBuzz face of its root. The
+ * coordinates are FreeType design coordinates in 16.16 format, one for each variation axis.
+ */
 typedef struct _ShapableFace {
     ObjectBase _base;
     RenderableFaceRef renderableFace;
+    struct _ShapableFace *rootFace;
     hb_face_t *hbFace;
+    hb_font_t *hbFont;
+    FT_Fixed *coordinates;
+    TRUInteger coordinateCount;
+    AdvanceCache advanceCache;
 } ShapableFace, *ShapableFaceRef;
 
 TR_INTERNAL ShapableFaceRef ShapableFaceCreate(RenderableFaceRef renderableFace);
+
+/*
+ * Creates a shapable face for the given design coordinates, one for each variation axis. The new
+ * face shares the HarfBuzz face and the renderable face of the parent's root.
+ */
+TR_INTERNAL ShapableFaceRef ShapableFaceCreateDerived(ShapableFaceRef parent,
+    const TRFloat *coordinates, TRUInteger coordinateCount);
 
 TR_INTERNAL ShapableFaceRef ShapableFaceRetain(ShapableFaceRef shapableFace);
 TR_INTERNAL void ShapableFaceRelease(ShapableFaceRef shapableFace);

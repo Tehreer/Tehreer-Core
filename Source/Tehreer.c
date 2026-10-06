@@ -21,6 +21,8 @@
 #include <API/TRAttributeList.c>
 #include <API/TRFontFile.c>
 #include <API/TRPath.c>
+#include <API/TRShapingEngine.c>
+#include <API/TRShapingResult.c>
 #include <API/TRText.c>
 #include <API/TRTypeface.c>
 #include <Core/Allocator.c>
@@ -29,11 +31,13 @@
 #include <Core/Object.c>
 #include <Core/Once.c>
 #include <Font/FaceMetadata.c>
+#include <Graphics/AdvanceCache.c>
 #include <Graphics/FreeType.c>
 #include <Graphics/GlyphBitmap.c>
 #include <Graphics/RenderableFace.c>
 #include <Graphics/ShapableFace.c>
 #include <SFNT/Utilities.c>
 #include <Text/AttributeRegistry.c>
+#include <Text/CaretEdgesBuilder.c>
 
 #endif
