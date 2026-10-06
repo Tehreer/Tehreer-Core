@@ -14,26 +14,27 @@
  * limitations under the License.
  */
 
-#include <Tehreer/Tehreer.h>
+#ifndef _TEHREER_API_PATH_H
+#define _TEHREER_API_PATH_H
 
-#ifdef TR_CONFIG_UNITY
+#include <ft2build.h>
+#include FT_OUTLINE_H
 
-#include <API/TRAttributeList.c>
-#include <API/TRFontFile.c>
-#include <API/TRPath.c>
-#include <API/TRText.c>
-#include <API/TRTypeface.c>
-#include <Core/Allocator.c>
-#include <Core/Memory.c>
-#include <Core/NameWriter.c>
-#include <Core/Object.c>
-#include <Core/Once.c>
-#include <Font/FaceMetadata.c>
-#include <Graphics/FreeType.c>
-#include <Graphics/GlyphBitmap.c>
-#include <Graphics/RenderableFace.c>
-#include <Graphics/ShapableFace.c>
-#include <SFNT/Utilities.c>
-#include <Text/AttributeRegistry.c>
+#include <Tehreer/TRBase.h>
+#include <Tehreer/TRPath.h>
+
+#include <API/TRBase.h>
+#include <Core/Object.h>
+
+typedef struct _TRPath {
+    ObjectBase _base;
+    FT_Outline outline;
+} TRPath;
+
+/*
+ * Creates a path that owns a FreeType copy of the outline. The coordinates of the outline MUST be
+ * in 26.6 fixed point format, as FreeType produces them. Returns NULL on failure.
+ */
+TR_INTERNAL TRPathRef TRPathCreateFromOutline(const FT_Outline *outline);
 
 #endif

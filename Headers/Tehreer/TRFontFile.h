@@ -56,6 +56,11 @@ TR_PUBLIC TRFontFileRef TRFontFileCreateFromPath(const char *path);
 TR_PUBLIC TRFontFileRef TRFontFileCreateFromMemory(const void *memory, TRUInteger size);
 
 /**
+ * Returns the number of faces in the font file. It is more than one for font collections.
+ */
+TR_PUBLIC TRUInteger TRFontFileGetFaceCount(TRFontFileRef fontFile);
+
+/**
  * Increments the reference count of a font file object.
  *
  * @param fontFile

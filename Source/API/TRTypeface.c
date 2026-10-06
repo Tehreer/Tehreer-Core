@@ -24,6 +24,8 @@
 #include <Tehreer/TRString.h>
 
 #include <API/TRBase.h>
+#include <API/TRFontFile.h>
+#include <Core/Allocator.h>
 #include <Core/Object.h>
 #include <Font/FaceMetadata.h>
 #include <Graphics/RenderableFace.h>
@@ -96,14 +98,17 @@ static void InitializeCoordinates(TRTypeface *typeface, FaceMetadataRef metadata
     }
 }
 
-static void InitializeColors(TRTypeface *typeface, FaceMetadataRef metadata)
+static void InitializeColors(TRTypeface *typeface, FaceMetadataRef metadata,
+    const TRColor *colors)
 {
     TRUInteger index;
 
     for (index = 0; index < metadata->paletteEntryCount; index++) {
         TRColor color = TRColorMake(0xFF, 0x00, 0x00, 0x00);
 
-        if (metadata->predefinedPaletteCount > 0) {
+        if (colors) {
+            color = colors[index];
+        } else if (metadata->predefinedPaletteCount > 0) {
             color = metadata->predefinedPalettesPtr[0].colorsPtr[index];
         }
 
@@ -115,8 +120,8 @@ static void InitializeColors(TRTypeface *typeface, FaceMetadataRef metadata)
     }
 }
 
-TR_INTERNAL TRTypefaceRef TRTypefaceCreateDefault(RenderableFaceRef renderableFace,
-    ShapableFaceRef shapableFace, const TRFloat *variationCoordinates)
+TR_INTERNAL TRTypefaceRef TRTypefaceCreateDerived(RenderableFaceRef renderableFace,
+    ShapableFaceRef shapableFace, const TRFloat *variationCoordinates, const TRColor *colors)
 {
     FaceMetadataRef metadata = renderableFace->metadata;
     TRTypeface *typeface;
@@ -129,7 +134,7 @@ TR_INTERNAL TRTypefaceRef TRTypefaceCreateDefault(RenderableFaceRef renderableFa
         FaceMetrics metrics;
 
         InitializeCoordinates(typeface, metadata, variationCoordinates);
-        InitializeColors(typeface, metadata);
+        InitializeColors(typeface, metadata, colors);
 
         RenderableFaceGetDescription(renderableFace, typeface->faceCoordinates, &subfamilyName,
             &description);
@@ -148,9 +153,122 @@ TR_INTERNAL TRTypefaceRef TRTypefaceCreateDefault(RenderableFaceRef renderableFa
         typeface->leading = metrics.leading;
         typeface->underlinePosition = metrics.underlinePosition;
         typeface->underlineThickness = metrics.underlineThickness;
+        typeface->strikeoutPosition = metrics.strikeoutPosition;
+        typeface->strikeoutThickness = metrics.strikeoutThickness;
+        typeface->xMin = metrics.xMin;
+        typeface->yMin = metrics.yMin;
+        typeface->xMax = metrics.xMax;
+        typeface->yMax = metrics.yMax;
     }
 
     return typeface;
+}
+
+TR_INTERNAL TRTypefaceRef TRTypefaceCreateDefault(RenderableFaceRef renderableFace,
+    ShapableFaceRef shapableFace, const TRFloat *variationCoordinates)
+{
+    return TRTypefaceCreateDerived(renderableFace, shapableFace, variationCoordinates, NULL);
+}
+
+TRTypefaceRef TRTypefaceCreate(TRFontFileRef fontFile, TRUInteger faceIndex)
+{
+    RenderableFaceRef renderableFace;
+    ShapableFaceRef shapableFace;
+    TRTypefaceRef typeface = NULL;
+
+    if (!fontFile || faceIndex >= fontFile->numFaces) {
+        return NULL;
+    }
+
+    renderableFace = RenderableFaceCreate(fontFile, faceIndex);
+    if (!renderableFace) {
+        return NULL;
+    }
+
+    shapableFace = ShapableFaceCreate(renderableFace);
+    if (shapableFace) {
+        typeface = TRTypefaceCreateDefault(renderableFace, shapableFace, NULL);
+        ShapableFaceRelease(shapableFace);
+    }
+
+    RenderableFaceRelease(renderableFace);
+
+    return typeface;
+}
+
+TRTypefaceRef TRTypefaceCreateWithVariation(TRTypefaceRef typeface, const TRFloat *coordinates,
+    TRUInteger count)
+{
+    FaceMetadataRef metadata = typeface->renderableFace->metadata;
+    TRUInteger axisCount = metadata->variationAxisCount;
+    TRTypefaceRef derived = NULL;
+    TRFloat *resolved;
+    TRUInteger index;
+
+    if (axisCount == 0) {
+        return NULL;
+    }
+
+    resolved = AllocatorAllocateBlock(sizeof(TRFloat) * axisCount);
+    if (!resolved) {
+        return NULL;
+    }
+
+    for (index = 0; index < axisCount; index++) {
+        const TRVariationAxis *axis = &metadata->variationAxesPtr[index];
+        TRFloat value = axis->defaultValue;
+
+        if (coordinates && index < count) {
+            value = coordinates[index];
+
+            if (value < axis->minValue) {
+                value = axis->minValue;
+            } else if (value > axis->maxValue) {
+                value = axis->maxValue;
+            }
+        }
+
+        resolved[index] = value;
+    }
+
+    derived = TRTypefaceCreateDerived(typeface->renderableFace, typeface->shapableFace, resolved,
+        typeface->faceColors);
+
+    AllocatorDeallocateBlock(resolved);
+
+    return derived;
+}
+
+TRTypefaceRef TRTypefaceCreateWithColors(TRTypefaceRef typeface, const TRColor *colors,
+    TRUInteger count)
+{
+    FaceMetadataRef metadata = typeface->renderableFace->metadata;
+    TRUInteger entryCount = metadata->paletteEntryCount;
+    TRTypefaceRef derived = NULL;
+    TRColor *resolved;
+    TRUInteger index;
+
+    if (entryCount == 0) {
+        return NULL;
+    }
+
+    resolved = AllocatorAllocateBlock(sizeof(TRColor) * entryCount);
+    if (!resolved) {
+        return NULL;
+    }
+
+    for (index = 0; index < entryCount; index++) {
+        resolved[index] = (colors && index < count
+                           ? colors[index]
+                           : TRColorMake(0xFF, 0x00, 0x00, 0x00));
+    }
+
+    derived = TRTypefaceCreateDerived(typeface->renderableFace, typeface->shapableFace,
+        typeface->faceCoordinates, resolved);
+
+    AllocatorDeallocateBlock(resolved);
+
+    return derived;
 }
 
 TRWeight TRTypefaceGetWeight(TRTypefaceRef typeface)
@@ -241,6 +359,110 @@ const TRFloat *TRTypefaceGetVariationCoordinatesPtr(TRTypefaceRef typeface)
 const TRColor *TRTypefaceGetAssociatedColorsPtr(TRTypefaceRef typeface)
 {
     return typeface->faceColors;
+}
+
+const TRStringView *TRTypefaceGetFamilyName(TRTypefaceRef typeface)
+{
+    return typeface->familyName;
+}
+
+const TRStringView *TRTypefaceGetSubfamilyName(TRTypefaceRef typeface)
+{
+    return typeface->subfamilyName;
+}
+
+const TRStringView *TRTypefaceGetFullName(TRTypefaceRef typeface)
+{
+    return typeface->renderableFace->metadata->fullName;
+}
+
+TRRect TRTypefaceGetBoundingBox(TRTypefaceRef typeface)
+{
+    TRRect box;
+
+    box.origin.x = (TRFloat)typeface->xMin;
+    box.origin.y = (TRFloat)typeface->yMin;
+    box.size.width = (TRFloat)(typeface->xMax - typeface->xMin);
+    box.size.height = (TRFloat)(typeface->yMax - typeface->yMin);
+
+    return box;
+}
+
+TRInt32 TRTypefaceGetUnderlinePosition(TRTypefaceRef typeface)
+{
+    return typeface->underlinePosition;
+}
+
+TRUInt32 TRTypefaceGetUnderlineThickness(TRTypefaceRef typeface)
+{
+    return typeface->underlineThickness;
+}
+
+TRInt32 TRTypefaceGetStrikeoutPosition(TRTypefaceRef typeface)
+{
+    return typeface->strikeoutPosition;
+}
+
+TRInt32 TRTypefaceGetStrikeoutThickness(TRTypefaceRef typeface)
+{
+    return typeface->strikeoutThickness;
+}
+
+TRGlyphID TRTypefaceGetGlyphID(TRTypefaceRef typeface, TRUInt32 codePoint)
+{
+    return RenderableFaceGetCodePointGlyphID(typeface->renderableFace, codePoint);
+}
+
+TRGlyphID TRTypefaceGetVariantGlyphID(TRTypefaceRef typeface, TRUInt32 codePoint,
+    TRUInt32 variantSelector)
+{
+    return RenderableFaceGetVariantGlyphID(typeface->renderableFace, codePoint, variantSelector);
+}
+
+static void SetupFontParams(TRTypefaceRef typeface, FontParams *fontParams, TRFloat typeSize)
+{
+    FT_F26Dot6 pixelSize = (FT_F26Dot6)((typeSize * 64.0f) + 0.5f);
+
+    fontParams->coordinatesPtr = typeface->rawCoordinates;
+    fontParams->coordinateCount = (FT_UInt)typeface->renderableFace->metadata->variationAxisCount;
+    fontParams->colorsPtr = NULL;
+    fontParams->colorCount = 0;
+    fontParams->pixelWidth = pixelSize;
+    fontParams->pixelHeight = pixelSize;
+    fontParams->transform.xx = 0x10000;
+    fontParams->transform.xy = 0;
+    fontParams->transform.yx = 0;
+    fontParams->transform.yy = 0x10000;
+}
+
+TRFloat TRTypefaceGetGlyphAdvance(TRTypefaceRef typeface, TRGlyphID glyphID, TRFloat typeSize,
+    TRBoolean isVertical)
+{
+    FontParams fontParams;
+    TRInt32 advance;
+
+    if (typeface->unitsPerEM == 0) {
+        return 0.0f;
+    }
+
+    SetupFontParams(typeface, &fontParams, typeSize);
+    advance = RenderableFaceGetDirectionalAdvance(typeface->renderableFace, &fontParams, glyphID,
+        isVertical);
+
+    return ((TRFloat)advance * typeSize) / (TRFloat)typeface->unitsPerEM;
+}
+
+TRPathRef TRTypefaceCreateGlyphPath(TRTypefaceRef typeface, TRGlyphID glyphID, TRFloat typeSize)
+{
+    FontParams fontParams;
+
+    if (typeSize <= 0.0f) {
+        return NULL;
+    }
+
+    SetupFontParams(typeface, &fontParams, typeSize);
+
+    return RenderableFaceCreateGlyphPath(typeface->renderableFace, &fontParams, glyphID);
 }
 
 TRTypefaceRef TRTypefaceRetain(TRTypefaceRef typeface)

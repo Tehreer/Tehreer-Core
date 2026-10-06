@@ -31,6 +31,7 @@ private:
     void testCreateFromMemory();
     void testMemoryIsCopied();
     void testInvalidInput();
+    void testFaceCount();
     void testCreateFTFace();
     void testRetainRelease();
     void testConcurrentFaceCreation();

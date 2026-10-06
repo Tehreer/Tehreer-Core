@@ -104,13 +104,5 @@
  */
 #define TRInvalidIndex  (TRUInteger)(-1)
 
-#define TRTagMake(a, b, c, d)   \
-(TRTag)                         \
-(                               \
-   ((TRUInt32)(TRUInt8)(a) << 24)   \
- | ((TRUInt32)(TRUInt8)(b) << 16)   \
- | ((TRUInt32)(TRUInt8)(c) << 8)    \
- | ((TRUInt32)(TRUInt8)(d))         \
-)
 
 #endif

@@ -18,8 +18,11 @@
 #define _TEHREER_TYPEFACE_H
 
 #include <Tehreer/TRBase.h>
+#include <Tehreer/TRFontFile.h>
+#include <Tehreer/TRGeometry.h>
 #include <Tehreer/TRNamedStyle.h>
 #include <Tehreer/TRPalette.h>
+#include <Tehreer/TRPath.h>
 #include <Tehreer/TRVariationAxis.h>
 
 TR_EXTERN_C_BEGIN
@@ -120,6 +123,138 @@ TR_PUBLIC TRUInteger TRTypefaceGetPredefinedPaletteCount(TRTypefaceRef typeface)
 TR_PUBLIC const TRFloat *TRTypefaceGetVariationCoordinatesPtr(TRTypefaceRef typeface);
 
 TR_PUBLIC const TRColor *TRTypefaceGetAssociatedColorsPtr(TRTypefaceRef typeface);
+
+/**
+ * Creates a typeface from a face of the font file, using the default variation coordinates and the
+ * first predefined palette.
+ *
+ * @param fontFile
+ *      The font file that contains the face.
+ * @param faceIndex
+ *      Index of the face, less than `TRFontFileGetFaceCount()`.
+ * @return
+ *      New typeface, or `NULL` if the index is out of range or the face cannot be loaded.
+ */
+TR_PUBLIC TRTypefaceRef TRTypefaceCreate(TRFontFileRef fontFile, TRUInteger faceIndex);
+
+/**
+ * Creates a variation instance of a typeface. The new typeface shares the font data with the
+ * source and keeps its colors.
+ *
+ * @param typeface
+ *      Source typeface.
+ * @param coordinates
+ *      Coordinates in the order of the variation axes. Each one is clamped to the range of its
+ *      axis. Missing coordinates (when `count` is less than the axis count, or `coordinates` is
+ *      `NULL`) take the default values of their axes.
+ * @param count
+ *      Number of values in `coordinates`.
+ * @return
+ *      New typeface, or `NULL` if the typeface has no variation axes or on failure.
+ */
+TR_PUBLIC TRTypefaceRef TRTypefaceCreateWithVariation(TRTypefaceRef typeface,
+    const TRFloat *coordinates, TRUInteger count);
+
+/**
+ * Creates a color instance of a typeface. The new typeface shares the font data with the source
+ * and keeps its variation coordinates.
+ *
+ * @param typeface
+ *      Source typeface.
+ * @param colors
+ *      Colors for the palette entries, in order. Missing colors (when `count` is less than the
+ *      palette entry count, or `colors` is `NULL`) are opaque black.
+ * @param count
+ *      Number of values in `colors`.
+ * @return
+ *      New typeface, or `NULL` if the typeface has no palette entries or on failure.
+ */
+TR_PUBLIC TRTypefaceRef TRTypefaceCreateWithColors(TRTypefaceRef typeface, const TRColor *colors,
+    TRUInteger count);
+
+/**
+ * Returns the family name, or `NULL` if the font has none in a supported encoding.
+ */
+TR_PUBLIC const TRStringView *TRTypefaceGetFamilyName(TRTypefaceRef typeface);
+
+/**
+ * Returns the subfamily (style) name; it follows the variation coordinates when they match a named
+ * style. `NULL` if there is none.
+ */
+TR_PUBLIC const TRStringView *TRTypefaceGetSubfamilyName(TRTypefaceRef typeface);
+
+/**
+ * Returns the full name, or `NULL` if the font has none in a supported encoding.
+ */
+TR_PUBLIC const TRStringView *TRTypefaceGetFullName(TRTypefaceRef typeface);
+
+/**
+ * Returns the bounding box that contains all glyphs, in font units with the y axis pointing up.
+ */
+TR_PUBLIC TRRect TRTypefaceGetBoundingBox(TRTypefaceRef typeface);
+
+/**
+ * Returns the position of the underline relative to the baseline, in font units.
+ */
+TR_PUBLIC TRInt32 TRTypefaceGetUnderlinePosition(TRTypefaceRef typeface);
+
+/**
+ * Returns the thickness of the underline, in font units.
+ */
+TR_PUBLIC TRUInt32 TRTypefaceGetUnderlineThickness(TRTypefaceRef typeface);
+
+/**
+ * Returns the position of the strikeout relative to the baseline, in font units. It is zero if the
+ * font has no `OS/2` table.
+ */
+TR_PUBLIC TRInt32 TRTypefaceGetStrikeoutPosition(TRTypefaceRef typeface);
+
+/**
+ * Returns the thickness of the strikeout, in font units. It is zero if the font has no `OS/2`
+ * table.
+ */
+TR_PUBLIC TRInt32 TRTypefaceGetStrikeoutThickness(TRTypefaceRef typeface);
+
+/**
+ * Returns the glyph that represents a code point.
+ *
+ * @return
+ *      The glyph ID, or 0 (the missing glyph) if the typeface has no glyph for it.
+ */
+TR_PUBLIC TRGlyphID TRTypefaceGetGlyphID(TRTypefaceRef typeface, TRUInt32 codePoint);
+
+/**
+ * Returns the glyph that represents a code point followed by a variation selector.
+ *
+ * @return
+ *      The glyph ID, or 0 if the typeface has no such variant.
+ */
+TR_PUBLIC TRGlyphID TRTypefaceGetVariantGlyphID(TRTypefaceRef typeface, TRUInt32 codePoint,
+    TRUInt32 variantSelector);
+
+/**
+ * Returns the unhinted advance of a glyph at the given size, following the variation coordinates of
+ * the typeface.
+ *
+ * @param typeSize
+ *      Size of the em square, in the unit the caller wants the advance in.
+ * @param isVertical
+ *      `TRTrue` for the vertical advance.
+ */
+TR_PUBLIC TRFloat TRTypefaceGetGlyphAdvance(TRTypefaceRef typeface, TRGlyphID glyphID,
+    TRFloat typeSize, TRBoolean isVertical);
+
+/**
+ * Creates the outline of a glyph. The origin is at the glyph's pen position on the baseline, and
+ * the y axis points downward.
+ *
+ * @param typeSize
+ *      Size of the em square.
+ * @return
+ *      New path, empty for glyphs without an outline such as a space, or `NULL` on failure.
+ */
+TR_PUBLIC TRPathRef TRTypefaceCreateGlyphPath(TRTypefaceRef typeface, TRGlyphID glyphID,
+    TRFloat typeSize);
 
 TR_PUBLIC TRTypefaceRef TRTypefaceRetain(TRTypefaceRef typeface);
 

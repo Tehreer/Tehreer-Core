@@ -180,6 +180,11 @@ TR_PUBLIC TRFontFileRef TRFontFileCreateFromMemory(const void *memory, TRUIntege
     return CreateFontFileWithArguments(&arguments);
 }
 
+TR_PUBLIC TRUInteger TRFontFileGetFaceCount(TRFontFileRef fontFile)
+{
+    return fontFile->numFaces;
+}
+
 TR_PUBLIC TRFontFileRef TRFontFileRetain(TRFontFileRef fontFile)
 {
     return ObjectRetain((ObjectRef)fontFile);

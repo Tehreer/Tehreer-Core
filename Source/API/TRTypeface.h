@@ -54,9 +54,23 @@ typedef struct _TRTypeface {
     TRUInt32 leading;
     TRInt32 underlinePosition;
     TRUInt32 underlineThickness;
+    TRInt32 strikeoutPosition;
+    TRInt32 strikeoutThickness;
+    TRInt32 xMin;
+    TRInt32 yMin;
+    TRInt32 xMax;
+    TRInt32 yMax;
 } TRTypeface;
 
 TR_INTERNAL TRTypefaceRef TRTypefaceCreateDefault(RenderableFaceRef renderableFace,
     ShapableFaceRef shapableFace, const TRFloat *variationCoordinates);
+
+/*
+ * Creates a typeface with explicit variation coordinates and palette colors. Either of them can
+ * be NULL to use the defaults. Both arrays MUST be as long as the axis count and the palette entry
+ * count of the face respectively.
+ */
+TR_INTERNAL TRTypefaceRef TRTypefaceCreateDerived(RenderableFaceRef renderableFace,
+    ShapableFaceRef shapableFace, const TRFloat *variationCoordinates, const TRColor *colors);
 
 #endif

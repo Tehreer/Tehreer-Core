@@ -21,6 +21,8 @@
 #include FT_COLOR_H
 #include FT_FREETYPE_H
 
+#include <Tehreer/TRGeometry.h>
+#include <Tehreer/TRPath.h>
 #include <Tehreer/TRString.h>
 #include <Tehreer/TRTypeface.h>
 
@@ -70,6 +72,12 @@ typedef struct _FaceMetrics {
     TRUInt32 leading;
     TRInt32 underlinePosition;
     TRUInt32 underlineThickness;
+    TRInt32 strikeoutPosition;
+    TRInt32 strikeoutThickness;
+    TRInt32 xMin;
+    TRInt32 yMin;
+    TRInt32 xMax;
+    TRInt32 yMax;
 } FaceMetrics;
 
 typedef struct _FontParams {
@@ -102,6 +110,19 @@ TR_INTERNAL void RenderableFaceGetMetrics(RenderableFaceRef renderableFace,
     FT_Fixed *variationCoordinates, FaceMetrics *metrics);
 
 TR_INTERNAL TRInt32 RenderableFaceGetGlyphAdvance(RenderableFaceRef renderableFace,
+    const FontParams *fontParams, TRGlyphID glyphID);
+
+/*
+ * Returns the advance of a glyph in font units, along the vertical axis if `isVertical` is true.
+ */
+TR_INTERNAL TRInt32 RenderableFaceGetDirectionalAdvance(RenderableFaceRef renderableFace,
+    const FontParams *fontParams, TRGlyphID glyphID, TRBoolean isVertical);
+
+/*
+ * Creates the outline of a glyph at the size given in `fontParams`, in 26.6 fixed point format.
+ * Returns NULL if the glyph has no outline or cannot be loaded.
+ */
+TR_INTERNAL TRPathRef RenderableFaceCreateGlyphPath(RenderableFaceRef renderableFace,
     const FontParams *fontParams, TRGlyphID glyphID);
 
 TR_INTERNAL GlyphBitmapRef RenderableFaceRasterizeGlyph(RenderableFaceRef renderableFace,

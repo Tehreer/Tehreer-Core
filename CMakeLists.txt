@@ -17,6 +17,7 @@ project(Tehreer
 
 option(TR_CONFIG_UNITY "Build with a single unity source file" ON)
 option(ENABLE_COVERAGE "Enable code coverage instrumentation (only enabled with BUILD_TESTING)" OFF)
+set(TR_DEPS_DIR "" CACHE PATH "Directory with pre-fetched dependency sources (freetype, harfbuzz, libunibreak, SheenBidi) to use instead of fetching them")
 option(ENABLE_ASAN "Enable address sanitizer" OFF)
 option(ENABLE_UBSAN "Enable undefined behavior sanitizer" OFF)
 
@@ -71,6 +72,19 @@ endfunction()
 # ------------------------------------------------------------------------------
 
 include(FetchContent)
+
+# Embedding builds (SwiftPM, Gradle/NDK) cannot reach the network. When TR_DEPS_DIR is set, each
+# dependency is taken from the directory named after it instead of being fetched.
+if(TR_DEPS_DIR)
+  foreach(DEPENDENCY freetype harfbuzz libunibreak SheenBidi)
+    if(NOT IS_DIRECTORY "${TR_DEPS_DIR}/${DEPENDENCY}")
+      message(FATAL_ERROR "TR_DEPS_DIR is missing the '${DEPENDENCY}' directory: ${TR_DEPS_DIR}")
+    endif()
+    string(TOUPPER ${DEPENDENCY} DEPENDENCY_UPPER)
+    set(FETCHCONTENT_SOURCE_DIR_${DEPENDENCY_UPPER} "${TR_DEPS_DIR}/${DEPENDENCY}" CACHE PATH "" FORCE)
+  endforeach()
+  set(FETCHCONTENT_FULLY_DISCONNECTED ON CACHE BOOL "" FORCE)
+endif()
 
 set(SKIP_INSTALL_ALL ON CACHE BOOL "Skip installing bundled dependencies" FORCE)
 set(FT_DISABLE_BROTLI ON CACHE BOOL "Disable support of compressed WOFF2 fonts" FORCE)
@@ -218,6 +232,7 @@ if(BUILD_TESTS)
     ObjectTests
     OnceTests
     RenderableFaceTests
+    PathTests
     SFNTUtilitiesTests
     ShapableFaceTests
     SpinOnceTests
@@ -225,6 +240,10 @@ if(BUILD_TESTS)
     TypefaceTests
   )
 
+  set(PathTests
+    Tests/PathTests.h
+    Tests/PathTests.cpp
+  )
   set(AtomicTests
     Tests/AtomicTests.h
     Tests/AtomicTests.cpp

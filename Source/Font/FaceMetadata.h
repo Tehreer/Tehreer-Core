@@ -30,6 +30,7 @@ typedef struct _FaceMetadata {
 
     TRStringView *familyName;
     TRStringView *subfamilyName;
+    TRStringView *fullName;
 
     TRWeight weight;
     TRWidth width;

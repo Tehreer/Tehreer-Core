@@ -55,6 +55,7 @@ typedef struct _ColorPalette {
 typedef struct _RawMetadata {
     NameString familyName;
     NameString subfamilyName;
+    NameString fullName;
 
     TRWeight weight;
     TRWidth width;
@@ -196,6 +197,10 @@ static RawMetadata *CreateRawMetadata(MemoryRef memory, FT_Face ftFace)
         SearchSubfamilyName(ftFace, os2Table, &rawMetadata->subfamilyName);
         nameCount += 1;
         nameBytes += rawMetadata->subfamilyName.length;
+
+        SearchFullName(ftFace, &rawMetadata->fullName);
+        nameCount += 1;
+        nameBytes += rawMetadata->fullName.length;
 
         rawMetadata->weight = TRWeightRegular;
         rawMetadata->width = TRWidthNormal;
@@ -368,6 +373,8 @@ static FaceMetadataRef CreateFaceMetadata(RawMetadata *rawMetadata)
         faceMetadata->familyName = NameWriterWrite(&writer, &rawMetadata->familyName);
 
         faceMetadata->subfamilyName = NameWriterWrite(&writer, &rawMetadata->subfamilyName);
+
+        faceMetadata->fullName = NameWriterWrite(&writer, &rawMetadata->fullName);
 
         faceMetadata->weight = rawMetadata->weight;
         faceMetadata->width = rawMetadata->width;

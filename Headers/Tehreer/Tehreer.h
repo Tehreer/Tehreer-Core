@@ -21,8 +21,10 @@
 #include <Tehreer/TRAttributeList.h>
 #include <Tehreer/TRBase.h>
 #include <Tehreer/TRFontFile.h>
+#include <Tehreer/TRGeometry.h>
 #include <Tehreer/TRNamedStyle.h>
 #include <Tehreer/TRPalette.h>
+#include <Tehreer/TRPath.h>
 #include <Tehreer/TRString.h>
 #include <Tehreer/TRText.h>
 #include <Tehreer/TRTypeface.h>

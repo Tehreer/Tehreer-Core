@@ -31,6 +31,7 @@
 #include <API/TRAssert.h>
 #include <API/TRBase.h>
 #include <API/TRFontFile.h>
+#include <API/TRPath.h>
 #include <Core/Allocator.h>
 #include <Core/AtomicUInt.h>
 #include <Core/Mutex.h>
@@ -293,30 +294,30 @@ TR_INTERNAL TRGlyphID RenderableFaceGetCodePointGlyphID(RenderableFaceRef render
     TRUInt32 codePoint)
 {
     UsableFace usableFace;
-    TRGlyphID glyphID;
+    FT_UInt index;
 
     GetUsableFace(renderableFace, &usableFace);
 
-    glyphID = FT_Get_Char_Index(usableFace.ftFace, codePoint);
+    index = FT_Get_Char_Index(usableFace.ftFace, codePoint);
 
     YieldUsableFace(renderableFace, &usableFace);
 
-    return glyphID;
+    return (index <= 0xFFFF ? (TRGlyphID)index : 0);
 }
 
 TR_INTERNAL TRGlyphID RenderableFaceGetVariantGlyphID(RenderableFaceRef renderableFace,
     TRUInt32 codePoint, TRUInt32 variantSelector)
 {
     UsableFace usableFace;
-    TRGlyphID glyphID;
+    FT_UInt index;
 
     GetUsableFace(renderableFace, &usableFace);
 
-    glyphID = FT_Face_GetCharVariantIndex(usableFace.ftFace, codePoint, variantSelector);
+    index = FT_Face_GetCharVariantIndex(usableFace.ftFace, codePoint, variantSelector);
 
     YieldUsableFace(renderableFace, &usableFace);
 
-    return glyphID;
+    return (index <= 0xFFFF ? (TRGlyphID)index : 0);
 }
 
 TR_INTERNAL void RenderableFaceGetDescription(RenderableFaceRef renderableFace,
@@ -400,6 +401,7 @@ TR_INTERNAL void RenderableFaceGetMetrics(RenderableFaceRef renderableFace,
 {
     FaceMetadataRef metadata = renderableFace->metadata;
     TRUInteger axisCount = metadata->variationAxisCount;
+    const TT_OS2 *os2Table;
     UsableFace usableFace;
 
     GetUsableFace(renderableFace, &usableFace);
@@ -417,25 +419,68 @@ TR_INTERNAL void RenderableFaceGetMetrics(RenderableFaceRef renderableFace,
         }
         metrics->underlinePosition = usableFace.ftFace->underline_position;
         metrics->underlineThickness = usableFace.ftFace->underline_thickness;
+
+        metrics->strikeoutPosition = 0;
+        metrics->strikeoutThickness = 0;
+        os2Table = FT_Get_Sfnt_Table(usableFace.ftFace, FT_SFNT_OS2);
+        if (os2Table) {
+            metrics->strikeoutPosition = os2Table->yStrikeoutPosition;
+            metrics->strikeoutThickness = os2Table->yStrikeoutSize;
+        }
+
+        metrics->xMin = usableFace.ftFace->bbox.xMin;
+        metrics->yMin = usableFace.ftFace->bbox.yMin;
+        metrics->xMax = usableFace.ftFace->bbox.xMax;
+        metrics->yMax = usableFace.ftFace->bbox.yMax;
     }
 
     YieldUsableFace(renderableFace, &usableFace);
 }
 
+TR_INTERNAL TRInt32 RenderableFaceGetDirectionalAdvance(RenderableFaceRef renderableFace,
+    const FontParams *fontParams, TRGlyphID glyphID, TRBoolean isVertical)
+{
+    FT_Int32 loadFlags = FT_LOAD_NO_SCALE;
+    FT_Fixed advance = 0;
+    UsableFace usableFace;
+
+    if (isVertical) {
+        loadFlags |= FT_LOAD_VERTICAL_LAYOUT;
+    }
+
+    GetUsableFace(renderableFace, &usableFace);
+    ActivateFont(usableFace.ftFace, fontParams, TRFalse);
+
+    FT_Get_Advance(usableFace.ftFace, glyphID, loadFlags, &advance);
+
+    YieldUsableFace(renderableFace, &usableFace);
+
+    return advance;
+}
+
 TR_INTERNAL TRInt32 RenderableFaceGetGlyphAdvance(RenderableFaceRef renderableFace,
     const FontParams *fontParams, TRGlyphID glyphID)
 {
-    FT_Fixed advance = 0;
+    return RenderableFaceGetDirectionalAdvance(renderableFace, fontParams, glyphID, TRFalse);
+}
+
+TR_INTERNAL TRPathRef RenderableFaceCreateGlyphPath(RenderableFaceRef renderableFace,
+    const FontParams *fontParams, TRGlyphID glyphID)
+{
+    TRPathRef path = NULL;
     UsableFace usableFace;
 
     GetUsableFace(renderableFace, &usableFace);
     ActivateFont(usableFace.ftFace, fontParams, TRFalse);
 
-    FT_Get_Advance(usableFace.ftFace, glyphID, FT_LOAD_NO_SCALE, &advance);
+    if (FT_Load_Glyph(usableFace.ftFace, glyphID, FT_LOAD_NO_BITMAP) == FT_Err_Ok
+            && usableFace.ftFace->glyph->format == FT_GLYPH_FORMAT_OUTLINE) {
+        path = TRPathCreateFromOutline(&usableFace.ftFace->glyph->outline);
+    }
 
     YieldUsableFace(renderableFace, &usableFace);
 
-    return advance;
+    return path;
 }
 
 TR_INTERNAL GlyphBitmapRef RenderableFaceRasterizeGlyph(RenderableFaceRef renderableFace,

@@ -18,6 +18,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -51,6 +52,7 @@ void FontFileTests::run() {
     testCreateFromMemory();
     testMemoryIsCopied();
     testInvalidInput();
+    testFaceCount();
     testCreateFTFace();
     testRetainRelease();
     testConcurrentFaceCreation();
@@ -194,6 +196,15 @@ void FontFileTests::testConcurrentFaceCreation() {
     for (auto &t : threads) {
         t.join();
     }
+
+    TRFontFileRelease(fontFile);
+}
+
+void FontFileTests::testFaceCount() {
+    TRFontFileRef fontFile = TRFontFileCreateFromPath(testFontPath("Roboto-Regular.abc.ttf").c_str());
+
+    assert(TRFontFileGetFaceCount(fontFile) == 1);
+    assert(TRFontFileGetFaceCount(fontFile) == fontFile->numFaces);
 
     TRFontFileRelease(fontFile);
 }

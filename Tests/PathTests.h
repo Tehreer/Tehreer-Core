@@ -14,26 +14,29 @@
  * limitations under the License.
  */
 
-#include <Tehreer/Tehreer.h>
+#ifndef _TEHREER__PATH_TESTS_H
+#define _TEHREER__PATH_TESTS_H
 
-#ifdef TR_CONFIG_UNITY
+namespace Tehreer {
 
-#include <API/TRAttributeList.c>
-#include <API/TRFontFile.c>
-#include <API/TRPath.c>
-#include <API/TRText.c>
-#include <API/TRTypeface.c>
-#include <Core/Allocator.c>
-#include <Core/Memory.c>
-#include <Core/NameWriter.c>
-#include <Core/Object.c>
-#include <Core/Once.c>
-#include <Font/FaceMetadata.c>
-#include <Graphics/FreeType.c>
-#include <Graphics/GlyphBitmap.c>
-#include <Graphics/RenderableFace.c>
-#include <Graphics/ShapableFace.c>
-#include <SFNT/Utilities.c>
-#include <Text/AttributeRegistry.c>
+class PathTests {
+public:
+    PathTests() = default;
+
+    void run();
+
+private:
+    void testPolygon();
+    void testQuadraticCurve();
+    void testCubicCurve();
+    void testMultipleContours();
+    void testEmptyOutline();
+    void testTransform();
+    void testMissingCallbacks();
+    void testOutlineIsCopied();
+    void testRetainRelease();
+};
+
+}
 
 #endif
