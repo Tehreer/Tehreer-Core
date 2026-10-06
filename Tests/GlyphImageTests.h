@@ -14,35 +14,24 @@
  * limitations under the License.
  */
 
-#ifndef _TEHREER__RENDERABLE_FACE_TESTS_H
-#define _TEHREER__RENDERABLE_FACE_TESTS_H
+#ifndef _TEHREER__GLYPH_IMAGE_TESTS_H
+#define _TEHREER__GLYPH_IMAGE_TESTS_H
 
 namespace Tehreer {
 
-class RenderableFaceTests {
+class GlyphImageTests {
 public:
-    RenderableFaceTests() = default;
+    GlyphImageTests() = default;
 
     void run();
 
 private:
-    void testCreate();
-    void testCreateInvalidIndex();
-    void testGlyphIDs();
-    void testCopyTable();
-    void testSearchEnglishName();
-    void testDescription();
-    void testVariationDescription();
-    void testMetrics();
-    void testGlyphAdvance();
-    void testVariationGlyphAdvance();
-    void testRasterizeGlyph();
-    void testRasterizeColorGlyph();
-    void testRasterizeInvalidGlyph();
-    void testConcurrentAccess();
-    void testConcurrentVariations();
+    void testAlphaImage();
+    void testColorImage();
+    void testNativeData();
+    void testNativeDataWithoutDestroy();
+    void testNativeDataRace();
     void testRetainRelease();
-    void testGlyphType();
 };
 
 }

@@ -229,12 +229,15 @@ if(BUILD_TESTS)
     FontFileTests
     FreeTypeTests
     GlyphBitmapTests
+    GlyphCacheTests
+    GlyphImageTests
     MemoryTests
     MutexTests
     NameWriterTests
     ObjectTests
     OnceTests
     RenderableFaceTests
+    RendererTests
     ReplacementTests
     PathTests
     SFNTUtilitiesTests
@@ -285,6 +288,10 @@ if(BUILD_TESTS)
     Tests/ObjectTests.h
     Tests/ObjectTests.cpp
   )
+  set(RendererTests
+    Tests/RendererTests.h
+    Tests/RendererTests.cpp
+  )
   set(ReplacementTests
     Tests/ReplacementTests.h
     Tests/ReplacementTests.cpp
@@ -308,6 +315,14 @@ if(BUILD_TESTS)
   set(GlyphBitmapTests
     Tests/GlyphBitmapTests.h
     Tests/GlyphBitmapTests.cpp
+  )
+  set(GlyphCacheTests
+    Tests/GlyphCacheTests.h
+    Tests/GlyphCacheTests.cpp
+  )
+  set(GlyphImageTests
+    Tests/GlyphImageTests.h
+    Tests/GlyphImageTests.cpp
   )
   set(RenderableFaceTests
     Tests/RenderableFaceTests.h

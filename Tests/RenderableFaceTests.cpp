@@ -64,6 +64,7 @@ void RenderableFaceTests::run() {
     testConcurrentAccess();
     testConcurrentVariations();
     testRetainRelease();
+    testGlyphType();
 }
 
 class FontFileHolder {
@@ -428,6 +429,30 @@ void RenderableFaceTests::testConcurrentVariations() {
     }
 
     RenderableFaceRelease(face);
+}
+
+void RenderableFaceTests::testGlyphType() {
+    /* A font without colors only has mask glyphs. */
+    FontFileHolder plain("Roboto-Regular.abc.ttf");
+    RenderableFaceRef plainFace = RenderableFaceCreate(plain.get(), 0);
+    for (TRGlyphID glyph = 0; glyph < 4; glyph++) {
+        assert(RenderableFaceGetGlyphType(plainFace, glyph) == GlyphTypeMask);
+    }
+    assert(RenderableFaceGetGlyphType(plainFace, 100) == GlyphTypeMask);
+    RenderableFaceRelease(plainFace);
+
+    /* Only the glyph with color layers is a color glyph. */
+    FontFileHolder colored("COLRv0.extents.ttf");
+    RenderableFaceRef coloredFace = RenderableFaceCreate(colored.get(), 0);
+    assert(RenderableFaceGetGlyphType(coloredFace, 1) == GlyphTypeMask);
+    assert(RenderableFaceGetGlyphType(coloredFace, 13) == GlyphTypeColor);
+    RenderableFaceRelease(coloredFace);
+
+    FontFileHolder variableColor("RocherColorGX.abc.ttf");
+    RenderableFaceRef variableFace = RenderableFaceCreate(variableColor.get(), 0);
+    assert(RenderableFaceGetGlyphType(variableFace, 0) == GlyphTypeColor);
+    assert(RenderableFaceGetGlyphType(variableFace, 4) == GlyphTypeMask);
+    RenderableFaceRelease(variableFace);
 }
 
 void RenderableFaceTests::testRetainRelease() {

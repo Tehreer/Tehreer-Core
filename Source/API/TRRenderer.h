@@ -14,27 +14,32 @@
  * limitations under the License.
  */
 
-#ifndef _TEHREER_H
-#define _TEHREER_H
+#ifndef _TEHREER_API_RENDERER_H
+#define _TEHREER_API_RENDERER_H
 
-#include <Tehreer/TRAttribute.h>
-#include <Tehreer/TRAttributeList.h>
 #include <Tehreer/TRBase.h>
-#include <Tehreer/TRFontFile.h>
-#include <Tehreer/TRGeometry.h>
 #include <Tehreer/TRGlyphCache.h>
-#include <Tehreer/TRGlyphImage.h>
-#include <Tehreer/TRNamedStyle.h>
-#include <Tehreer/TRPalette.h>
-#include <Tehreer/TRPath.h>
 #include <Tehreer/TRRenderer.h>
-#include <Tehreer/TRReplacement.h>
-#include <Tehreer/TRShapingEngine.h>
-#include <Tehreer/TRShapingResult.h>
-#include <Tehreer/TRString.h>
-#include <Tehreer/TRText.h>
 #include <Tehreer/TRTypeface.h>
-#include <Tehreer/TRVariationAxis.h>
-#include <Tehreer/TRVersion.h>
+
+#include <API/TRBase.h>
+#include <Core/Object.h>
+
+typedef struct _TRRenderer {
+    ObjectBase _base;
+    TRGlyphCacheRef cache;
+    TRTypefaceRef typeface;
+    TRFloat typeSize;
+    TRFloat scaleX;
+    TRFloat scaleY;
+    TRFloat skewX;
+    TRFloat renderScale;
+    TRWritingDirection writingDirection;
+    TRColor foregroundColor;
+    TRFloat strokeWidth;
+    TRStrokeCap strokeCap;
+    TRStrokeJoin strokeJoin;
+    TRFloat strokeMiter;
+} TRRenderer;
 
 #endif

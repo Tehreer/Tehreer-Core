@@ -483,6 +483,41 @@ TR_INTERNAL TRPathRef RenderableFaceCreateGlyphPath(RenderableFaceRef renderable
     return path;
 }
 
+TR_INTERNAL GlyphType RenderableFaceGetGlyphType(RenderableFaceRef renderableFace, TRGlyphID glyphID)
+{
+    FT_LayerIterator iterator;
+    FT_UInt layerGlyphID = 0;
+    FT_UInt colorIndex = 0;
+    TRBoolean isColored = TRFalse;
+    TRBoolean hasMask = TRFalse;
+    UsableFace usableFace;
+
+    GetUsableFace(renderableFace, &usableFace);
+
+    iterator.num_layers = 0;
+    iterator.layer = 0;
+    iterator.p = NULL;
+
+    while (FT_Get_Color_Glyph_Layer(usableFace.ftFace, glyphID, &layerGlyphID, &colorIndex,
+            &iterator)) {
+        isColored = TRTrue;
+
+        /* A layer with this color index is painted with the foreground color. */
+        if (colorIndex == 0xFFFF) {
+            hasMask = TRTrue;
+            break;
+        }
+    }
+
+    YieldUsableFace(renderableFace, &usableFace);
+
+    if (!isColored) {
+        return GlyphTypeMask;
+    }
+
+    return (hasMask ? GlyphTypeMixed : GlyphTypeColor);
+}
+
 TR_INTERNAL GlyphBitmapRef RenderableFaceRasterizeGlyph(RenderableFaceRef renderableFace,
     const FontParams *fontParams, TRGlyphID glyphID, FT_Color foregroundColor)
 {

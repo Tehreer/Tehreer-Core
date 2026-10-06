@@ -20,7 +20,10 @@
 
 #include <API/TRAttributeList.c>
 #include <API/TRFontFile.c>
+#include <API/TRGlyphCache.c>
+#include <API/TRGlyphImage.c>
 #include <API/TRPath.c>
+#include <API/TRRenderer.c>
 #include <API/TRReplacement.c>
 #include <API/TRShapingEngine.c>
 #include <API/TRShapingResult.c>
@@ -34,6 +37,7 @@
 #include <Font/FaceMetadata.c>
 #include <Graphics/AdvanceCache.c>
 #include <Graphics/FreeType.c>
+#include <Graphics/GlyphCache.c>
 #include <Graphics/GlyphBitmap.c>
 #include <Graphics/RenderableFace.c>
 #include <Graphics/ShapableFace.c>

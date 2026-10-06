@@ -20,9 +20,13 @@
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include FT_OUTLINE_H
+#include FT_STROKER_H
 
 #include <API/TRBase.h>
 #include <Core/Allocator.h>
+#include <Core/Mutex.h>
+#include <Graphics/FreeType.h>
 
 #include "GlyphBitmap.h"
 
@@ -63,9 +67,9 @@ static void InitializeGlyphBitmap(GlyphBitmapRef bitmap, TRInt32 left, TRInt32 t
     bitmap->format = format;
 }
 
-TR_INTERNAL GlyphBitmapRef GlyphBitmapCreateFromSlot(FT_GlyphSlot slot)
+TR_INTERNAL GlyphBitmapRef GlyphBitmapCreateFromBitmap(const FT_Bitmap *ftBitmap, TRInt32 left,
+    TRInt32 top)
 {
-    const FT_Bitmap *ftBitmap = &slot->bitmap;
     TRUInt32 width = ftBitmap->width;
     TRUInt32 height = ftBitmap->rows;
     GlyphBitmapRef glyphBitmap = NULL;
@@ -82,8 +86,6 @@ TR_INTERNAL GlyphBitmapRef GlyphBitmapCreateFromSlot(FT_GlyphSlot slot)
             if (glyphBitmap) {
                 const TRUInt8 *row = ftBitmap->buffer;
                 TRInt32 pitch = ftBitmap->pitch;
-                TRInt32 left = slot->bitmap_left;
-                TRInt32 top = slot->bitmap_top;
                 TRUInteger x, y;
 
                 InitializeGlyphBitmap(glyphBitmap, left, top, width, height, BitmapFormatAlpha);
@@ -115,8 +117,6 @@ TR_INTERNAL GlyphBitmapRef GlyphBitmapCreateFromSlot(FT_GlyphSlot slot)
             if (glyphBitmap) {
                 const TRUInt8 *row = ftBitmap->buffer;
                 TRInt32 pitch = ftBitmap->pitch;
-                TRInt32 left = slot->bitmap_left;
-                TRInt32 top = slot->bitmap_top;
                 TRUInteger x, y;
 
                 InitializeGlyphBitmap(glyphBitmap, left, top, width, height, BitmapFormatAlpha);
@@ -138,8 +138,6 @@ TR_INTERNAL GlyphBitmapRef GlyphBitmapCreateFromSlot(FT_GlyphSlot slot)
             if (glyphBitmap) {
                 const TRUInt8 *row = ftBitmap->buffer;
                 TRInt32 pitch = ftBitmap->pitch;
-                TRInt32 left = slot->bitmap_left;
-                TRInt32 top = slot->bitmap_top;
                 TRUInteger x, y;
 
                 InitializeGlyphBitmap(glyphBitmap, left, top, width, height, BitmapFormatARGB);
@@ -170,6 +168,90 @@ TR_INTERNAL GlyphBitmapRef GlyphBitmapCreateFromSlot(FT_GlyphSlot slot)
 
     return glyphBitmap;
 }
+
+TR_INTERNAL GlyphBitmapRef GlyphBitmapCreateFromSlot(FT_GlyphSlot slot)
+{
+    return GlyphBitmapCreateFromBitmap(&slot->bitmap, slot->bitmap_left, slot->bitmap_top);
+}
+
+#define PixelFloor(value_)  ((value_) & ~(FT_Pos)63)
+#define PixelCeil(value_)   (((value_) + 63) & ~(FT_Pos)63)
+
+TR_INTERNAL GlyphBitmapRef GlyphBitmapCreateFromStroke(const FT_Outline *outline,
+    FT_Fixed lineRadius, FT_Stroker_LineCap lineCap, FT_Stroker_LineJoin lineJoin,
+    FT_Fixed miterLimit)
+{
+    FreeTypeRef freetype = FreeTypeGetDefault();
+    GlyphBitmapRef glyphBitmap = NULL;
+    FT_Stroker stroker = NULL;
+    FT_Outline stroked;
+    FT_UInt pointCount = 0;
+    FT_UInt contourCount = 0;
+
+    if (outline->n_points == 0) {
+        return NULL;
+    }
+
+    MutexLock(&freetype->mutex);
+
+    if (FT_Stroker_New(freetype->library, &stroker) == FT_Err_Ok) {
+        FT_Stroker_Set(stroker, lineRadius, lineCap, lineJoin, miterLimit);
+
+        if (FT_Stroker_ParseOutline(stroker, (FT_Outline *)outline, 0) == FT_Err_Ok
+                && FT_Stroker_GetCounts(stroker, &pointCount, &contourCount) == FT_Err_Ok
+                && FT_Outline_New(freetype->library, pointCount, contourCount, &stroked) == FT_Err_Ok) {
+            FT_BBox box;
+
+            /* The outline MUST be empty before the stroker exports into it. */
+            stroked.n_points = 0;
+            stroked.n_contours = 0;
+            FT_Stroker_Export(stroker, &stroked);
+
+            FT_Outline_Get_CBox(&stroked, &box);
+            box.xMin = PixelFloor(box.xMin);
+            box.yMin = PixelFloor(box.yMin);
+            box.xMax = PixelCeil(box.xMax);
+            box.yMax = PixelCeil(box.yMax);
+
+            if (box.xMax > box.xMin && box.yMax > box.yMin) {
+                TRUInt32 width = (TRUInt32)((box.xMax - box.xMin) >> 6);
+                TRUInt32 height = (TRUInt32)((box.yMax - box.yMin) >> 6);
+                FT_Bitmap bitmap;
+
+                bitmap.width = width;
+                bitmap.rows = height;
+                bitmap.pitch = (int)width;
+                bitmap.pixel_mode = FT_PIXEL_MODE_GRAY;
+                bitmap.num_grays = 256;
+                bitmap.palette_mode = 0;
+                bitmap.palette = NULL;
+                bitmap.buffer = calloc(width * height, 1);
+
+                if (bitmap.buffer) {
+                    FT_Outline_Translate(&stroked, -box.xMin, -box.yMin);
+
+                    if (FT_Outline_Get_Bitmap(freetype->library, &stroked, &bitmap) == FT_Err_Ok) {
+                        glyphBitmap = GlyphBitmapCreateFromBitmap(&bitmap, (TRInt32)(box.xMin >> 6),
+                            (TRInt32)(box.yMax >> 6));
+                    }
+
+                    free(bitmap.buffer);
+                }
+            }
+
+            FT_Outline_Done(freetype->library, &stroked);
+        }
+
+        FT_Stroker_Done(stroker);
+    }
+
+    MutexUnlock(&freetype->mutex);
+
+    return glyphBitmap;
+}
+
+#undef PixelFloor
+#undef PixelCeil
 
 TR_INTERNAL void GlyphBitmapDestroy(GlyphBitmapRef bitmap)
 {

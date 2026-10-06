@@ -14,35 +14,35 @@
  * limitations under the License.
  */
 
-#ifndef _TEHREER__RENDERABLE_FACE_TESTS_H
-#define _TEHREER__RENDERABLE_FACE_TESTS_H
+#ifndef _TEHREER__GLYPH_CACHE_TESTS_H
+#define _TEHREER__GLYPH_CACHE_TESTS_H
 
 namespace Tehreer {
 
-class RenderableFaceTests {
+class GlyphCacheTests {
 public:
-    RenderableFaceTests() = default;
+    GlyphCacheTests() = default;
 
     void run();
 
 private:
     void testCreate();
-    void testCreateInvalidIndex();
-    void testGlyphIDs();
-    void testCopyTable();
-    void testSearchEnglishName();
-    void testDescription();
-    void testVariationDescription();
-    void testMetrics();
-    void testGlyphAdvance();
-    void testVariationGlyphAdvance();
-    void testRasterizeGlyph();
-    void testRasterizeColorGlyph();
-    void testRasterizeInvalidGlyph();
-    void testConcurrentAccess();
-    void testConcurrentVariations();
-    void testRetainRelease();
-    void testGlyphType();
+    void testDefaultCache();
+    void testImageIsCached();
+    void testKeysDistinguishSettings();
+    void testForegroundColorDoesNotSplitMaskGlyphs();
+    void testPathIsCached();
+    void testStrokeImages();
+    void testMissingGlyphs();
+    void testEvictionByCapacity();
+    void testLeastRecentlyUsedGoesFirst();
+    void testEvictedImagesStayValid();
+    void testTypefaceRetention();
+    void testClearAndCapacity();
+    void testTableGrowth();
+    void testNativeDataFollowsImage();
+    void testConcurrentLookups();
+    void testSeparateCaches();
 };
 
 }

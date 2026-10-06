@@ -59,6 +59,17 @@ typedef struct _RenderableFace {
     TRUInteger glyphCount;
 } RenderableFace, *RenderableFaceRef;
 
+/*
+ * How the image of a glyph depends on the foreground color. A mask glyph is painted only with the
+ * foreground color, a color glyph never uses it, and a mixed one has layers of both kinds.
+ */
+enum {
+    GlyphTypeMask,
+    GlyphTypeColor,
+    GlyphTypeMixed
+};
+typedef TRUInt32 GlyphType;
+
 typedef struct _FaceDescription {
     TRWeight weight;
     TRWidth width;
@@ -124,6 +135,8 @@ TR_INTERNAL TRInt32 RenderableFaceGetDirectionalAdvance(RenderableFaceRef render
  */
 TR_INTERNAL TRPathRef RenderableFaceCreateGlyphPath(RenderableFaceRef renderableFace,
     const FontParams *fontParams, TRGlyphID glyphID);
+
+TR_INTERNAL GlyphType RenderableFaceGetGlyphType(RenderableFaceRef renderableFace, TRGlyphID glyphID);
 
 TR_INTERNAL GlyphBitmapRef RenderableFaceRasterizeGlyph(RenderableFaceRef renderableFace,
     const FontParams *fontParams, TRGlyphID glyphID, FT_Color foregroundColor);
