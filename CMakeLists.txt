@@ -224,9 +224,13 @@ if(BUILD_TESTS)
     AttributeRegistryTests
     BaseTests
     BreakClassifierTests
+    BreakResolverTests
     CaretEdgesBuilderTests
+    CaretUtilsTests
+    ComposedLineTests
     FaceMetadataTests
     FontFileTests
+    FrameTests
     FreeTypeTests
     GlyphBitmapTests
     GlyphCacheTests
@@ -244,8 +248,10 @@ if(BUILD_TESTS)
     ShapableFaceTests
     ShapingEngineTests
     SpinOnceTests
+    TextBufferTests
     TextTests
     TypefaceTests
+    TypesetterTests
   )
 
   set(PathTests
@@ -256,9 +262,33 @@ if(BUILD_TESTS)
     Tests/AdvanceCacheTests.h
     Tests/AdvanceCacheTests.cpp
   )
+  set(BreakResolverTests
+    Tests/BreakResolverTests.h
+    Tests/BreakResolverTests.cpp
+  )
   set(BreakClassifierTests
     Tests/BreakClassifierTests.h
     Tests/BreakClassifierTests.cpp
+  )
+  set(FrameTests
+    Tests/FrameTests.h
+    Tests/FrameTests.cpp
+  )
+  set(ComposedLineTests
+    Tests/ComposedLineTests.h
+    Tests/ComposedLineTests.cpp
+  )
+  set(CaretUtilsTests
+    Tests/CaretUtilsTests.h
+    Tests/CaretUtilsTests.cpp
+  )
+  set(TypesetterTests
+    Tests/TypesetterTests.h
+    Tests/TypesetterTests.cpp
+  )
+  set(TextBufferTests
+    Tests/TextBufferTests.h
+    Tests/TextBufferTests.cpp
   )
   set(CaretEdgesBuilderTests
     Tests/CaretEdgesBuilderTests.h

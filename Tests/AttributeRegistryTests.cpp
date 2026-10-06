@@ -61,7 +61,7 @@ void AttributeRegistryTests::testAttributeIDs() {
 
 void AttributeRegistryTests::testUnknownAttributeType() {
     assert(AttributeRegistryGetAttributeID(0) == SBAttributeIDNone);
-    assert(AttributeRegistryGetAttributeID(19) == SBAttributeIDNone);
+    assert(AttributeRegistryGetAttributeID(21) == SBAttributeIDNone);
     assert(AttributeRegistryGetAttributeID(100) == SBAttributeIDNone);
     assert(AttributeRegistryGetAttributeID(0xFFFF) == SBAttributeIDNone);
 }
@@ -122,7 +122,9 @@ static const AttributeSpec Specs[] = {
     { TRAttributeLineHeightMultiple, "LineHeightMultiple", SBAttributeScopeParagraph },
     { TRAttributeMinimumLineHeight, "MinimumLineHeight", SBAttributeScopeParagraph },
     { TRAttributeMaximumLineHeight, "MaximumLineHeight", SBAttributeScopeParagraph },
-    { TRAttributeLineSpacing, "LineSpacing", SBAttributeScopeParagraph }
+    { TRAttributeLineSpacing, "LineSpacing", SBAttributeScopeParagraph },
+    { TRAttributeForegroundColor, "ForegroundColor", SBAttributeScopeCharacter },
+    { TRAttributeUserData, "UserData", SBAttributeScopeCharacter }
 };
 constexpr size_t SpecCount = sizeof(Specs) / sizeof(Specs[0]);
 

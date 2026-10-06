@@ -42,6 +42,8 @@ private:
     void testEqualParagraphAttributesMerge();
     void testReplacementAttribute();
     void testReplacementRetainBalance();
+    void testForegroundColorAttribute();
+    void testUserDataAttribute();
 };
 
 }

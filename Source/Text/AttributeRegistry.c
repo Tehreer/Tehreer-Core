@@ -24,7 +24,7 @@
 
 #include "AttributeRegistry.h"
 
-#define AttributeCount  18
+#define AttributeCount  20
 
 typedef struct _AttributeDescription {
     const char *name;
@@ -50,7 +50,9 @@ static const AttributeDescription AttributeDescriptions[AttributeCount] = {
     { "LineHeightMultiple",     SBAttributeScopeParagraph },
     { "MinimumLineHeight",      SBAttributeScopeParagraph },
     { "MaximumLineHeight",      SBAttributeScopeParagraph },
-    { "LineSpacing",            SBAttributeScopeParagraph }
+    { "LineSpacing",            SBAttributeScopeParagraph },
+    { "ForegroundColor",        SBAttributeScopeCharacter },
+    { "UserData",               SBAttributeScopeCharacter }
 };
 
 static AttributeRegistry GlobalAttributeRegistry;
@@ -106,6 +108,10 @@ static SBBoolean EqualAttributeItem(const void *firstPtr, const void *secondPtr)
         return firstItem->value.maximumLineHeight == secondItem->value.maximumLineHeight;
     case TRAttributeLineSpacing:
         return firstItem->value.lineSpacing == secondItem->value.lineSpacing;
+    case TRAttributeForegroundColor:
+        return firstItem->value.foregroundColor == secondItem->value.foregroundColor;
+    case TRAttributeUserData:
+        return firstItem->value.userData == secondItem->value.userData;
     }
 
     return SBFalse;

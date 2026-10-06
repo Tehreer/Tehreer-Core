@@ -20,10 +20,14 @@
 #include <Tehreer/TRAttribute.h>
 #include <Tehreer/TRAttributeList.h>
 #include <Tehreer/TRBase.h>
+#include <Tehreer/TRComposedFrame.h>
+#include <Tehreer/TRComposedLine.h>
 #include <Tehreer/TRFontFile.h>
+#include <Tehreer/TRFrameResolver.h>
 #include <Tehreer/TRGeometry.h>
 #include <Tehreer/TRGlyphCache.h>
 #include <Tehreer/TRGlyphImage.h>
+#include <Tehreer/TRGlyphRun.h>
 #include <Tehreer/TRNamedStyle.h>
 #include <Tehreer/TRPalette.h>
 #include <Tehreer/TRPath.h>
@@ -34,6 +38,7 @@
 #include <Tehreer/TRString.h>
 #include <Tehreer/TRText.h>
 #include <Tehreer/TRTypeface.h>
+#include <Tehreer/TRTypesetter.h>
 #include <Tehreer/TRVariationAxis.h>
 #include <Tehreer/TRVersion.h>
 

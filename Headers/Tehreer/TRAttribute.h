@@ -37,6 +37,8 @@ enum {
     TRAttributeBaselineOffset = 5,          /**< Distance to raise the text above its baseline. */
     TRAttributeObliqueness = 6,             /**< Skew of the glyphs. It keeps runs apart. */
     TRAttributeReplacement = 7,             /**< Content that replaces the text of the range. */
+    TRAttributeForegroundColor = 19,        /**< The color that the text is painted with. */
+    TRAttributeUserData = 20,               /**< Opaque data of the owner; see below. */
 
     /* Paragraph attributes */
     TRAttributeTextAlignment = 8,           /**< The alignment of the lines. */
@@ -71,6 +73,12 @@ typedef TRFloat TRPointSize;
 /**
  * The value of an attribute. The member to use depends on the type of the attribute.
  *
+ * The foreground color and the user data do not change how text is laid out, but lines never have
+ * a glyph run that spans a change of them, so a wrapper can paint each run with one set of
+ * attributes. The user data is a pointer that Core only compares: a wrapper uses it to tag ranges
+ * of text with its own attributes, such as links or underlines, and has to keep what it points to
+ * alive as long as the text is used.
+ *
  * The indents of a paragraph are measured from the leading edge, except the tail indent: if it is
  * positive, it is the distance from the leading edge to the trailing margin, and if it is zero or
  * negative, its absolute value is the distance from the trailing edge. The first indent line count
@@ -84,6 +92,8 @@ typedef union _TRAttributeValue {
     TRFloat baselineOffset;
     TRFloat obliqueness;
     TRReplacementRef replacement;
+    TRColor foregroundColor;
+    const void *userData;
     TRTextAlignment textAlignment;
     TRFloat firstLineHeadIndent;
     TRFloat headIndent;

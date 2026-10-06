@@ -55,6 +55,8 @@ void AttributeListTests::run() {
     testEqualParagraphAttributesMerge();
     testReplacementAttribute();
     testReplacementRetainBalance();
+    testForegroundColorAttribute();
+    testUserDataAttribute();
 }
 
 static TRAttribute makePointSize(TRFloat size) {
@@ -667,6 +669,82 @@ void AttributeListTests::testReplacementRetainBalance() {
 
     TRReplacementRelease(replacement);
     assert(state.finalizeCalls == 1);
+}
+
+void AttributeListTests::testForegroundColorAttribute() {
+    TRMutableTextRef text = createText();
+    TRAttribute red = {};
+    TRUInteger length = 0;
+
+    red.type = TRAttributeForegroundColor;
+    red.value.foregroundColor = TRColorMake(0xFF, 0xFF, 0x00, 0x00);
+
+    TRTextSetAttribute(text, 1, 3, &red);
+
+    TRAttributeListRef list = TRTextGetAttributes(text, 1, &length);
+    assert(TRAttributeListGetCount(list) == 1);
+    assert(length == 3);
+    assert(readItem(list, 0).type == TRAttributeForegroundColor);
+    assert(readItem(list, 0).value.foregroundColor == TRColorMake(0xFF, 0xFF, 0x00, 0x00));
+    SBAttributeListRelease(list);
+
+    /* Equal colors of neighbors are one run, and different ones are not. */
+    TRTextSetAttribute(text, 4, 1, &red);
+    list = TRTextGetAttributes(text, 1, &length);
+    assert(length == 4);
+    SBAttributeListRelease(list);
+
+    TRAttribute blue = red;
+    blue.value.foregroundColor = TRColorMake(0xFF, 0x00, 0x00, 0xFF);
+    TRTextSetAttribute(text, 4, 1, &blue);
+    list = TRTextGetAttributes(text, 1, &length);
+    assert(length == 3);
+    SBAttributeListRelease(list);
+
+    TRTextRemoveAttribute(text, 0, 6, TRAttributeForegroundColor);
+    list = TRTextGetAttributes(text, 0, &length);
+    assert(TRAttributeListGetCount(list) == 0 && length == 6);
+    SBAttributeListRelease(list);
+
+    TRTextRelease(text);
+}
+
+void AttributeListTests::testUserDataAttribute() {
+    TRMutableTextRef text = createText();
+    int first = 1;
+    int second = 2;
+    TRUInteger length = 0;
+
+    TRAttribute attribute = {};
+    attribute.type = TRAttributeUserData;
+    attribute.value.userData = &first;
+
+    TRTextSetAttribute(text, 0, 3, &attribute);
+    TRTextSetAttribute(text, 3, 3, &attribute);
+
+    /* The same pointer on neighbors is one run. */
+    TRAttributeListRef list = TRTextGetAttributes(text, 0, &length);
+    assert(TRAttributeListGetCount(list) == 1);
+    assert(readItem(list, 0).value.userData == &first);
+    assert(length == 6);
+    SBAttributeListRelease(list);
+
+    /* Another pointer splits it, even if what it points to is equal. */
+    int copyOfFirst = 1;
+    attribute.value.userData = &copyOfFirst;
+    TRTextSetAttribute(text, 3, 3, &attribute);
+    list = TRTextGetAttributes(text, 0, &length);
+    assert(length == 3);
+    SBAttributeListRelease(list);
+
+    attribute.value.userData = &second;
+    TRTextSetAttribute(text, 3, 3, &attribute);
+    list = TRTextGetAttributes(text, 3, &length);
+    assert(readItem(list, 0).value.userData == &second);
+    assert(length == 3);
+    SBAttributeListRelease(list);
+
+    TRTextRelease(text);
 }
 
 #ifdef STANDALONE_TESTING

@@ -19,15 +19,20 @@
 #ifdef TR_CONFIG_UNITY
 
 #include <API/TRAttributeList.c>
+#include <API/TRComposedFrame.c>
+#include <API/TRComposedLine.c>
 #include <API/TRFontFile.c>
+#include <API/TRFrameResolver.c>
 #include <API/TRGlyphCache.c>
 #include <API/TRGlyphImage.c>
+#include <API/TRGlyphRun.c>
 #include <API/TRPath.c>
 #include <API/TRRenderer.c>
 #include <API/TRReplacement.c>
 #include <API/TRShapingEngine.c>
 #include <API/TRShapingResult.c>
 #include <API/TRText.c>
+#include <API/TRTypesetter.c>
 #include <API/TRTypeface.c>
 #include <Core/Allocator.c>
 #include <Core/Memory.c>
@@ -41,6 +46,13 @@
 #include <Graphics/GlyphBitmap.c>
 #include <Graphics/RenderableFace.c>
 #include <Graphics/ShapableFace.c>
+#include <Layout/BreakResolver.c>
+#include <Layout/CaretUtils.c>
+#include <Layout/LineResolver.c>
+#include <Layout/ShapeResolver.c>
+#include <Layout/TokenResolver.c>
+#include <Layout/TextBuffer.c>
+#include <Layout/TextRun.c>
 #include <SFNT/Utilities.c>
 #include <Text/AttributeRegistry.c>
 #include <Text/BreakClassifier.c>
