@@ -1,0 +1,12 @@
+## Build directories for CMake
+/build/
+/build-*/
+
+## Build directory for Meson
+/builddir/
+
+## IDE and OS files
+.idea/
+.vscode/
+.vs/
+.DS_Store

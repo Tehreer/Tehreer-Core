@@ -1,0 +1,33 @@
+Tehreer Core
+Copyright 2026 Muhammad Tayyab Akram
+
+This product includes software developed by Muhammad Tayyab Akram
+(https://github.com/Tehreer).
+
+This product is built with the following third-party software, which is
+fetched at build time and linked into the library. Each component remains
+under its own license.
+
+FreeType
+  Copyright The FreeType Project (https://freetype.org)
+  Licensed under the FreeType License or the GNU General Public License,
+  version 2.
+
+HarfBuzz
+  Copyright Google, Inc. and other HarfBuzz contributors
+  (https://github.com/harfbuzz/harfbuzz)
+  Licensed under the "Old MIT" license.
+
+SheenBidi
+  Copyright Muhammad Tayyab Akram (https://github.com/Tehreer/SheenBidi)
+  Licensed under the Apache License, Version 2.0.
+
+libunibreak
+  Copyright Wu Yongwei, Tom Hacohen, Petr Filipsky and Andreas Roever
+  (https://github.com/adah1972/libunibreak)
+  Licensed under the libunibreak license, a zlib-style license.
+
+The fonts in Tests/Fonts are used only by the test suite and are not part of
+the library. They are copied from the HarfBuzz test suite and derive from
+Roboto (Apache License 2.0) and Rocher Color (SIL Open Font License 1.1).
+See Tests/Fonts/README.md.

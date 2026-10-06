@@ -1,0 +1,12 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
+
+Name: Tehreer
+Description: Text engine core for all major operating systems
+URL: https://github.com/Tehreer/Tehreer-Core
+Version: @PROJECT_VERSION@
+Requires: sheenbidi
+Libs: -L${libdir} -lTehreer
+Libs.private: -lharfbuzz -lfreetype -lunibreak
+Cflags: -I${includedir}@TEHREER_PKGCONFIG_CFLAGS@
