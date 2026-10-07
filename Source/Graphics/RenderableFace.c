@@ -73,20 +73,16 @@ static FaceNodeRef DetachFaceNode(RenderableFaceRef renderableFace)
     FaceNodeRef faceNode;
     TRUInteger stack;
     TRUInteger expected;
-    TRUInteger index;
 
     do {
+        TRUInteger index;
+
         stack = AtomicUIntLoad(&renderableFace->_faceStack);
         expected = stack;
         index = FaceStackGetIndex(stack);
 
-        if (index == 0) {
-            faceNode = NULL;
-            break;
-        }
-
-        faceNode = &renderableFace->_facePool[index - 1];
-    } while (!AtomicUIntCompareAndSet(&renderableFace->_faceStack, &expected,
+        faceNode = (index == 0 ? NULL : &renderableFace->_facePool[index - 1]);
+    } while (faceNode && !AtomicUIntCompareAndSet(&renderableFace->_faceStack, &expected,
         FaceStackMake(FaceStackGetVersion(stack) + 1, AtomicUIntLoad(&faceNode->next))));
 
     return faceNode;
@@ -217,6 +213,75 @@ static void FinalizeRenderableFace(ObjectRef object)
     TRFontFileRelease(renderableFace->_fontFile);
 }
 
+static TRBoolean AreCoordinatesEqual(const TRFloat *first, const TRFloat *second,
+    TRUInteger count)
+{
+    const TRFloat minValue = 1.0 / (TRFloat)0x10000;
+    TRBoolean areEqual = TRTrue;
+    TRUInteger index;
+
+    for (index = 0; areEqual && index < count; index++) {
+        if (fabs(first[index] - second[index]) >= minValue) {
+            areEqual = TRFalse;
+        }
+    }
+
+    return areEqual;
+}
+
+/* Returns the name of the first named style that has the coordinates, or `NULL` if none has. */
+static const TRStringView *FindStyleName(FaceMetadataRef metadata,
+    const TRFloat *variationCoordinates)
+{
+    const TRStringView *styleName = NULL;
+    TRUInteger axisCount = metadata->variationAxisCount;
+    TRUInteger styleCount = metadata->namedStyleCount;
+    TRUInteger styleIndex;
+
+    for (styleIndex = 0; styleIndex < styleCount; styleIndex++) {
+        const TRNamedStyle *namedStyle = &metadata->namedStylesPtr[styleIndex];
+
+        if (namedStyle->subfamilyName
+                && AreCoordinatesEqual(variationCoordinates, namedStyle->coordinatesPtr,
+                    axisCount)) {
+            styleName = namedStyle->subfamilyName;
+            break;
+        }
+    }
+
+    return styleName;
+}
+
+static void ApplyVariation(FaceDescription *description, FaceMetadataRef metadata,
+    const TRFloat *variationCoordinates)
+{
+    TRUInteger axisCount = metadata->variationAxisCount;
+    TRUInteger index;
+
+    for (index = 0; index < axisCount; index++) {
+        const TRVariationAxis *axis = &metadata->variationAxesPtr[index];
+        TRFloat coordinate = variationCoordinates[index];
+
+        switch (axis->tag) {
+        case TRTagMake('i', 't', 'a', 'l'):
+            description->slope = GetSlopeFromITALCoordinate(coordinate);
+            break;
+
+        case TRTagMake('s', 'l', 'n', 't'):
+            description->slope = GetSlopeFromSLNTCoordinate(coordinate);
+            break;
+
+        case TRTagMake('w', 'd', 't', 'h'):
+            description->width = GetWidthFromWDTHCoordinate(coordinate);
+            break;
+
+        case TRTagMake('w', 'g', 'h', 't'):
+            description->weight = GetWeightFromWGHTCoordinate(coordinate);
+            break;
+        }
+    }
+}
+
 TR_INTERNAL RenderableFaceRef RenderableFaceCreate(TRFontFileRef fontFile, TRUInteger faceIndex)
 {
     FT_Face ftFace = TRFontFileCreateFTFace(fontFile, faceIndex);
@@ -324,39 +389,11 @@ TR_INTERNAL void RenderableFaceGetDescription(RenderableFaceRef renderableFace,
     const TRFloat *variationCoordinates, const TRStringView **subfamilyName,
     FaceDescription *description)
 {
-    const TRFloat minValue = 1.0 / (TRFloat)0x10000;
     FaceMetadataRef metadata = renderableFace->metadata;
-    TRUInteger axisCount = metadata->variationAxisCount;
 
     if (subfamilyName) {
-        *subfamilyName = NULL;
-
         if (variationCoordinates) {
-            TRUInteger styleCount = metadata->namedStyleCount;
-            TRUInteger styleIndex;
-
-            for (styleIndex = 0; styleIndex < styleCount; styleIndex++) {
-                const TRNamedStyle *namedStyle = &metadata->namedStylesPtr[styleIndex];
-                const TRFloat *styleCoordinates = namedStyle->coordinatesPtr;
-                TRBoolean matched = TRTrue;
-                TRUInteger index;
-
-                if (!namedStyle->subfamilyName) {
-                    continue;
-                }
-
-                for (index = 0; index < axisCount; index++) {
-                    if (fabs(variationCoordinates[index] - styleCoordinates[index]) >= minValue) {
-                        matched = TRFalse;
-                        break;
-                    }
-                }
-
-                if (matched) {
-                    *subfamilyName = namedStyle->subfamilyName;
-                    break;
-                }
-            }
+            *subfamilyName = FindStyleName(metadata, variationCoordinates);
         } else {
             *subfamilyName = metadata->subfamilyName;
         }
@@ -368,30 +405,7 @@ TR_INTERNAL void RenderableFaceGetDescription(RenderableFaceRef renderableFace,
         description->slope = metadata->slope;
 
         if (variationCoordinates) {
-            TRUInteger index;
-
-            for (index = 0; index < axisCount; index++) {
-                const TRVariationAxis *axis = &metadata->variationAxesPtr[index];
-                TRFloat coordinate = variationCoordinates[index];
-
-                switch (axis->tag) {
-                case TRTagMake('i', 't', 'a', 'l'):
-                    description->slope = GetSlopeFromITALCoordinate(coordinate);
-                    break;
-
-                case TRTagMake('s', 'l', 'n', 't'):
-                    description->slope = GetSlopeFromSLNTCoordinate(coordinate);
-                    break;
-
-                case TRTagMake('w', 'd', 't', 'h'):
-                    description->width = GetWidthFromWDTHCoordinate(coordinate);
-                    break;
-
-                case TRTagMake('w', 'g', 'h', 't'):
-                    description->weight = GetWeightFromWGHTCoordinate(coordinate);
-                    break;
-                }
-            }
+            ApplyVariation(description, metadata, variationCoordinates);
         }
     }
 }
@@ -401,7 +415,6 @@ TR_INTERNAL void RenderableFaceGetMetrics(RenderableFaceRef renderableFace,
 {
     FaceMetadataRef metadata = renderableFace->metadata;
     TRUInteger axisCount = metadata->variationAxisCount;
-    const TT_OS2 *os2Table;
     UsableFace usableFace;
 
     GetUsableFace(renderableFace, &usableFace);
@@ -409,6 +422,7 @@ TR_INTERNAL void RenderableFaceGetMetrics(RenderableFaceRef renderableFace,
 
     if (metrics) {
         TRInt32 extent = usableFace.ftFace->ascender - usableFace.ftFace->descender;
+        const TT_OS2 *os2Table;
 
         metrics->unitsPerEM = usableFace.ftFace->units_per_EM;
         metrics->ascent = usableFace.ftFace->ascender;
@@ -437,6 +451,12 @@ TR_INTERNAL void RenderableFaceGetMetrics(RenderableFaceRef renderableFace,
     YieldUsableFace(renderableFace, &usableFace);
 }
 
+TR_INTERNAL TRInt32 RenderableFaceGetGlyphAdvance(RenderableFaceRef renderableFace,
+    const FontParams *fontParams, TRGlyphID glyphID)
+{
+    return RenderableFaceGetDirectionalAdvance(renderableFace, fontParams, glyphID, TRFalse);
+}
+
 TR_INTERNAL TRInt32 RenderableFaceGetDirectionalAdvance(RenderableFaceRef renderableFace,
     const FontParams *fontParams, TRGlyphID glyphID, TRBoolean isVertical)
 {
@@ -456,12 +476,6 @@ TR_INTERNAL TRInt32 RenderableFaceGetDirectionalAdvance(RenderableFaceRef render
     YieldUsableFace(renderableFace, &usableFace);
 
     return advance;
-}
-
-TR_INTERNAL TRInt32 RenderableFaceGetGlyphAdvance(RenderableFaceRef renderableFace,
-    const FontParams *fontParams, TRGlyphID glyphID)
-{
-    return RenderableFaceGetDirectionalAdvance(renderableFace, fontParams, glyphID, TRFalse);
 }
 
 TR_INTERNAL TRPathRef RenderableFaceCreateGlyphPath(RenderableFaceRef renderableFace,
@@ -485,11 +499,12 @@ TR_INTERNAL TRPathRef RenderableFaceCreateGlyphPath(RenderableFaceRef renderable
 
 TR_INTERNAL GlyphType RenderableFaceGetGlyphType(RenderableFaceRef renderableFace, TRGlyphID glyphID)
 {
-    FT_LayerIterator iterator;
     FT_UInt layerGlyphID = 0;
     FT_UInt colorIndex = 0;
+    GlyphType glyphType = GlyphTypeMask;
     TRBoolean isColored = TRFalse;
     TRBoolean hasMask = TRFalse;
+    FT_LayerIterator iterator;
     UsableFace usableFace;
 
     GetUsableFace(renderableFace, &usableFace);
@@ -511,11 +526,11 @@ TR_INTERNAL GlyphType RenderableFaceGetGlyphType(RenderableFaceRef renderableFac
 
     YieldUsableFace(renderableFace, &usableFace);
 
-    if (!isColored) {
-        return GlyphTypeMask;
+    if (isColored) {
+        glyphType = (hasMask ? GlyphTypeMixed : GlyphTypeColor);
     }
 
-    return (hasMask ? GlyphTypeMixed : GlyphTypeColor);
+    return glyphType;
 }
 
 TR_INTERNAL GlyphBitmapRef RenderableFaceRasterizeGlyph(RenderableFaceRef renderableFace,

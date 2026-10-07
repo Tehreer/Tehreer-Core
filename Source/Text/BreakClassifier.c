@@ -64,56 +64,61 @@ static void ClassifyGraphemeBreaks(const void *codeUnits, TRUInteger length,
     }
 }
 
+static void FillBreaks(BreakClassifierRef classifier, const void *codeUnits, TRUInteger length,
+    TRStringEncoding encoding, char *types)
+{
+    if (length > 0) {
+        TRUInteger index;
+
+        for (index = 0; index < length; index++) {
+            classifier->breaks[index] = 0;
+        }
+
+        ClassifyLineBreaks(codeUnits, length, encoding, types);
+        for (index = 0; index < length; index++) {
+            if (types[index] == LINEBREAK_MUSTBREAK || types[index] == LINEBREAK_ALLOWBREAK) {
+                classifier->breaks[index] |= BreakTypeLine;
+            }
+        }
+
+        ClassifyGraphemeBreaks(codeUnits, length, encoding, types);
+        for (index = 0; index < length; index++) {
+            if (types[index] == GRAPHEMEBREAK_BREAK) {
+                classifier->breaks[index] |= BreakTypeGrapheme;
+            }
+        }
+    }
+}
+
 TR_INTERNAL BreakClassifierRef BreakClassifierCreate(const void *codeUnits, TRUInteger length,
     TRStringEncoding encoding)
 {
+    BreakClassifierRef classifier = NULL;
     TRUInteger sizes[2];
-    void *pointers[2] = { NULL };
-    BreakClassifierRef classifier;
-    char *types;
-
-    if (encoding > TRStringEncodingUTF32 || (length > 0 && !codeUnits)) {
-        return NULL;
-    }
 
     sizes[0] = sizeof(BreakClassifier);
     sizes[1] = length;
 
-    types = (length > 0 ? AllocatorAllocateBlock(length) : NULL);
-    if (length > 0 && !types) {
-        return NULL;
-    }
+    if (encoding <= TRStringEncodingUTF32 && (length == 0 || codeUnits)) {
+        char *types = NULL;
 
-    classifier = ObjectCreate(sizes, 2, pointers, NULL);
+        types = (length > 0 ? AllocatorAllocateBlock(length) : NULL);
 
-    if (classifier) {
-        TRUInteger index;
+        if (length == 0 || types) {
+            void *pointers[2] = { NULL };
 
-        classifier->length = length;
-        classifier->breaks = pointers[1];
+            classifier = ObjectCreate(sizes, 2, pointers, NULL);
 
-        if (length > 0) {
-            for (index = 0; index < length; index++) {
-                classifier->breaks[index] = 0;
+            if (classifier) {
+                classifier->length = length;
+                classifier->breaks = pointers[1];
+
+                FillBreaks(classifier, codeUnits, length, encoding, types);
             }
 
-            ClassifyLineBreaks(codeUnits, length, encoding, types);
-            for (index = 0; index < length; index++) {
-                if (types[index] == LINEBREAK_MUSTBREAK || types[index] == LINEBREAK_ALLOWBREAK) {
-                    classifier->breaks[index] |= BreakTypeLine;
-                }
-            }
-
-            ClassifyGraphemeBreaks(codeUnits, length, encoding, types);
-            for (index = 0; index < length; index++) {
-                if (types[index] == GRAPHEMEBREAK_BREAK) {
-                    classifier->breaks[index] |= BreakTypeGrapheme;
-                }
-            }
+            AllocatorDeallocateBlock(types);
         }
     }
-
-    AllocatorDeallocateBlock(types);
 
     return classifier;
 }
@@ -121,14 +126,16 @@ TR_INTERNAL BreakClassifierRef BreakClassifierCreate(const void *codeUnits, TRUI
 TR_INTERNAL TRBoolean BreakClassifierHasBreak(BreakClassifierRef classifier, BreakType type,
     TRUInteger index)
 {
+    TRBoolean hasBreak = TRFalse;
+
     /* Index MUST be within the text. */
     TRAssert(index <= classifier->length);
 
-    if (index == 0) {
-        return TRFalse;
+    if (index > 0) {
+        hasBreak = (classifier->breaks[index - 1] & type) != 0;
     }
 
-    return (classifier->breaks[index - 1] & type) != 0;
+    return hasBreak;
 }
 
 TR_INTERNAL TRUInteger BreakClassifierGetForwardBreak(BreakClassifierRef classifier,
@@ -141,6 +148,7 @@ TR_INTERNAL TRUInteger BreakClassifierGetForwardBreak(BreakClassifierRef classif
 
     while (index < to) {
         TRUInt8 breakTypes = classifier->breaks[index];
+
         index += 1;
 
         if (breakTypes & type) {

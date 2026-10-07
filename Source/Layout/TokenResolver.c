@@ -35,6 +35,7 @@
 
 static TRUInteger EncodeDots(TRStringEncoding encoding, TRUInt8 *buffer)
 {
+    TRUInteger length = 0;
     TRUInteger index;
 
     switch (encoding) {
@@ -42,57 +43,60 @@ static TRUInteger EncodeDots(TRStringEncoding encoding, TRUInt8 *buffer)
         for (index = 0; index < 3; index++) {
             buffer[index] = '.';
         }
-        return 3;
+        length = 3;
+        break;
 
     case TRStringEncodingUTF16:
         for (index = 0; index < 3; index++) {
             ((TRUInt16 *)buffer)[index] = '.';
         }
-        return 3;
+        length = 3;
+        break;
 
     case TRStringEncodingUTF32:
         for (index = 0; index < 3; index++) {
             ((TRUInt32 *)buffer)[index] = '.';
         }
-        return 3;
+        length = 3;
+        break;
     }
 
-    return 0;
+    return length;
 }
 
 static TRUInteger EncodeEllipsis(TRStringEncoding encoding, TRUInt8 *buffer)
 {
+    TRUInteger length = 0;
+
     switch (encoding) {
     case TRStringEncodingUTF8:
         buffer[0] = 0xE2;
         buffer[1] = 0x80;
         buffer[2] = 0xA6;
-        return 3;
+        length = 3;
+        break;
 
     case TRStringEncodingUTF16:
         ((TRUInt16 *)buffer)[0] = EllipsisCodePoint;
-        return 1;
+        length = 1;
+        break;
 
     case TRStringEncodingUTF32:
         ((TRUInt32 *)buffer)[0] = EllipsisCodePoint;
-        return 1;
+        length = 1;
+        break;
     }
 
-    return 0;
+    return length;
 }
 
 TR_INTERNAL ComposedLineRef TokenResolverCreateTokenLine(TypesetterRef typesetter,
     TRUInteger start, TRUInteger end, TRTruncationPlace truncationPlace, const void *tokenString,
     TRUInteger tokenLength, TRStringEncoding tokenEncoding)
 {
-    TRUInt8 defaultToken[3 * sizeof(TRUInt32)];
+    ComposedLineRef tokenLine = NULL;
     TRUInteger truncationIndex;
     TRUInteger runIndex;
-    TextRunRef suitableRun;
-    TRTextRef tokenText;
-    TRTypesetterRef tokenTypesetter;
-    ComposedLineRef tokenLine = NULL;
-    TRAttribute attributes[2];
 
     /* The range MUST NOT be empty. */
     TRAssert(start < end);
@@ -112,43 +116,50 @@ TR_INTERNAL ComposedLineRef TokenResolverCreateTokenLine(TypesetterRef typesette
     }
 
     runIndex = TypesetterFindRun(typesetter, truncationIndex);
-    if (runIndex == TRInvalidIndex) {
-        return NULL;
-    }
 
-    suitableRun = typesetter->runs[runIndex];
+    if (runIndex != TRInvalidIndex) {
+        TextRunRef suitableRun;
+        TRTextRef tokenText;
+        TRAttribute attributes[2];
 
-    if (!tokenString || tokenLength == 0) {
-        /* The ellipsis character is used if the typeface has it, and three dots if not. */
-        tokenEncoding = typesetter->buffer.encoding;
-        tokenString = defaultToken;
+        suitableRun = typesetter->runs[runIndex];
 
-        if (TRTypefaceGetGlyphID(suitableRun->typeface, EllipsisCodePoint) == 0) {
-            tokenLength = EncodeDots(tokenEncoding, defaultToken);
-        } else {
-            tokenLength = EncodeEllipsis(tokenEncoding, defaultToken);
+        if (!tokenString || tokenLength == 0) {
+            TRUInt8 defaultToken[3 * sizeof(TRUInt32)];
+
+            /* The ellipsis character is used if the typeface has it, and three dots if not. */
+            tokenEncoding = typesetter->buffer.encoding;
+            tokenString = defaultToken;
+
+            if (TRTypefaceGetGlyphID(suitableRun->typeface, EllipsisCodePoint) == 0) {
+                tokenLength = EncodeDots(tokenEncoding, defaultToken);
+            } else {
+                tokenLength = EncodeEllipsis(tokenEncoding, defaultToken);
+            }
+        }
+
+        attributes[0].type = TRAttributeTypeface;
+        attributes[0].value.typeface = suitableRun->typeface;
+        attributes[1].type = TRAttributePointSize;
+        attributes[1].value.pointSize = suitableRun->typeSize;
+
+        tokenText = TRTextCreate(tokenString, tokenLength, tokenEncoding);
+
+        if (tokenText) {
+            TRTypesetterRef tokenTypesetter;
+
+            tokenTypesetter = TRTypesetterCreate(tokenText, attributes, 2);
+
+            if (tokenTypesetter) {
+                tokenLine = LineResolverCreateSimpleLine((TypesetterRef)tokenTypesetter, 0,
+                    tokenLength, TRFalse, 0.0f);
+
+                TRTypesetterRelease(tokenTypesetter);
+            }
+
+            TRTextRelease(tokenText);
         }
     }
-
-    attributes[0].type = TRAttributeTypeface;
-    attributes[0].value.typeface = suitableRun->typeface;
-    attributes[1].type = TRAttributePointSize;
-    attributes[1].value.pointSize = suitableRun->typeSize;
-
-    tokenText = TRTextCreate(tokenString, tokenLength, tokenEncoding);
-    if (!tokenText) {
-        return NULL;
-    }
-
-    tokenTypesetter = TRTypesetterCreate(tokenText, attributes, 2);
-    if (tokenTypesetter) {
-        tokenLine = LineResolverCreateSimpleLine((TypesetterRef)tokenTypesetter, 0, tokenLength,
-            TRFalse, 0.0f);
-
-        TRTypesetterRelease(tokenTypesetter);
-    }
-
-    TRTextRelease(tokenText);
 
     return tokenLine;
 }

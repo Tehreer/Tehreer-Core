@@ -140,7 +140,7 @@ static void SetupKey(CacheKey *key, TRUInt32 kind, const GlyphDataKey *dataKey, 
     key->glyphID = glyphID;
 }
 
-/* The cache MUST be locked by the caller for all of the functions below. */
+/* The cache MUST be locked by the caller for all of the functions below, until the rendering ones. */
 
 static void UnlinkFromList(GlyphCacheRef cache, GlyphCacheEntry *entry)
 {
@@ -210,34 +210,34 @@ static void GrowTable(GlyphCacheRef cache)
 {
     TRUInteger newCount = cache->bucketCount * 2;
     GlyphCacheEntry **newBuckets = calloc(newCount, sizeof(GlyphCacheEntry *));
-    TRUInteger index;
 
     /* If there is no memory, the table just stays crowded. */
-    if (!newBuckets) {
-        return;
-    }
+    if (newBuckets) {
+        TRUInteger index;
 
-    for (index = 0; index < cache->bucketCount; index++) {
-        GlyphCacheEntry *entry = cache->buckets[index];
+        for (index = 0; index < cache->bucketCount; index++) {
+            GlyphCacheEntry *entry = cache->buckets[index];
 
-        while (entry) {
-            GlyphCacheEntry *next = entry->bucketNext;
-            TRUInteger slot = entry->hash % newCount;
+            while (entry) {
+                GlyphCacheEntry *next = entry->bucketNext;
+                TRUInteger slot = entry->hash % newCount;
 
-            entry->bucketNext = newBuckets[slot];
-            newBuckets[slot] = entry;
-            entry = next;
+                entry->bucketNext = newBuckets[slot];
+                newBuckets[slot] = entry;
+                entry = next;
+            }
         }
-    }
 
-    free(cache->buckets);
-    cache->buckets = newBuckets;
-    cache->bucketCount = newCount;
+        free(cache->buckets);
+        cache->buckets = newBuckets;
+        cache->bucketCount = newCount;
+    }
 }
 
 /* Finds the entry and makes it the most recently used one. */
 static GlyphCacheEntry *FindEntry(GlyphCacheRef cache, const CacheKey *key, TRUInt32 hash)
 {
+    GlyphCacheEntry *foundEntry = NULL;
     GlyphCacheEntry *entry = cache->buckets[hash % cache->bucketCount];
 
     while (entry) {
@@ -247,41 +247,41 @@ static GlyphCacheEntry *FindEntry(GlyphCacheRef cache, const CacheKey *key, TRUI
                 LinkAsFirst(cache, entry);
             }
 
-            return entry;
+            foundEntry = entry;
+            break;
         }
 
         entry = entry->bucketNext;
     }
 
-    return NULL;
+    return foundEntry;
 }
 
 /* The new entry is the most recently used one. */
 static GlyphCacheEntry *CreateEntry(GlyphCacheRef cache, const CacheKey *key, TRUInt32 hash)
 {
     GlyphCacheEntry *entry = calloc(1, sizeof(GlyphCacheEntry));
-    TRUInteger slot;
 
-    if (!entry) {
-        return NULL;
+    if (entry) {
+        TRUInteger slot;
+
+        if (cache->entryCount >= cache->bucketCount) {
+            GrowTable(cache);
+        }
+
+        entry->key = *key;
+        entry->hash = hash;
+        entry->size = sizeof(GlyphCacheEntry);
+        TRTypefaceRetain(key->typeface);
+
+        slot = hash % cache->bucketCount;
+        entry->bucketNext = cache->buckets[slot];
+        cache->buckets[slot] = entry;
+        LinkAsFirst(cache, entry);
+
+        cache->size += entry->size;
+        cache->entryCount += 1;
     }
-
-    if (cache->entryCount >= cache->bucketCount) {
-        GrowTable(cache);
-    }
-
-    entry->key = *key;
-    entry->hash = hash;
-    entry->size = sizeof(GlyphCacheEntry);
-    TRTypefaceRetain(key->typeface);
-
-    slot = hash % cache->bucketCount;
-    entry->bucketNext = cache->buckets[slot];
-    cache->buckets[slot] = entry;
-    LinkAsFirst(cache, entry);
-
-    cache->size += entry->size;
-    cache->entryCount += 1;
 
     return entry;
 }
@@ -335,7 +335,7 @@ static void StorePath(GlyphCacheRef cache, GlyphCacheEntry *entry, TRPathRef pat
     cache->size += entry->size;
 }
 
-/* Rendering. It must not be done with the cache locked. */
+/* Rendering must not be done with the cache locked. The functions after it lock it on their own. */
 
 static void SetupGlyphFontParams(const GlyphDataKey *key, FontParams *fontParams)
 {
@@ -382,24 +382,121 @@ static TRPathRef RenderPath(const GlyphDataKey *key, TRGlyphID glyphID)
     return RenderableFaceCreateGlyphPath(key->typeface->renderableFace, &fontParams, glyphID);
 }
 
+/* Looks for the image of a color or a stroke entry, which has nothing else in it. */
+static TRGlyphImageRef FindImage(GlyphCacheRef cache, const CacheKey *cacheKey)
+{
+    TRGlyphImageRef image = NULL;
+    GlyphCacheEntry *entry;
+
+    MutexLock(&cache->mutex);
+
+    entry = FindEntry(cache, cacheKey, HashKey(cacheKey));
+    if (entry && entry->image) {
+        image = TRGlyphImageRetain(entry->image);
+    }
+
+    MutexUnlock(&cache->mutex);
+
+    return image;
+}
+
+static void SavePath(GlyphCacheRef cache, const CacheKey *cacheKey, TRPathRef path)
+{
+    GlyphCacheEntry *entry;
+
+    MutexLock(&cache->mutex);
+
+    entry = GetEntry(cache, cacheKey);
+    if (entry && !entry->path) {
+        StorePath(cache, entry, TRPathRetain(path));
+        TrimCache(cache);
+    }
+
+    MutexUnlock(&cache->mutex);
+}
+
+static void SaveImage(GlyphCacheRef cache, const CacheKey *cacheKey, TRGlyphImageRef image)
+{
+    GlyphCacheEntry *entry;
+
+    MutexLock(&cache->mutex);
+
+    entry = GetEntry(cache, cacheKey);
+    if (entry && !entry->image) {
+        StoreImage(cache, entry, TRGlyphImageRetain(image));
+        TrimCache(cache);
+    }
+
+    MutexUnlock(&cache->mutex);
+}
+
+/* The stroke is made out of the outline of the glyph, which is taken from the cache. */
+static TRGlyphImageRef RenderStrokeImage(GlyphCacheRef cache, const GlyphDataKey *key,
+    const GlyphStrokeKey *strokeKey, TRGlyphID glyphID)
+{
+    TRGlyphImageRef image = NULL;
+    TRPathRef path = GlyphCacheGetPath(cache, key, glyphID);
+
+    if (path) {
+        GlyphBitmapRef bitmap;
+
+        bitmap = GlyphBitmapCreateFromStroke(&path->outline, strokeKey->lineRadius,
+            (FT_Stroker_LineCap)strokeKey->lineCap, (FT_Stroker_LineJoin)strokeKey->lineJoin,
+            strokeKey->miterLimit);
+
+        if (bitmap) {
+            image = TRGlyphImageCreate(bitmap);
+        }
+
+        TRPathRelease(path);
+    }
+
+    return image;
+}
+
+static TRGlyphImageRef GetColorImage(GlyphCacheRef cache, const GlyphDataKey *key,
+    TRGlyphID glyphID, TRColor foregroundColor)
+{
+    CacheKey cacheKey;
+    TRGlyphImageRef image;
+
+    SetupKey(&cacheKey, EntryKindColor, key, glyphID);
+    cacheKey.foregroundColor = foregroundColor;
+
+    image = FindImage(cache, &cacheKey);
+
+    if (!image) {
+        image = RenderImage(key, glyphID, foregroundColor);
+
+        if (image) {
+            SaveImage(cache, &cacheKey, image);
+        }
+    }
+
+    return image;
+}
+
 /* The public part. */
 
 TR_INTERNAL TRBoolean GlyphCacheInitialize(GlyphCacheRef cache, TRUInteger capacity)
 {
+    TRBoolean isInitialized = TRFalse;
+
     cache->buckets = calloc(InitialBucketCount, sizeof(GlyphCacheEntry *));
-    if (!cache->buckets) {
-        return TRFalse;
+
+    if (cache->buckets) {
+        MutexInit(&cache->mutex);
+        cache->capacity = capacity;
+        cache->size = 0;
+        cache->bucketCount = InitialBucketCount;
+        cache->entryCount = 0;
+        cache->firstEntry = NULL;
+        cache->lastEntry = NULL;
+
+        isInitialized = TRTrue;
     }
 
-    MutexInit(&cache->mutex);
-    cache->capacity = capacity;
-    cache->size = 0;
-    cache->bucketCount = InitialBucketCount;
-    cache->entryCount = 0;
-    cache->firstEntry = NULL;
-    cache->lastEntry = NULL;
-
-    return TRTrue;
+    return isInitialized;
 }
 
 TR_INTERNAL void GlyphCacheFinalize(GlyphCacheRef cache)
@@ -431,192 +528,117 @@ TR_INTERNAL void GlyphCacheSetCapacity(GlyphCacheRef cache, TRUInteger capacity)
     MutexUnlock(&cache->mutex);
 }
 
-TR_INTERNAL TRPathRef GlyphCacheGetPath(GlyphCacheRef cache, const GlyphDataKey *key,
-    TRGlyphID glyphID)
+TR_INTERNAL TRGlyphImageRef GlyphCacheGetImage(GlyphCacheRef cache, const GlyphDataKey *key,
+    TRGlyphID glyphID, TRColor foregroundColor)
 {
-    CacheKey cacheKey;
-    GlyphCacheEntry *entry;
-    TRPathRef path = NULL;
+    TRGlyphImageRef glyphImage = NULL;
 
-    if (!IsRenderable(key)) {
-        return NULL;
-    }
+    if (IsRenderable(key)) {
+        TRGlyphImageRef image = NULL;
+        TRBoolean hasType = TRFalse;
+        GlyphType type = GlyphTypeMask;
+        CacheKey cacheKey;
+        GlyphCacheEntry *entry;
 
-    SetupKey(&cacheKey, EntryKindGlyph, key, glyphID);
+        SetupKey(&cacheKey, EntryKindGlyph, key, glyphID);
 
-    MutexLock(&cache->mutex);
-    entry = GetEntry(cache, &cacheKey);
-    if (entry && entry->path) {
-        path = TRPathRetain(entry->path);
-    }
-    MutexUnlock(&cache->mutex);
+        MutexLock(&cache->mutex);
 
-    if (!path) {
-        path = RenderPath(key, glyphID);
+        entry = GetEntry(cache, &cacheKey);
+        if (entry && entry->hasType) {
+            hasType = TRTrue;
+            type = entry->type;
 
-        if (path) {
+            if (entry->image) {
+                image = TRGlyphImageRetain(entry->image);
+            }
+        }
+
+        MutexUnlock(&cache->mutex);
+
+        if (!hasType) {
+            type = RenderableFaceGetGlyphType(key->typeface->renderableFace, glyphID);
+
+            /* The image of a mixed glyph depends on the foreground color, so it is not shared. */
+            if (type != GlyphTypeMixed) {
+                image = RenderImage(key, glyphID, foregroundColor);
+            }
+
             MutexLock(&cache->mutex);
 
             entry = GetEntry(cache, &cacheKey);
-            if (entry && !entry->path) {
-                StorePath(cache, entry, TRPathRetain(path));
+            if (entry && !entry->hasType) {
+                entry->hasType = TRTrue;
+                entry->type = type;
+
+                StoreImage(cache, entry, (image ? TRGlyphImageRetain(image) : NULL));
                 TrimCache(cache);
             }
 
             MutexUnlock(&cache->mutex);
         }
-    }
 
-    return path;
-}
-
-/* Looks for the image of a color or a stroke entry, which has nothing else in it. */
-static TRGlyphImageRef FindImage(GlyphCacheRef cache, const CacheKey *cacheKey)
-{
-    TRGlyphImageRef image = NULL;
-    GlyphCacheEntry *entry;
-
-    MutexLock(&cache->mutex);
-
-    entry = FindEntry(cache, cacheKey, HashKey(cacheKey));
-    if (entry && entry->image) {
-        image = TRGlyphImageRetain(entry->image);
-    }
-
-    MutexUnlock(&cache->mutex);
-
-    return image;
-}
-
-static void SaveImage(GlyphCacheRef cache, const CacheKey *cacheKey, TRGlyphImageRef image)
-{
-    GlyphCacheEntry *entry;
-
-    MutexLock(&cache->mutex);
-
-    entry = GetEntry(cache, cacheKey);
-    if (entry && !entry->image) {
-        StoreImage(cache, entry, TRGlyphImageRetain(image));
-        TrimCache(cache);
-    }
-
-    MutexUnlock(&cache->mutex);
-}
-
-static TRGlyphImageRef GetColorImage(GlyphCacheRef cache, const GlyphDataKey *key,
-    TRGlyphID glyphID, TRColor foregroundColor)
-{
-    CacheKey cacheKey;
-    TRGlyphImageRef image;
-
-    SetupKey(&cacheKey, EntryKindColor, key, glyphID);
-    cacheKey.foregroundColor = foregroundColor;
-
-    image = FindImage(cache, &cacheKey);
-
-    if (!image) {
-        image = RenderImage(key, glyphID, foregroundColor);
-
-        if (image) {
-            SaveImage(cache, &cacheKey, image);
+        if (type == GlyphTypeMixed) {
+            glyphImage = GetColorImage(cache, key, glyphID, foregroundColor);
+        } else {
+            glyphImage = image;
         }
     }
 
-    return image;
-}
-
-TR_INTERNAL TRGlyphImageRef GlyphCacheGetImage(GlyphCacheRef cache, const GlyphDataKey *key,
-    TRGlyphID glyphID, TRColor foregroundColor)
-{
-    CacheKey cacheKey;
-    GlyphCacheEntry *entry;
-    TRGlyphImageRef image = NULL;
-    TRBoolean hasType = TRFalse;
-    GlyphType type = GlyphTypeMask;
-
-    if (!IsRenderable(key)) {
-        return NULL;
-    }
-
-    SetupKey(&cacheKey, EntryKindGlyph, key, glyphID);
-
-    MutexLock(&cache->mutex);
-
-    entry = GetEntry(cache, &cacheKey);
-    if (entry && entry->hasType) {
-        hasType = TRTrue;
-        type = entry->type;
-
-        if (entry->image) {
-            image = TRGlyphImageRetain(entry->image);
-        }
-    }
-
-    MutexUnlock(&cache->mutex);
-
-    if (!hasType) {
-        type = RenderableFaceGetGlyphType(key->typeface->renderableFace, glyphID);
-
-        /* The image of a mixed glyph depends on the foreground color, so it is not shared. */
-        if (type != GlyphTypeMixed) {
-            image = RenderImage(key, glyphID, foregroundColor);
-        }
-
-        MutexLock(&cache->mutex);
-
-        entry = GetEntry(cache, &cacheKey);
-        if (entry && !entry->hasType) {
-            entry->hasType = TRTrue;
-            entry->type = type;
-
-            StoreImage(cache, entry, (image ? TRGlyphImageRetain(image) : NULL));
-            TrimCache(cache);
-        }
-
-        MutexUnlock(&cache->mutex);
-    }
-
-    if (type == GlyphTypeMixed) {
-        return GetColorImage(cache, key, glyphID, foregroundColor);
-    }
-
-    return image;
+    return glyphImage;
 }
 
 TR_INTERNAL TRGlyphImageRef GlyphCacheGetStrokeImage(GlyphCacheRef cache, const GlyphDataKey *key,
     const GlyphStrokeKey *strokeKey, TRGlyphID glyphID)
 {
-    CacheKey cacheKey;
-    TRGlyphImageRef image;
+    TRGlyphImageRef strokeImage = NULL;
 
-    if (!IsRenderable(key)) {
-        return NULL;
-    }
+    if (IsRenderable(key)) {
+        CacheKey cacheKey;
 
-    SetupKey(&cacheKey, EntryKindStroke, key, glyphID);
-    cacheKey.stroke = *strokeKey;
+        SetupKey(&cacheKey, EntryKindStroke, key, glyphID);
+        cacheKey.stroke = *strokeKey;
 
-    image = FindImage(cache, &cacheKey);
+        strokeImage = FindImage(cache, &cacheKey);
 
-    if (!image) {
-        TRPathRef path = GlyphCacheGetPath(cache, key, glyphID);
+        if (!strokeImage) {
+            strokeImage = RenderStrokeImage(cache, key, strokeKey, glyphID);
 
-        if (path) {
-            GlyphBitmapRef bitmap = GlyphBitmapCreateFromStroke(&path->outline,
-                strokeKey->lineRadius, (FT_Stroker_LineCap)strokeKey->lineCap,
-                (FT_Stroker_LineJoin)strokeKey->lineJoin, strokeKey->miterLimit);
-
-            if (bitmap) {
-                image = TRGlyphImageCreate(bitmap);
+            if (strokeImage) {
+                SaveImage(cache, &cacheKey, strokeImage);
             }
-
-            TRPathRelease(path);
-        }
-
-        if (image) {
-            SaveImage(cache, &cacheKey, image);
         }
     }
 
-    return image;
+    return strokeImage;
+}
+
+TR_INTERNAL TRPathRef GlyphCacheGetPath(GlyphCacheRef cache, const GlyphDataKey *key,
+    TRGlyphID glyphID)
+{
+    TRPathRef path = NULL;
+
+    if (IsRenderable(key)) {
+        CacheKey cacheKey;
+        GlyphCacheEntry *entry;
+
+        SetupKey(&cacheKey, EntryKindGlyph, key, glyphID);
+
+        MutexLock(&cache->mutex);
+        entry = GetEntry(cache, &cacheKey);
+        if (entry && entry->path) {
+            path = TRPathRetain(entry->path);
+        }
+        MutexUnlock(&cache->mutex);
+
+        if (!path) {
+            path = RenderPath(key, glyphID);
+
+            if (path) {
+                SavePath(cache, &cacheKey, path);
+            }
+        }
+    }
+
+    return path;
 }

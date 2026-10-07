@@ -61,60 +61,80 @@ static SBAttributeID AttributeIDs[AttributeCount + 1];
 
 static SBBoolean EqualAttributeItem(const void *firstPtr, const void *secondPtr)
 {
+    SBBoolean isEqual = SBFalse;
     const TRAttribute *firstItem = firstPtr;
     const TRAttribute *secondItem = secondPtr;
 
     if (firstItem == secondItem) {
-        return SBTrue;
-    }
-    if (firstItem->type != secondItem->type) {
-        return SBFalse;
+        isEqual = SBTrue;
+    } else if (firstItem->type == secondItem->type) {
+        switch (firstItem->type) {
+        case TRAttributeTypeface:
+            isEqual = firstItem->value.typeface == secondItem->value.typeface;
+            break;
+        case TRAttributePointSize:
+            isEqual = firstItem->value.pointSize == secondItem->value.pointSize;
+            break;
+        case TRAttributeScaleX:
+            isEqual = firstItem->value.scaleX == secondItem->value.scaleX;
+            break;
+        case TRAttributeScaleY:
+            isEqual = firstItem->value.scaleY == secondItem->value.scaleY;
+            break;
+        case TRAttributeBaselineOffset:
+            isEqual = firstItem->value.baselineOffset == secondItem->value.baselineOffset;
+            break;
+        case TRAttributeObliqueness:
+            isEqual = firstItem->value.obliqueness == secondItem->value.obliqueness;
+            break;
+        case TRAttributeReplacement:
+            isEqual = firstItem->value.replacement == secondItem->value.replacement;
+            break;
+        case TRAttributeTextAlignment:
+            isEqual = firstItem->value.textAlignment == secondItem->value.textAlignment;
+            break;
+        case TRAttributeFirstLineHeadIndent:
+            isEqual = firstItem->value.firstLineHeadIndent == secondItem->value.firstLineHeadIndent;
+            break;
+        case TRAttributeHeadIndent:
+            isEqual = firstItem->value.headIndent == secondItem->value.headIndent;
+            break;
+        case TRAttributeTailIndent:
+            isEqual = firstItem->value.tailIndent == secondItem->value.tailIndent;
+            break;
+        case TRAttributeFirstIndentLineCount:
+            isEqual = (firstItem->value.firstIndentLineCount
+                      == secondItem->value.firstIndentLineCount);
+            break;
+        case TRAttributeParagraphSpacingBefore:
+            isEqual = (firstItem->value.paragraphSpacingBefore
+                      == secondItem->value.paragraphSpacingBefore);
+            break;
+        case TRAttributeParagraphSpacing:
+            isEqual = firstItem->value.paragraphSpacing == secondItem->value.paragraphSpacing;
+            break;
+        case TRAttributeLineHeightMultiple:
+            isEqual = firstItem->value.lineHeightMultiple == secondItem->value.lineHeightMultiple;
+            break;
+        case TRAttributeMinimumLineHeight:
+            isEqual = firstItem->value.minimumLineHeight == secondItem->value.minimumLineHeight;
+            break;
+        case TRAttributeMaximumLineHeight:
+            isEqual = firstItem->value.maximumLineHeight == secondItem->value.maximumLineHeight;
+            break;
+        case TRAttributeLineSpacing:
+            isEqual = firstItem->value.lineSpacing == secondItem->value.lineSpacing;
+            break;
+        case TRAttributeForegroundColor:
+            isEqual = firstItem->value.foregroundColor == secondItem->value.foregroundColor;
+            break;
+        case TRAttributeUserData:
+            isEqual = firstItem->value.userData == secondItem->value.userData;
+            break;
+        }
     }
 
-    switch (firstItem->type) {
-    case TRAttributeTypeface:
-        return firstItem->value.typeface == secondItem->value.typeface;
-    case TRAttributePointSize:
-        return firstItem->value.pointSize == secondItem->value.pointSize;
-    case TRAttributeScaleX:
-        return firstItem->value.scaleX == secondItem->value.scaleX;
-    case TRAttributeScaleY:
-        return firstItem->value.scaleY == secondItem->value.scaleY;
-    case TRAttributeBaselineOffset:
-        return firstItem->value.baselineOffset == secondItem->value.baselineOffset;
-    case TRAttributeObliqueness:
-        return firstItem->value.obliqueness == secondItem->value.obliqueness;
-    case TRAttributeReplacement:
-        return firstItem->value.replacement == secondItem->value.replacement;
-    case TRAttributeTextAlignment:
-        return firstItem->value.textAlignment == secondItem->value.textAlignment;
-    case TRAttributeFirstLineHeadIndent:
-        return firstItem->value.firstLineHeadIndent == secondItem->value.firstLineHeadIndent;
-    case TRAttributeHeadIndent:
-        return firstItem->value.headIndent == secondItem->value.headIndent;
-    case TRAttributeTailIndent:
-        return firstItem->value.tailIndent == secondItem->value.tailIndent;
-    case TRAttributeFirstIndentLineCount:
-        return firstItem->value.firstIndentLineCount == secondItem->value.firstIndentLineCount;
-    case TRAttributeParagraphSpacingBefore:
-        return firstItem->value.paragraphSpacingBefore == secondItem->value.paragraphSpacingBefore;
-    case TRAttributeParagraphSpacing:
-        return firstItem->value.paragraphSpacing == secondItem->value.paragraphSpacing;
-    case TRAttributeLineHeightMultiple:
-        return firstItem->value.lineHeightMultiple == secondItem->value.lineHeightMultiple;
-    case TRAttributeMinimumLineHeight:
-        return firstItem->value.minimumLineHeight == secondItem->value.minimumLineHeight;
-    case TRAttributeMaximumLineHeight:
-        return firstItem->value.maximumLineHeight == secondItem->value.maximumLineHeight;
-    case TRAttributeLineSpacing:
-        return firstItem->value.lineSpacing == secondItem->value.lineSpacing;
-    case TRAttributeForegroundColor:
-        return firstItem->value.foregroundColor == secondItem->value.foregroundColor;
-    case TRAttributeUserData:
-        return firstItem->value.userData == secondItem->value.userData;
-    }
-
-    return SBFalse;
+    return isEqual;
 }
 
 static const void *RetainAttributeItem(const void *pointer)
@@ -181,18 +201,21 @@ static void InitializeAttributeRegistry(void)
 static void TryLazyInitializeAttributeRegistry(void)
 {
     static Once once = OnceMake();
+
     OnceExecute(&once, InitializeAttributeRegistry);
 }
 
 TR_INTERNAL SBAttributeID AttributeRegistryGetAttributeID(TRAttributeType type)
 {
+    SBAttributeID attributeID = SBAttributeIDNone;
+
     TryLazyInitializeAttributeRegistry();
 
     if (type >= 1 && type <= AttributeCount) {
-        return AttributeIDs[type];
+        attributeID = AttributeIDs[type];
     }
 
-    return SBAttributeIDNone;
+    return attributeID;
 }
 
 TR_INTERNAL SBTextConfigRef AttributeRegistryGetDefaultConfig(void)

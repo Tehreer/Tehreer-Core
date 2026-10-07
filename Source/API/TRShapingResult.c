@@ -83,11 +83,11 @@ static void BuildClusterMap(TRShapingResult *result, const hb_glyph_info_t *info
 TR_INTERNAL TRShapingResultRef TRShapingResultCreate(hb_buffer_t *hbBuffer,
     TRUInteger codeUnitCount, TRFloat sizeByEm, TRBoolean isBackward, TRBoolean isRTL)
 {
-    const hb_glyph_info_t *infos;
-    const hb_glyph_position_t *positions;
     unsigned int glyphCount = 0;
     TRUInteger sizes[COUNT] = { 0 };
     void *pointers[COUNT] = { NULL };
+    const hb_glyph_info_t *infos;
+    const hb_glyph_position_t *positions;
     TRShapingResult *result;
 
     infos = hb_buffer_get_glyph_infos(hbBuffer, &glyphCount);

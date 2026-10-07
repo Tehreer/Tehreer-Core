@@ -33,21 +33,20 @@ static void FinalizeReplacement(ObjectRef object)
 TRReplacementRef TRReplacementCreate(const TRReplacementCallbacks *callbacks, void *userData,
     TRFloat leading, TRBoolean isBlock)
 {
-    const TRUInteger size = sizeof(TRReplacement);
-    void *pointer = NULL;
-    TRReplacement *replacement;
+    TRReplacement *replacement = NULL;
 
-    if (!callbacks) {
-        return NULL;
-    }
+    if (callbacks) {
+        const TRUInteger size = sizeof(TRReplacement);
+        void *pointer = NULL;
 
-    replacement = ObjectCreate(&size, 1, &pointer, FinalizeReplacement);
+        replacement = ObjectCreate(&size, 1, &pointer, FinalizeReplacement);
 
-    if (replacement) {
-        replacement->callbacks = *callbacks;
-        replacement->userData = userData;
-        replacement->leading = leading;
-        replacement->isBlock = (isBlock ? TRTrue : TRFalse);
+        if (replacement) {
+            replacement->callbacks = *callbacks;
+            replacement->userData = userData;
+            replacement->leading = leading;
+            replacement->isBlock = (isBlock ? TRTrue : TRFalse);
+        }
     }
 
     return replacement;

@@ -102,7 +102,6 @@ TR_INTERNAL GlyphRunRef GlyphRunCreate(TextRunRef textRun, TRUInteger start, TRU
     TRUInteger glyphStart = 0;
     TRUInteger glyphEnd = 1;
     GlyphRunRef glyphRun;
-    TRFloat boundary;
 
     /* The range MUST NOT be empty, and MUST be within the text run. */
     TRAssert(start < end && start >= textRun->codeUnitStart && end <= textRun->codeUnitEnd);
@@ -124,6 +123,7 @@ TR_INTERNAL GlyphRunRef GlyphRunCreate(TextRunRef textRun, TRUInteger start, TRU
         TRUInteger offset = actualStart - textRun->codeUnitStart;
         TRUInteger clusterCount = (end + endExtra) - actualStart;
         TRUInteger index;
+        TRFloat boundary;
 
         boundary = TextRunGetCaretBoundary(textRun, start, end);
 
@@ -140,9 +140,35 @@ TR_INTERNAL GlyphRunRef GlyphRunCreate(TextRunRef textRun, TRUInteger start, TRU
     return glyphRun;
 }
 
+TR_INTERNAL GlyphRunRef GlyphRunCreateCopy(GlyphRunRef source)
+{
+    GlyphRunRef glyphRun = AllocateGlyphRun(source->textRun, source->codeUnitStart,
+        source->codeUnitEnd, source->startExtra, source->endExtra,
+        (source->justifiedAdvances != NULL), source->glyphStart, source->glyphCount);
+
+    if (glyphRun) {
+        TRUInteger clusterCount = (source->codeUnitEnd + source->endExtra)
+                                - (source->codeUnitStart - source->startExtra);
+
+        if (source->justifiedAdvances) {
+            memcpy(glyphRun->justifiedAdvances, source->justifiedAdvances,
+                sizeof(TRFloat) * source->glyphCount);
+        }
+
+        memcpy(glyphRun->clusterMap, source->clusterMap, sizeof(TRUInteger) * clusterCount);
+        memcpy(glyphRun->caretEdges, source->caretEdges, sizeof(TRFloat) * (clusterCount + 1));
+
+        glyphRun->origin = source->origin;
+        glyphRun->hasForegroundColor = source->hasForegroundColor;
+        glyphRun->foregroundColor = source->foregroundColor;
+        glyphRun->userData = source->userData;
+    }
+
+    return glyphRun;
+}
+
 TR_INTERNAL GlyphRunRef GlyphRunCreateJustified(GlyphRunRef source, const TRFloat *advances)
 {
-    TRBoolean isRTL = GlyphRunIsRTL(source);
     GlyphRunRef glyphRun = AllocateGlyphRun(source->textRun, source->codeUnitStart,
         source->codeUnitEnd, source->startExtra, source->endExtra, TRTrue, source->glyphStart,
         source->glyphCount);
@@ -151,6 +177,7 @@ TR_INTERNAL GlyphRunRef GlyphRunCreateJustified(GlyphRunRef source, const TRFloa
         TRUInteger clusterCount = (source->codeUnitEnd + source->endExtra)
                                 - (source->codeUnitStart - source->startExtra);
         TRUInteger length = source->codeUnitEnd - source->codeUnitStart;
+        TRBoolean isRTL = GlyphRunIsRTL(source);
         TRFloat boundary;
         TRUInteger index;
 
@@ -175,39 +202,15 @@ TR_INTERNAL GlyphRunRef GlyphRunCreateJustified(GlyphRunRef source, const TRFloa
     return glyphRun;
 }
 
-TR_INTERNAL GlyphRunRef GlyphRunCreateCopy(GlyphRunRef source)
-{
-    TRUInteger clusterCount = (source->codeUnitEnd + source->endExtra)
-                            - (source->codeUnitStart - source->startExtra);
-    GlyphRunRef glyphRun = AllocateGlyphRun(source->textRun, source->codeUnitStart,
-        source->codeUnitEnd, source->startExtra, source->endExtra,
-        (source->justifiedAdvances != NULL), source->glyphStart, source->glyphCount);
-
-    if (glyphRun) {
-        if (source->justifiedAdvances) {
-            memcpy(glyphRun->justifiedAdvances, source->justifiedAdvances,
-                sizeof(TRFloat) * source->glyphCount);
-        }
-
-        memcpy(glyphRun->clusterMap, source->clusterMap, sizeof(TRUInteger) * clusterCount);
-        memcpy(glyphRun->caretEdges, source->caretEdges, sizeof(TRFloat) * (clusterCount + 1));
-
-        glyphRun->origin = source->origin;
-        glyphRun->hasForegroundColor = source->hasForegroundColor;
-        glyphRun->foregroundColor = source->foregroundColor;
-        glyphRun->userData = source->userData;
-    }
-
-    return glyphRun;
-}
-
 TR_INTERNAL const TRFloat *GlyphRunGetAdvances(GlyphRunRef glyphRun)
 {
-    if (glyphRun->justifiedAdvances) {
-        return glyphRun->justifiedAdvances;
+    const TRFloat *advances = glyphRun->justifiedAdvances;
+
+    if (!advances) {
+        advances = glyphRun->textRun->glyphAdvances + glyphRun->glyphStart;
     }
 
-    return glyphRun->textRun->glyphAdvances + glyphRun->glyphStart;
+    return advances;
 }
 
 TR_INTERNAL TRBoolean GlyphRunIsRTL(GlyphRunRef glyphRun)
@@ -421,28 +424,25 @@ TRRect TRGlyphRunGetBoundingBox(TRGlyphRunRef run, TRRange glyphRange, TRRendere
     /* The range MUST be within the glyphs of the run. */
     TRAssert(glyphRange.index + glyphRange.length <= run->glyphCount);
 
-    box.origin.x = 0.0f;
-    box.origin.y = 0.0f;
-    box.size.width = 0.0f;
-    box.size.height = 0.0f;
-
     if (textRun->kind == TextRunKindReplacement) {
+        box.origin.x = 0.0f;
+        box.origin.y = 0.0f;
         box.size.width = TRGlyphRunGetWidth(run);
         box.size.height = TRGlyphRunGetHeight(run);
+    } else {
+        TRRendererSetTypeface(renderer, textRun->typeface);
+        TRRendererSetTypeSize(renderer, textRun->typeSize);
+        TRRendererSetScaleX(renderer, textRun->scaleX);
+        TRRendererSetScaleY(renderer, textRun->scaleY);
+        TRRendererSetWritingDirection(renderer, textRun->writingDirection);
 
-        return box;
+        box = TRRendererGetRunBoundingBox(renderer,
+            TRGlyphRunGetGlyphIDsPtr(run) + glyphRange.index,
+            TRGlyphRunGetGlyphOffsetsPtr(run) + glyphRange.index,
+            GlyphRunGetAdvances((GlyphRunRef)run) + glyphRange.index, glyphRange.length);
     }
 
-    TRRendererSetTypeface(renderer, textRun->typeface);
-    TRRendererSetTypeSize(renderer, textRun->typeSize);
-    TRRendererSetScaleX(renderer, textRun->scaleX);
-    TRRendererSetScaleY(renderer, textRun->scaleY);
-    TRRendererSetWritingDirection(renderer, textRun->writingDirection);
-
-    return TRRendererGetRunBoundingBox(renderer,
-        TRGlyphRunGetGlyphIDsPtr(run) + glyphRange.index,
-        TRGlyphRunGetGlyphOffsetsPtr(run) + glyphRange.index,
-        GlyphRunGetAdvances((GlyphRunRef)run) + glyphRange.index, glyphRange.length);
+    return box;
 }
 
 TRGlyphRunRef TRGlyphRunRetain(TRGlyphRunRef run)

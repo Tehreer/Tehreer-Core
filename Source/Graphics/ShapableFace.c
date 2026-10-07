@@ -77,15 +77,16 @@ static TRInt32 GetGlyphAdvance(ShapableFaceRef shapableFace, TRGlyphID glyphID)
 static hb_bool_t GetNominalGlyph(hb_font_t *font, void *object, hb_codepoint_t unicode,
     hb_codepoint_t *glyph, void *userData)
 {
+    hb_bool_t hasGlyph = 0;
     ShapableFaceRef shapableFace = object;
     TRGlyphID glyphID = RenderableFaceGetCodePointGlyphID(shapableFace->renderableFace, unicode);
 
-    if (glyphID == 0) {
-        return 0;
+    if (glyphID != 0) {
+        *glyph = glyphID;
+        hasGlyph = 1;
     }
 
-    *glyph = glyphID;
-    return 1;
+    return hasGlyph;
 }
 
 static unsigned int GetNominalGlyphs(hb_font_t *font, void *object, unsigned int count,
@@ -113,16 +114,17 @@ static unsigned int GetNominalGlyphs(hb_font_t *font, void *object, unsigned int
 static hb_bool_t GetVariationGlyph(hb_font_t *font, void *object, hb_codepoint_t unicode,
     hb_codepoint_t variationSelector, hb_codepoint_t *glyph, void *userData)
 {
+    hb_bool_t hasGlyph = 0;
     ShapableFaceRef shapableFace = object;
     TRGlyphID glyphID = RenderableFaceGetVariantGlyphID(shapableFace->renderableFace, unicode,
         variationSelector);
 
-    if (glyphID == 0) {
-        return 0;
+    if (glyphID != 0) {
+        *glyph = glyphID;
+        hasGlyph = 1;
     }
 
-    *glyph = glyphID;
-    return 1;
+    return hasGlyph;
 }
 
 static hb_position_t GetGlyphHAdvance(hb_font_t *font, void *object, hb_codepoint_t glyph,
@@ -164,6 +166,7 @@ static void InitFontFuncs(void)
 static hb_font_funcs_t *GetFontFuncs(void)
 {
     static Once once = OnceMake();
+
     OnceExecute(&once, InitFontFuncs);
 
     return DefaultFontFuncs;
@@ -187,8 +190,8 @@ static void FinalizeShapableFace(ObjectRef object)
 
 static ShapableFaceRef AllocateShapableFace(TRUInteger coordinateCount)
 {
-    TRUInteger sizes[2];
     void *pointers[2] = { NULL };
+    TRUInteger sizes[2];
     ShapableFaceRef shapableFace;
 
     sizes[0] = sizeof(ShapableFace);
@@ -245,10 +248,10 @@ TR_INTERNAL ShapableFaceRef ShapableFaceCreate(RenderableFaceRef renderableFace)
 TR_INTERNAL ShapableFaceRef ShapableFaceCreateDerived(ShapableFaceRef parent,
     const TRFloat *coordinates, TRUInteger coordinateCount)
 {
-    ShapableFaceRef rootFace = (parent->rootFace ? parent->rootFace : parent);
     ShapableFaceRef shapableFace = AllocateShapableFace(coordinateCount);
 
     if (shapableFace) {
+        ShapableFaceRef rootFace = (parent->rootFace ? parent->rootFace : parent);
         TRUInteger index;
 
         for (index = 0; index < coordinateCount; index++) {

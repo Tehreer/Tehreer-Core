@@ -33,11 +33,12 @@ static void FinalizeText(ObjectRef object)
 
 static TRText *CreateText(SBMutableTextRef sbText, TRBoolean isMutable)
 {
-    const TRUInteger size = sizeof(TRText);
-    void *pointer = NULL;
     TRText *text = NULL;
 
     if (sbText) {
+        const TRUInteger size = sizeof(TRText);
+        void *pointer = NULL;
+
         text = ObjectCreate(&size, 1, &pointer, FinalizeText);
 
         if (text) {

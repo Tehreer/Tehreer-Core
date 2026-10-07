@@ -62,6 +62,7 @@ static void FinalizeTypesetter(ObjectRef object)
 
 static TRBoolean CopyCodeUnits(TypesetterRef typesetter, TRTextRef text)
 {
+    TRBoolean isCopied = TRFalse;
     TRUInteger length = TRTextGetLength(text);
     TRUInteger unitSize = (typesetter->buffer.encoding == TRStringEncodingUTF8 ? 1
                            : (typesetter->buffer.encoding == TRStringEncodingUTF16 ? 2 : 4));
@@ -69,22 +70,36 @@ static TRBoolean CopyCodeUnits(TypesetterRef typesetter, TRTextRef text)
 
     /* A block is always allocated, so that an empty text has valid code units too. */
     units = AllocatorAllocateBlock((length > 0 ? length * unitSize : 1));
-    if (!units) {
-        return TRFalse;
+
+    if (units) {
+        if (length > 0) {
+            TRTextGetCodeUnits(text, 0, length, units);
+        }
+
+        typesetter->buffer.codeUnits = units;
+        typesetter->buffer.length = length;
+
+        isCopied = TRTrue;
     }
 
-    if (length > 0) {
-        TRTextGetCodeUnits(text, 0, length, units);
+    return isCopied;
+}
+
+static void FillBlocks(TypesetterRef typesetter)
+{
+    TRUInteger blockIndex = 0;
+    TRUInteger index;
+
+    for (index = 0; index < typesetter->runCount; index++) {
+        if (TextRunIsBlock(typesetter->runs[index])) {
+            typesetter->blocks[blockIndex++] = typesetter->runs[index];
+        }
     }
-
-    typesetter->buffer.codeUnits = units;
-    typesetter->buffer.length = length;
-
-    return TRTrue;
 }
 
 static TRBoolean CollectBlocks(TypesetterRef typesetter)
 {
+    TRBoolean isCollected = TRTrue;
     TRUInteger blockCount = 0;
     TRUInteger index;
 
@@ -95,78 +110,25 @@ static TRBoolean CollectBlocks(TypesetterRef typesetter)
     }
 
     if (blockCount > 0) {
-        TRUInteger blockIndex = 0;
-
         typesetter->blocks = AllocatorAllocateBlock(blockCount * sizeof(TextRunRef));
-        if (!typesetter->blocks) {
-            return TRFalse;
-        }
 
-        for (index = 0; index < typesetter->runCount; index++) {
-            if (TextRunIsBlock(typesetter->runs[index])) {
-                typesetter->blocks[blockIndex++] = typesetter->runs[index];
-            }
+        if (typesetter->blocks) {
+            FillBlocks(typesetter);
+        } else {
+            isCollected = TRFalse;
         }
     }
 
-    typesetter->blockCount = blockCount;
-
-    return TRTrue;
-}
-
-TRTypesetterRef TRTypesetterCreate(TRTextRef text, const TRAttribute *defaultAttributes,
-    TRUInteger defaultAttributeCount)
-{
-    const TRUInteger size = sizeof(TRTypesetter);
-    void *pointer = NULL;
-    TypesetterRef typesetter;
-
-    if (!text) {
-        return NULL;
+    if (isCollected) {
+        typesetter->blockCount = blockCount;
     }
 
-    typesetter = ObjectCreate(&size, 1, &pointer, FinalizeTypesetter);
-    if (!typesetter) {
-        return NULL;
-    }
-
-    typesetter->text = NULL;
-    typesetter->buffer.codeUnits = NULL;
-    typesetter->buffer.length = 0;
-    typesetter->buffer.encoding = TRTextGetEncoding(text);
-    typesetter->paragraphs = NULL;
-    typesetter->paragraphCount = 0;
-    typesetter->runs = NULL;
-    typesetter->runCount = 0;
-    typesetter->blocks = NULL;
-    typesetter->blockCount = 0;
-    typesetter->breaks = NULL;
-
-    /* The copy is immutable, so the text can be changed by the caller afterwards. */
-    typesetter->text = TRTextCreateCopy(text);
-
-    if (typesetter->text && CopyCodeUnits(typesetter, typesetter->text)
-            && ShapeResolverResolve(typesetter, defaultAttributes, defaultAttributeCount)
-            && CollectBlocks(typesetter)) {
-        typesetter->breaks = BreakClassifierCreate(typesetter->buffer.codeUnits,
-            typesetter->buffer.length, typesetter->buffer.encoding);
-    }
-
-    if (!typesetter->breaks) {
-        ObjectRelease(typesetter);
-        return NULL;
-    }
-
-    return typesetter;
-}
-
-TRUInteger TRTypesetterGetCodeUnitCount(TRTypesetterRef typesetter)
-{
-    return typesetter->buffer.length;
+    return isCollected;
 }
 
 TR_INTERNAL TRUInteger TypesetterFindParagraph(TypesetterRef typesetter, TRUInteger index)
 {
+    TRUInteger paragraphIndex = TRInvalidIndex;
     TRUInteger low = 0;
     TRUInteger high = typesetter->paragraphCount;
 
@@ -179,15 +141,17 @@ TR_INTERNAL TRUInteger TypesetterFindParagraph(TypesetterRef typesetter, TRUInte
         } else if (index < paragraph->start) {
             high = mid;
         } else {
-            return mid;
+            paragraphIndex = mid;
+            break;
         }
     }
 
-    return TRInvalidIndex;
+    return paragraphIndex;
 }
 
 TR_INTERNAL TRUInteger TypesetterFindRun(TypesetterRef typesetter, TRUInteger index)
 {
+    TRUInteger runIndex = TRInvalidIndex;
     TRUInteger low = 0;
     TRUInteger high = typesetter->runCount;
 
@@ -200,11 +164,12 @@ TR_INTERNAL TRUInteger TypesetterFindRun(TypesetterRef typesetter, TRUInteger in
         } else if (index < textRun->codeUnitStart) {
             high = mid;
         } else {
-            return mid;
+            runIndex = mid;
+            break;
         }
     }
 
-    return TRInvalidIndex;
+    return runIndex;
 }
 
 TR_INTERNAL TRFloat TypesetterMeasureRange(TypesetterRef typesetter, TRUInteger start,
@@ -227,6 +192,55 @@ TR_INTERNAL TRFloat TypesetterMeasureRange(TypesetterRef typesetter, TRUInteger 
     }
 
     return extent;
+}
+
+TRTypesetterRef TRTypesetterCreate(TRTextRef text, const TRAttribute *defaultAttributes,
+    TRUInteger defaultAttributeCount)
+{
+    TypesetterRef typesetter = NULL;
+
+    if (text) {
+        const TRUInteger size = sizeof(TRTypesetter);
+        void *pointer = NULL;
+
+        typesetter = ObjectCreate(&size, 1, &pointer, FinalizeTypesetter);
+    }
+
+    if (typesetter) {
+        typesetter->text = NULL;
+        typesetter->buffer.codeUnits = NULL;
+        typesetter->buffer.length = 0;
+        typesetter->buffer.encoding = TRTextGetEncoding(text);
+        typesetter->paragraphs = NULL;
+        typesetter->paragraphCount = 0;
+        typesetter->runs = NULL;
+        typesetter->runCount = 0;
+        typesetter->blocks = NULL;
+        typesetter->blockCount = 0;
+        typesetter->breaks = NULL;
+
+        /* The copy is immutable, so the text can be changed by the caller afterwards. */
+        typesetter->text = TRTextCreateCopy(text);
+
+        if (typesetter->text && CopyCodeUnits(typesetter, typesetter->text)
+                && ShapeResolverResolve(typesetter, defaultAttributes, defaultAttributeCount)
+                && CollectBlocks(typesetter)) {
+            typesetter->breaks = BreakClassifierCreate(typesetter->buffer.codeUnits,
+                typesetter->buffer.length, typesetter->buffer.encoding);
+        }
+
+        if (!typesetter->breaks) {
+            ObjectRelease(typesetter);
+            typesetter = NULL;
+        }
+    }
+
+    return typesetter;
+}
+
+TRUInteger TRTypesetterGetCodeUnitCount(TRTypesetterRef typesetter)
+{
+    return typesetter->buffer.length;
 }
 
 void TRTypesetterGetParagraph(TRTypesetterRef typesetter, TRUInteger index, TRRange *range,

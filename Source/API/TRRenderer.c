@@ -45,6 +45,80 @@ static void FinalizeRenderer(ObjectRef object)
     }
 }
 
+/* Converts a value to fixed point with the given number of fractional bits, rounding it. */
+static TRInt32 ToFixed(TRFloat value, TRFloat unit)
+{
+    return (TRInt32)((value * unit) + 0.5f);
+}
+
+static TRInt32 ToPixelSize(const TRRenderer *renderer, TRFloat scale)
+{
+    TRFloat size = renderer->typeSize * scale * renderer->renderScale;
+
+    return (size > 0.0f ? ToFixed(size, 64.0f) : 0);
+}
+
+static GlyphCacheRef GetCache(const TRRenderer *renderer)
+{
+    return (renderer->cache ? renderer->cache : TRGlyphCacheGetDefault());
+}
+
+static void SetupDataKey(const TRRenderer *renderer, GlyphDataKey *key)
+{
+    key->typeface = renderer->typeface;
+    key->pixelWidth = ToPixelSize(renderer, renderer->scaleX);
+    key->pixelHeight = ToPixelSize(renderer, renderer->scaleY);
+    key->skewX = ToFixed(renderer->skewX, 65536.0f);
+}
+
+/* Rounds half up, which does not depend on the sign as the truncation of a cast does. */
+static TRFloat RoundPixel(TRFloat value)
+{
+    return (TRFloat)floor(value + 0.5f);
+}
+
+/*
+ * The position of the glyph at an index in pixels. The pen is moved before the glyph in the
+ * reverse mode of right-to-left runs, and after it otherwise. The caller keeps the pen and the
+ * total advance, which MUST start from zero.
+ */
+typedef struct _RunPen {
+    TRBoolean isReverse;
+    TRFloat penX;
+    TRFloat totalAdvance;
+} RunPen;
+
+static void BeginGlyph(const TRRenderer *renderer, RunPen *pen, const TRPoint *offsets,
+    const TRFloat *advances, TRUInteger index, TRFloat *outOffsetX, TRFloat *outOffsetY,
+    TRFloat *outAdvance)
+{
+    TRFloat scale = renderer->renderScale;
+
+    *outOffsetX = offsets[index].x * scale;
+    *outOffsetY = offsets[index].y * scale;
+    *outAdvance = advances[index] * scale;
+
+    if (pen->isReverse) {
+        pen->penX -= *outAdvance;
+    }
+}
+
+static void EndGlyph(RunPen *pen, TRFloat advance)
+{
+    if (!pen->isReverse) {
+        pen->penX += advance;
+    }
+
+    pen->totalAdvance += advance;
+}
+
+static void SetupPen(const TRRenderer *renderer, RunPen *pen)
+{
+    pen->isReverse = (renderer->writingDirection == TRWritingDirectionRightToLeft);
+    pen->penX = 0.0f;
+    pen->totalAdvance = 0.0f;
+}
+
 TRRendererRef TRRendererCreate(void)
 {
     const TRUInteger size = sizeof(TRRenderer);
@@ -151,32 +225,6 @@ void TRRendererSetStrokeMiter(TRRendererRef renderer, TRFloat strokeMiter)
     renderer->strokeMiter = strokeMiter;
 }
 
-/* Converts a value to fixed point with the given number of fractional bits, rounding it. */
-static TRInt32 ToFixed(TRFloat value, TRFloat unit)
-{
-    return (TRInt32)((value * unit) + 0.5f);
-}
-
-static TRInt32 ToPixelSize(const TRRenderer *renderer, TRFloat scale)
-{
-    TRFloat size = renderer->typeSize * scale * renderer->renderScale;
-
-    return (size > 0.0f ? ToFixed(size, 64.0f) : 0);
-}
-
-static GlyphCacheRef GetCache(const TRRenderer *renderer)
-{
-    return (renderer->cache ? renderer->cache : TRGlyphCacheGetDefault());
-}
-
-static void SetupDataKey(const TRRenderer *renderer, GlyphDataKey *key)
-{
-    key->typeface = renderer->typeface;
-    key->pixelWidth = ToPixelSize(renderer, renderer->scaleX);
-    key->pixelHeight = ToPixelSize(renderer, renderer->scaleY);
-    key->skewX = ToFixed(renderer->skewX, 65536.0f);
-}
-
 TRBoolean TRRendererIsRenderable(TRRendererRef renderer)
 {
     /* The least size that FreeType can render is one pixel in each direction. */
@@ -186,97 +234,55 @@ TRBoolean TRRendererIsRenderable(TRRendererRef renderer)
 
 TRGlyphImageRef TRRendererGetGlyphImage(TRRendererRef renderer, TRGlyphID glyphID)
 {
-    GlyphDataKey key;
+    TRGlyphImageRef glyphImage = NULL;
 
-    if (!renderer->typeface) {
-        return NULL;
+    if (renderer->typeface) {
+        GlyphDataKey key;
+
+        SetupDataKey(renderer, &key);
+
+        glyphImage = GlyphCacheGetImage(GetCache(renderer), &key, glyphID, renderer->foregroundColor);
     }
 
-    SetupDataKey(renderer, &key);
-
-    return GlyphCacheGetImage(GetCache(renderer), &key, glyphID, renderer->foregroundColor);
+    return glyphImage;
 }
 
 TRGlyphImageRef TRRendererGetStrokeImage(TRRendererRef renderer, TRGlyphID glyphID)
 {
-    GlyphDataKey key;
-    GlyphStrokeKey strokeKey;
-    TRFloat radius = (renderer->strokeWidth > 0.0f ? renderer->strokeWidth / 2.0f : 0.0f);
-    TRFloat miter = (renderer->strokeMiter > 0.0f ? renderer->strokeMiter : 0.0f);
+    TRGlyphImageRef strokeImage = NULL;
 
-    if (!renderer->typeface) {
-        return NULL;
+    if (renderer->typeface) {
+        TRFloat radius = (renderer->strokeWidth > 0.0f ? renderer->strokeWidth / 2.0f : 0.0f);
+        TRFloat miter = (renderer->strokeMiter > 0.0f ? renderer->strokeMiter : 0.0f);
+        GlyphDataKey key;
+        GlyphStrokeKey strokeKey;
+
+        SetupDataKey(renderer, &key);
+
+        strokeKey.lineRadius = ToFixed(radius, 64.0f);
+        strokeKey.lineCap = renderer->strokeCap;
+        strokeKey.lineJoin = renderer->strokeJoin;
+        strokeKey.miterLimit = ToFixed(miter, 65536.0f);
+
+        strokeImage = GlyphCacheGetStrokeImage(GetCache(renderer), &key, &strokeKey, glyphID);
     }
 
-    SetupDataKey(renderer, &key);
-
-    strokeKey.lineRadius = ToFixed(radius, 64.0f);
-    strokeKey.lineCap = renderer->strokeCap;
-    strokeKey.lineJoin = renderer->strokeJoin;
-    strokeKey.miterLimit = ToFixed(miter, 65536.0f);
-
-    return GlyphCacheGetStrokeImage(GetCache(renderer), &key, &strokeKey, glyphID);
+    return strokeImage;
 }
 
 TRPathRef TRRendererGetGlyphPath(TRRendererRef renderer, TRGlyphID glyphID)
 {
-    GlyphDataKey key;
+    TRPathRef glyphPath = NULL;
 
-    if (!renderer->typeface) {
-        return NULL;
+    if (renderer->typeface) {
+        GlyphDataKey key;
+
+        SetupDataKey(renderer, &key);
+
+        glyphPath = GlyphCacheGetPath(GetCache(renderer), &key, glyphID);
     }
 
-    SetupDataKey(renderer, &key);
-
-    return GlyphCacheGetPath(GetCache(renderer), &key, glyphID);
-}
-
-/* Rounds half up, which does not depend on the sign as the truncation of a cast does. */
-static TRFloat RoundPixel(TRFloat value)
-{
-    return (TRFloat)floor(value + 0.5f);
-}
-
-/*
- * The position of the glyph at an index in pixels. The pen is moved before the glyph in the
- * reverse mode of right-to-left runs, and after it otherwise. The caller keeps the pen and the
- * total advance, which MUST start from zero.
- */
-typedef struct _RunPen {
-    TRBoolean isReverse;
-    TRFloat penX;
-    TRFloat totalAdvance;
-} RunPen;
-
-static void BeginGlyph(const TRRenderer *renderer, RunPen *pen, const TRPoint *offsets,
-    const TRFloat *advances, TRUInteger index, TRFloat *outOffsetX, TRFloat *outOffsetY,
-    TRFloat *outAdvance)
-{
-    TRFloat scale = renderer->renderScale;
-
-    *outOffsetX = offsets[index].x * scale;
-    *outOffsetY = offsets[index].y * scale;
-    *outAdvance = advances[index] * scale;
-
-    if (pen->isReverse) {
-        pen->penX -= *outAdvance;
-    }
-}
-
-static void EndGlyph(RunPen *pen, TRFloat advance)
-{
-    if (!pen->isReverse) {
-        pen->penX += advance;
-    }
-
-    pen->totalAdvance += advance;
-}
-
-static void SetupPen(const TRRenderer *renderer, RunPen *pen)
-{
-    pen->isReverse = (renderer->writingDirection == TRWritingDirectionRightToLeft);
-    pen->penX = 0.0f;
-    pen->totalAdvance = 0.0f;
+    return glyphPath;
 }
 
 TRRect TRRendererGetGlyphBoundingBox(TRRendererRef renderer, TRGlyphID glyphID)
@@ -306,7 +312,6 @@ TRRect TRRendererGetGlyphBoundingBox(TRRendererRef renderer, TRGlyphID glyphID)
 TRRect TRRendererGetRunBoundingBox(TRRendererRef renderer, const TRGlyphID *glyphIDs,
     const TRPoint *offsets, const TRFloat *advances, TRUInteger count)
 {
-    TRFloat scale = renderer->renderScale;
     TRFloat minX = 0.0f, minY = 0.0f, maxX = 0.0f, maxY = 0.0f;
     TRBoolean hasBox = TRFalse;
     RunPen pen;
@@ -355,6 +360,7 @@ TRRect TRRendererGetRunBoundingBox(TRRendererRef renderer, const TRGlyphID *glyp
     if (hasBox) {
         /* The glyphs of a right-to-left run are placed from the end of its advance. */
         TRFloat shift = (pen.isReverse ? (TRFloat)ceil(pen.totalAdvance) : 0.0f);
+        TRFloat scale = renderer->renderScale;
 
         box.origin.x = (minX + shift) / scale;
         box.origin.y = minY / scale;

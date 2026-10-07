@@ -53,34 +53,36 @@ static TRUInteger GetFirstBlockIndex(TypesetterRef typesetter, TRUInteger codeUn
 
 static TextRunRef FindBlockForward(TypesetterRef typesetter, TRUInteger start, TRUInteger end)
 {
-    TRUInteger index;
+    TextRunRef block = NULL;
 
-    if (typesetter->blockCount == 0) {
-        return NULL;
+    if (typesetter->blockCount > 0) {
+        TRUInteger index;
+
+        index = GetFirstBlockIndex(typesetter, start);
+
+        if (index < typesetter->blockCount && typesetter->blocks[index]->codeUnitStart < end) {
+            block = typesetter->blocks[index];
+        }
     }
 
-    index = GetFirstBlockIndex(typesetter, start);
-    if (index < typesetter->blockCount && typesetter->blocks[index]->codeUnitStart < end) {
-        return typesetter->blocks[index];
-    }
-
-    return NULL;
+    return block;
 }
 
 static TextRunRef FindBlockBackward(TypesetterRef typesetter, TRUInteger start, TRUInteger end)
 {
-    TRUInteger index;
+    TextRunRef block = NULL;
 
-    if (typesetter->blockCount == 0) {
-        return NULL;
+    if (typesetter->blockCount > 0) {
+        TRUInteger index;
+
+        index = GetFirstBlockIndex(typesetter, end);
+
+        if (index > 0 && typesetter->blocks[index - 1]->codeUnitStart >= start) {
+            block = typesetter->blocks[index - 1];
+        }
     }
 
-    index = GetFirstBlockIndex(typesetter, end);
-    if (index > 0 && typesetter->blocks[index - 1]->codeUnitStart >= start) {
-        return typesetter->blocks[index - 1];
-    }
-
-    return NULL;
+    return block;
 }
 
 static TRBoolean IsWhitespaceAt(TypesetterRef typesetter, TRUInteger index)
@@ -126,6 +128,50 @@ static TRUInteger KeepBlockLineBackward(TypesetterRef typesetter, TextRunRef blo
 }
 
 /*
+ * A block that is not the very first thing on the line ends the line right before it, whatever
+ * text has been accepted so far; the block gets a line of its own later. A block that is the first
+ * thing is the line, which stretches through the whitespace that follows it.
+ */
+static TRUInteger ResolveForwardBlock(TypesetterRef typesetter, TextRunRef block,
+    TRUInteger startIndex, TRUInteger limitIndex)
+{
+    TRUInteger breakIndex = block->codeUnitStart;
+
+    if (block->codeUnitStart <= startIndex) {
+        breakIndex = KeepBlockLine(typesetter, block, limitIndex);
+    }
+
+    return breakIndex;
+}
+
+/*
+ * A block that is not the nearest thing to the boundary already reached leaves everything from it
+ * onward for this line, and nothing from it or before it; a block that is the nearest thing is
+ * part of the line, together with the whitespace that precedes it.
+ */
+static TRUInteger ResolveBackwardBlock(TypesetterRef typesetter, TextRunRef block,
+    TRUInteger backwardIndex, TRUInteger limitIndex)
+{
+    TRUInteger breakIndex = block->codeUnitEnd;
+
+    if (block->codeUnitEnd >= backwardIndex) {
+        breakIndex = KeepBlockLineBackward(typesetter, block, limitIndex);
+    }
+
+    return breakIndex;
+}
+
+/* Tells if the part still fits the extent after excluding the whitespace at its end. */
+static TRBoolean FitsWithoutWhitespace(TypesetterRef typesetter, TRFloat measurement,
+    TRFloat extent, TRUInteger start, TRUInteger end)
+{
+    TRUInteger wsStart = TextBufferGetTrailingWhitespaceStart(&typesetter->buffer, start, end);
+    TRFloat wsExtent = TypesetterMeasureRange(typesetter, wsStart, end);
+
+    return (measurement - wsExtent) <= extent;
+}
+
+/*
  * The range of the sequence of breaks goes from `clampedStart` to `clampedEnd`, while the line
  * starts at `startIndex` and may take whitespace of a block until `limitIndex`.
  */
@@ -144,27 +190,15 @@ static TRUInteger FindForwardBreak(TypesetterRef typesetter, TRFloat extent, Bre
         cursor = endIndex;
 
         if (block) {
-            /*
-             * A block that is not the very first thing on the line ends the line right before it,
-             * whatever text has been accepted so far; the block gets a line of its own later. A
-             * block that is the first thing is the line, which stretches through the whitespace
-             * that follows it.
-             */
-            if (block->codeUnitStart > startIndex) {
-                return block->codeUnitStart;
-            }
-
-            return KeepBlockLine(typesetter, block, limitIndex);
+            forwardIndex = ResolveForwardBlock(typesetter, block, startIndex, limitIndex);
+            break;
         }
 
         measurement += TypesetterMeasureRange(typesetter, forwardIndex, endIndex);
-        if (measurement > extent) {
-            TRUInteger wsStart = TextBufferGetTrailingWhitespaceStart(&typesetter->buffer,
-                forwardIndex, endIndex);
-            TRFloat wsExtent = TypesetterMeasureRange(typesetter, wsStart, endIndex);
 
+        if (measurement > extent) {
             /* Break if excluding the extent of the whitespace helps. */
-            if ((measurement - wsExtent) <= extent) {
+            if (FitsWithoutWhitespace(typesetter, measurement, extent, forwardIndex, endIndex)) {
                 forwardIndex = endIndex;
             }
             break;
@@ -191,28 +225,15 @@ static TRUInteger FindBackwardBreak(TypesetterRef typesetter, TRFloat extent, Br
         cursor = startIndex;
 
         if (block) {
-            /*
-             * A block that is not the nearest thing to the boundary already reached leaves
-             * everything from it onward for this line, and nothing from it or before it; a block
-             * that is the nearest thing is part of the line, together with the whitespace that
-             * precedes it.
-             */
-            if (block->codeUnitEnd < backwardIndex) {
-                return block->codeUnitEnd;
-            }
-
-            return KeepBlockLineBackward(typesetter, block, limitIndex);
+            backwardIndex = ResolveBackwardBlock(typesetter, block, backwardIndex, limitIndex);
+            break;
         }
 
         measurement += TypesetterMeasureRange(typesetter, startIndex, backwardIndex);
 
         if (measurement > extent) {
-            TRUInteger wsStart = TextBufferGetTrailingWhitespaceStart(&typesetter->buffer,
-                startIndex, backwardIndex);
-            TRFloat wsExtent = TypesetterMeasureRange(typesetter, wsStart, backwardIndex);
-
             /* Break if excluding the extent of the whitespace helps. */
-            if ((measurement - wsExtent) <= extent) {
+            if (FitsWithoutWhitespace(typesetter, measurement, extent, startIndex, backwardIndex)) {
                 backwardIndex = startIndex;
             }
             break;
@@ -250,7 +271,7 @@ static TRUInteger SuggestForwardCharacterBreak(TypesetterRef typesetter, TRFloat
 
     /* Take at least one character (grapheme) if the extent is too small. */
     if (breakIndex == start) {
-        return BreakClassifierGetForwardBreak(typesetter->breaks, BreakTypeGrapheme, start, end);
+        breakIndex = BreakClassifierGetForwardBreak(typesetter->breaks, BreakTypeGrapheme, start, end);
     }
 
     return breakIndex;
@@ -264,7 +285,7 @@ static TRUInteger SuggestBackwardCharacterBreak(TypesetterRef typesetter, TRFloa
 
     /* Take at least one character (grapheme) if the extent is too small. */
     if (breakIndex == end) {
-        return BreakClassifierGetBackwardBreak(typesetter->breaks, BreakTypeGrapheme, end, start);
+        breakIndex = BreakClassifierGetBackwardBreak(typesetter->breaks, BreakTypeGrapheme, end, start);
     }
 
     return breakIndex;
@@ -279,14 +300,14 @@ TR_INTERNAL TRUInteger BreakResolverSuggestForwardBreak(TypesetterRef typesetter
     TRAssert(start < end && end <= typesetter->buffer.length);
 
     if (breakMode == TRBreakModeCharacter) {
-        return SuggestForwardCharacterBreak(typesetter, extent, start, end);
-    }
+        breakIndex = SuggestForwardCharacterBreak(typesetter, extent, start, end);
+    } else {
+        breakIndex = FindForwardBreakInRange(typesetter, extent, start, end, TRBreakModeLine);
 
-    breakIndex = FindForwardBreakInRange(typesetter, extent, start, end, TRBreakModeLine);
-
-    /* Fall back to a character break if no line break occurs in the extent. */
-    if (breakIndex == start) {
-        return SuggestForwardCharacterBreak(typesetter, extent, start, end);
+        /* Fall back to a character break if no line break occurs in the extent. */
+        if (breakIndex == start) {
+            breakIndex = SuggestForwardCharacterBreak(typesetter, extent, start, end);
+        }
     }
 
     return breakIndex;
@@ -301,14 +322,14 @@ TR_INTERNAL TRUInteger BreakResolverSuggestBackwardBreak(TypesetterRef typesette
     TRAssert(start < end && end <= typesetter->buffer.length);
 
     if (breakMode == TRBreakModeCharacter) {
-        return SuggestBackwardCharacterBreak(typesetter, extent, start, end);
-    }
+        breakIndex = SuggestBackwardCharacterBreak(typesetter, extent, start, end);
+    } else {
+        breakIndex = FindBackwardBreakInRange(typesetter, extent, start, end, TRBreakModeLine);
 
-    breakIndex = FindBackwardBreakInRange(typesetter, extent, start, end, TRBreakModeLine);
-
-    /* Fall back to a character break if no line break occurs in the extent. */
-    if (breakIndex == end) {
-        return SuggestBackwardCharacterBreak(typesetter, extent, start, end);
+        /* Fall back to a character break if no line break occurs in the extent. */
+        if (breakIndex == end) {
+            breakIndex = SuggestBackwardCharacterBreak(typesetter, extent, start, end);
+        }
     }
 
     return breakIndex;

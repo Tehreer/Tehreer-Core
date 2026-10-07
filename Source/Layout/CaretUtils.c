@@ -18,6 +18,27 @@
 
 #include "CaretUtils.h"
 
+/* Moves the index to the next edge in the direction, and tells if there is one to move to. */
+static TRBoolean MoveToNextEdge(TRUInteger *index, TRBoolean isRTL, TRUInteger first,
+    TRUInteger last)
+{
+    TRBoolean hasNext = TRTrue;
+
+    if (isRTL) {
+        if (*index == first) {
+            hasNext = TRFalse;
+        } else {
+            *index -= 1;
+        }
+    } else if (*index == last) {
+        hasNext = TRFalse;
+    } else {
+        *index += 1;
+    }
+
+    return hasNext;
+}
+
 TR_INTERNAL TRFloat CaretUtilsGetLeftMargin(const TRFloat *caretEdges, TRBoolean isRTL,
     TRUInteger first, TRUInteger last)
 {
@@ -44,50 +65,41 @@ TR_INTERNAL TRUInteger CaretUtilsGetIndexOfEdge(const TRFloat *caretEdges, TRBoo
     TRFloat leadingEdge = 0.0f;
     TRFloat trailingEdge = 0.0f;
     TRUInteger index = (isRTL ? last : first);
+    TRUInteger edgeIndex;
 
     for (;;) {
         TRFloat caretEdge = caretEdges[index] - leftMargin;
 
-        if (caretEdge <= distance) {
-            hasLeading = TRTrue;
-            leadingIndex = index;
-            leadingEdge = caretEdge;
-        } else {
+        if (caretEdge > distance) {
             hasTrailing = TRTrue;
             trailingIndex = index;
             trailingEdge = caretEdge;
             break;
         }
 
+        hasLeading = TRTrue;
+        leadingIndex = index;
+        leadingEdge = caretEdge;
+
         /* Move to the next edge, and stop after the last one. */
-        if (isRTL) {
-            if (index == first) {
-                break;
-            }
-            index -= 1;
-        } else {
-            if (index == last) {
-                break;
-            }
-            index += 1;
+        if (!MoveToNextEdge(&index, isRTL, first, last)) {
+            break;
         }
     }
 
     if (!hasLeading) {
         /* Nothing is covered by the distance. */
-        return first;
-    }
-
-    if (!hasTrailing) {
+        edgeIndex = first;
+    } else if (!hasTrailing) {
         /* The whole range is covered by the distance. */
-        return last;
-    }
-
-    if (distance <= (leadingEdge + trailingEdge) / 2.0f) {
+        edgeIndex = last;
+    } else if (distance <= (leadingEdge + trailingEdge) / 2.0f) {
         /* The distance is closer to the first edge. */
-        return leadingIndex;
+        edgeIndex = leadingIndex;
+    } else {
+        /* The distance is closer to the second edge. */
+        edgeIndex = trailingIndex;
     }
 
-    /* The distance is closer to the second edge. */
-    return trailingIndex;
+    return edgeIndex;
 }

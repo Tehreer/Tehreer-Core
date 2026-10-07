@@ -35,89 +35,38 @@
 
 #include "LineResolver.h"
 
-TR_INTERNAL void RunListInitialize(RunList *list)
+static TRBoolean EnsureRunListCapacity(RunList *list)
 {
-    list->items = NULL;
-    list->count = 0;
-    list->capacity = 0;
-    list->hasFailed = TRFalse;
-}
-
-TR_INTERNAL void RunListFinalize(RunList *list)
-{
-    TRUInteger index;
-
-    for (index = 0; index < list->count; index++) {
-        TRGlyphRunRelease(list->items[index]);
-    }
-
-    AllocatorDeallocateBlock(list->items);
-    RunListInitialize(list);
-}
-
-TR_INTERNAL void RunListInsert(RunList *list, TRUInteger index, GlyphRunRef glyphRun)
-{
-    /* The index MUST NOT be greater than the count. */
-    TRAssert(index <= list->count);
-
-    if (!glyphRun) {
-        list->hasFailed = TRTrue;
-        return;
-    }
+    TRBoolean hasCapacity = TRTrue;
 
     if (list->count == list->capacity) {
-        TRUInteger newCapacity = (list->capacity == 0 ? 8 : list->capacity * 2);
-        GlyphRunRef *newItems = AllocatorReallocateBlock(list->items,
-            newCapacity * sizeof(GlyphRunRef));
+        TRUInteger newCapacity;
+        GlyphRunRef *newItems;
 
-        if (!newItems) {
-            TRGlyphRunRelease(glyphRun);
-            list->hasFailed = TRTrue;
-            return;
+        newCapacity = (list->capacity == 0 ? 8 : list->capacity * 2);
+        newItems = AllocatorReallocateBlock(list->items, newCapacity * sizeof(GlyphRunRef));
+
+        if (newItems) {
+            list->items = newItems;
+            list->capacity = newCapacity;
+        } else {
+            hasCapacity = TRFalse;
         }
-
-        list->items = newItems;
-        list->capacity = newCapacity;
     }
 
-    memmove(&list->items[index + 1], &list->items[index],
-        (list->count - index) * sizeof(GlyphRunRef));
-    list->items[index] = glyphRun;
-    list->count += 1;
+    return hasCapacity;
 }
 
-TR_INTERNAL TRBoolean LineResolverForEachVisualRun(TypesetterRef typesetter, TRUInteger start,
-    TRUInteger end, VisualRunFunc func, void *context)
+/* Goes through the visual runs of a range that is inside a paragraph. */
+static TRBoolean ForEachVisualRunInRange(SBTextRef sbText, TRUInteger start, TRUInteger end,
+    VisualRunFunc func, void *context)
 {
-    SBTextRef sbText = TRTextGetSheenBidiText(typesetter->text);
-    TRUInteger paragraphIndex = TypesetterFindParagraph(typesetter, start);
-    TRBoolean isRTL;
-    TRUInteger feasibleStart;
-    TRUInteger feasibleEnd;
+    TRBoolean isEnumerated = TRFalse;
+    SBVisualRunIteratorRef iterator;
 
-    if (paragraphIndex == TRInvalidIndex) {
-        return TRFalse;
-    }
+    iterator = SBTextCreateVisualRunIterator(sbText, start, end - start);
 
-    isRTL = (typesetter->paragraphs[paragraphIndex].baseLevel & 1) == 1;
-
-    /* The paragraphs of a right-to-left line are shown from the last one to the first. */
-    if (isRTL && typesetter->paragraphs[paragraphIndex].end < end) {
-        paragraphIndex = TypesetterFindParagraph(typesetter, end - 1);
-    }
-
-    do {
-        const ParagraphInfo *paragraph = &typesetter->paragraphs[paragraphIndex];
-        SBVisualRunIteratorRef iterator;
-
-        feasibleStart = (paragraph->start > start ? paragraph->start : start);
-        feasibleEnd = (paragraph->end < end ? paragraph->end : end);
-
-        iterator = SBTextCreateVisualRunIterator(sbText, feasibleStart, feasibleEnd - feasibleStart);
-        if (!iterator) {
-            return TRFalse;
-        }
-
+    if (iterator) {
         while (SBVisualRunIteratorMoveNext(iterator)) {
             const SBVisualRun *sbRun = SBVisualRunIteratorGetCurrent(iterator);
             VisualRun visualRun;
@@ -131,17 +80,26 @@ TR_INTERNAL TRBoolean LineResolverForEachVisualRun(TypesetterRef typesetter, TRU
 
         SBVisualRunIteratorRelease(iterator);
 
-        if (isRTL) {
-            if (paragraphIndex == 0) {
-                break;
-            }
-            paragraphIndex -= 1;
-        } else {
-            paragraphIndex += 1;
-        }
-    } while (isRTL ? feasibleStart != start : feasibleEnd != end);
+        isEnumerated = TRTrue;
+    }
 
-    return TRTrue;
+    return isEnumerated;
+}
+
+/* Moves to the paragraph that is shown next, and tells if there is one to move to. */
+static TRBoolean MoveToNextParagraph(TRUInteger *paragraphIndex, TRBoolean isRTL)
+{
+    TRBoolean hasNext = TRTrue;
+
+    if (!isRTL) {
+        *paragraphIndex += 1;
+    } else if (*paragraphIndex > 0) {
+        *paragraphIndex -= 1;
+    } else {
+        hasNext = TRFalse;
+    }
+
+    return hasNext;
 }
 
 /* Gets what the text is painted with from the attributes at an index. */
@@ -180,113 +138,60 @@ static TRUInteger GetPaint(TypesetterRef typesetter, TRUInteger index, GlyphRunP
     return length;
 }
 
-TR_INTERNAL void LineResolverAppendVisualRuns(TypesetterRef typesetter, TRUInteger start,
-    TRUInteger end, RunList *list, TRBoolean hasLayoutWidth, TRFloat layoutWidth)
+/* A replacement is taken as a whole, and its room is decided by the layout width. */
+static TRUInteger AppendReplacementRun(TypesetterRef typesetter, RunList *list,
+    TextRunRef textRun, TRUInteger insertIndex, TRUInteger start, TRUInteger end,
+    TRBoolean isForwardRun, TRBoolean hasLayoutWidth, TRFloat layoutWidth)
 {
-    TRUInteger insertIndex = list->count;
-    TRUInteger visualStart = start;
-    TRBoolean hasPrevious = TRFalse;
-    TRUInt8 previousLevel = 0;
+    GlyphRunPaint paint;
+    TextRunRef sizedRun;
 
-    if (start >= end) {
-        return;
+    GetPaint(typesetter, start, &paint);
+    sizedRun = (hasLayoutWidth ? TextRunCreateForLayoutWidth(textRun, layoutWidth)
+                               : TextRunRetain(textRun));
+
+    if (sizedRun) {
+        RunListInsert(list, insertIndex, GlyphRunCreate(sizedRun, start, end, &paint));
+        TextRunRelease(sizedRun);
+    } else {
+        list->hasFailed = TRTrue;
     }
 
-    /*
-     * ASSUMPTIONS:
-     *      - The range may fall in one or more text runs.
-     *      - Consecutive text runs may have the same bidirectional level.
-     */
-    do {
-        TRUInteger runIndex = TypesetterFindRun(typesetter, visualStart);
-        TextRunRef textRun;
-        TRUInteger feasibleStart;
-        TRUInteger feasibleEnd;
-        TRUInt8 bidiLevel;
-        TRBoolean isForwardRun;
+    if (isForwardRun) {
+        insertIndex += 1;
+    }
 
-        if (runIndex == TRInvalidIndex) {
-            list->hasFailed = TRTrue;
-            return;
-        }
-
-        textRun = typesetter->runs[runIndex];
-        feasibleStart = (textRun->codeUnitStart > visualStart ? textRun->codeUnitStart : visualStart);
-        feasibleEnd = (textRun->codeUnitEnd < end ? textRun->codeUnitEnd : end);
-        bidiLevel = textRun->bidiLevel;
-        isForwardRun = (bidiLevel & 1) == 0;
-
-        if (hasPrevious && (bidiLevel != previousLevel || isForwardRun)) {
-            insertIndex = list->count;
-        }
-
-        if (textRun->kind == TextRunKindReplacement) {
-            /* A replacement is taken as a whole, and its room is decided by the layout width. */
-            GlyphRunPaint paint;
-            TextRunRef sizedRun;
-
-            GetPaint(typesetter, feasibleStart, &paint);
-            sizedRun = (hasLayoutWidth ? TextRunCreateForLayoutWidth(textRun, layoutWidth)
-                                       : TextRunRetain(textRun));
-
-            if (sizedRun) {
-                RunListInsert(list, insertIndex, GlyphRunCreate(sizedRun, feasibleStart,
-                    feasibleEnd, &paint));
-                TextRunRelease(sizedRun);
-            } else {
-                list->hasFailed = TRTrue;
-            }
-
-            if (isForwardRun) {
-                insertIndex += 1;
-            }
-        } else {
-            TRUInteger spanStart = feasibleStart;
-
-            /* Each part that is painted alike has a run of its own. */
-            while (spanStart < feasibleEnd) {
-                GlyphRunPaint paint;
-                TRUInteger spanLength = GetPaint(typesetter, spanStart, &paint);
-                TRUInteger spanEnd = spanStart + spanLength;
-
-                if (spanLength == 0 || spanEnd > feasibleEnd) {
-                    spanEnd = feasibleEnd;
-                }
-
-                RunListInsert(list, insertIndex, GlyphRunCreate(textRun, spanStart, spanEnd, &paint));
-
-                if (isForwardRun) {
-                    insertIndex += 1;
-                }
-
-                spanStart = spanEnd;
-            }
-        }
-
-        hasPrevious = TRTrue;
-        previousLevel = bidiLevel;
-        visualStart = feasibleEnd;
-    } while (visualStart < end && !list->hasFailed);
+    return insertIndex;
 }
 
-TR_INTERNAL ComposedLineRef LineResolverCreateLine(TypesetterRef typesetter, TRUInteger start,
-    TRUInteger end, RunList *list, TRUInt8 paragraphLevel)
+/* Each part that is painted alike has a run of its own. */
+static TRUInteger AppendPaintedRuns(TypesetterRef typesetter, RunList *list, TextRunRef textRun,
+    TRUInteger insertIndex, TRUInteger start, TRUInteger end, TRBoolean isForwardRun)
 {
-    ComposedLineRef line;
+    TRUInteger spanStart = start;
 
-    if (list->hasFailed) {
-        RunListFinalize(list);
-        return NULL;
+    while (spanStart < end) {
+        GlyphRunPaint paint;
+        TRUInteger spanLength;
+        TRUInteger spanEnd;
+
+        spanLength = GetPaint(typesetter, spanStart, &paint);
+        spanEnd = spanStart + spanLength;
+
+        if (spanLength == 0 || spanEnd > end) {
+            spanEnd = end;
+        }
+
+        RunListInsert(list, insertIndex, GlyphRunCreate(textRun, spanStart, spanEnd, &paint));
+
+        if (isForwardRun) {
+            insertIndex += 1;
+        }
+
+        spanStart = spanEnd;
     }
 
-    line = ComposedLineCreate(&typesetter->buffer, start, end, list->items, list->count,
-        paragraphLevel);
-
-    /* The line took the references of the runs, and the memory of the list is still the list's. */
-    list->count = 0;
-    RunListFinalize(list);
-
-    return line;
+    return insertIndex;
 }
 
 typedef struct _SimpleLineContext {
@@ -304,31 +209,6 @@ static void AppendRunOfSimpleLine(void *context, const VisualRun *visualRun)
         simple->list, simple->hasLayoutWidth, simple->layoutWidth);
 }
 
-TR_INTERNAL ComposedLineRef LineResolverCreateSimpleLine(TypesetterRef typesetter,
-    TRUInteger start, TRUInteger end, TRBoolean hasLayoutWidth, TRFloat layoutWidth)
-{
-    RunList list;
-    SimpleLineContext context;
-    TRUInteger paragraphIndex = TypesetterFindParagraph(typesetter, start);
-
-    RunListInitialize(&list);
-
-    context.typesetter = typesetter;
-    context.list = &list;
-    context.hasLayoutWidth = hasLayoutWidth;
-    context.layoutWidth = layoutWidth;
-
-    if (paragraphIndex == TRInvalidIndex
-            || !LineResolverForEachVisualRun(typesetter, start, end, AppendRunOfSimpleLine,
-                &context)) {
-        RunListFinalize(&list);
-        return NULL;
-    }
-
-    return LineResolverCreateLine(typesetter, start, end, &list,
-        typesetter->paragraphs[paragraphIndex].baseLevel);
-}
-
 /* The part of a range that is skipped by a truncation, and where the token goes. */
 typedef struct _TruncationHandler {
     TypesetterRef typesetter;
@@ -339,10 +219,29 @@ typedef struct _TruncationHandler {
     TRUInteger trailingTokenIndex;
 } TruncationHandler;
 
+/* Handles the first part of the characters, which comes before the skipped ones. */
+static void AppendRunBeforeSkip(TruncationHandler *handler, const VisualRun *visualRun)
+{
+    TRUInteger visualEnd = visualRun->end;
+
+    LineResolverAppendVisualRuns(handler->typesetter, visualRun->start,
+        (visualEnd < handler->skipStart ? visualEnd : handler->skipStart), handler->list, TRFalse,
+        0.0f);
+}
+
+/* Handles the second part of the characters, which comes after the skipped ones. */
+static void AppendRunAfterSkip(TruncationHandler *handler, const VisualRun *visualRun)
+{
+    TRUInteger visualStart = visualRun->start;
+
+    LineResolverAppendVisualRuns(handler->typesetter,
+        (visualStart > handler->skipEnd ? visualStart : handler->skipEnd), visualRun->end,
+        handler->list, TRFalse, 0.0f);
+}
+
 static void AppendRunOfTruncation(void *context, const VisualRun *visualRun)
 {
     TruncationHandler *handler = context;
-    TypesetterRef typesetter = handler->typesetter;
     RunList *list = handler->list;
     TRUInteger visualStart = visualRun->start;
     TRUInteger visualEnd = visualRun->end;
@@ -350,9 +249,7 @@ static void AppendRunOfTruncation(void *context, const VisualRun *visualRun)
     if ((visualRun->level & 1) == 1) {
         /* Handle the second part of the characters. */
         if (visualEnd >= handler->skipEnd) {
-            LineResolverAppendVisualRuns(typesetter,
-                (visualStart > handler->skipEnd ? visualStart : handler->skipEnd), visualEnd, list,
-                TRFalse, 0.0f);
+            AppendRunAfterSkip(handler, visualRun);
 
             if (visualStart < handler->skipEnd) {
                 handler->trailingTokenIndex = list->count;
@@ -365,16 +262,12 @@ static void AppendRunOfTruncation(void *context, const VisualRun *visualRun)
                 handler->leadingTokenIndex = list->count;
             }
 
-            LineResolverAppendVisualRuns(typesetter, visualStart,
-                (visualEnd < handler->skipStart ? visualEnd : handler->skipStart), list, TRFalse,
-                0.0f);
+            AppendRunBeforeSkip(handler, visualRun);
         }
     } else {
         /* Handle the first part of the characters. */
         if (visualStart <= handler->skipStart) {
-            LineResolverAppendVisualRuns(typesetter, visualStart,
-                (visualEnd < handler->skipStart ? visualEnd : handler->skipStart), list, TRFalse,
-                0.0f);
+            AppendRunBeforeSkip(handler, visualRun);
 
             if (visualEnd > handler->skipStart) {
                 handler->leadingTokenIndex = list->count;
@@ -387,9 +280,7 @@ static void AppendRunOfTruncation(void *context, const VisualRun *visualRun)
                 handler->trailingTokenIndex = list->count;
             }
 
-            LineResolverAppendVisualRuns(typesetter,
-                (visualStart > handler->skipEnd ? visualStart : handler->skipEnd), visualEnd, list,
-                TRFalse, 0.0f);
+            AppendRunAfterSkip(handler, visualRun);
         }
     }
 }
@@ -445,39 +336,44 @@ static TRUInt8 GetBaseLevel(TypesetterRef typesetter, TRUInteger index)
 static ComposedLineRef CreateStartTruncatedLine(TypesetterRef typesetter, TRUInteger start,
     TRUInteger end, TRFloat tokenlessWidth, TRBreakMode breakMode, ComposedLineRef token)
 {
+    ComposedLineRef truncatedLine = NULL;
     TRUInteger truncatedStart = BreakResolverSuggestBackwardBreak(typesetter, tokenlessWidth,
         start, end, breakMode);
 
     if (truncatedStart > start) {
-        RunList list;
         TRUInteger tokenInsertIndex = 0;
+        TRBoolean isAppended = TRTrue;
+        RunList list;
+        TRUInteger leadingIndex, trailingIndex;
 
         RunListInitialize(&list);
 
         if (truncatedStart < end) {
-            TRUInteger leadingIndex, trailingIndex;
-
-            if (!AppendRunsAroundSkip(typesetter, start, end, start, truncatedStart, &list,
-                    &leadingIndex, &trailingIndex)) {
-                RunListFinalize(&list);
-                return NULL;
-            }
+            isAppended = AppendRunsAroundSkip(typesetter, start, end, start, truncatedStart, &list,
+                &leadingIndex, &trailingIndex);
 
             tokenInsertIndex = (trailingIndex == TRInvalidIndex ? 0 : trailingIndex);
         }
 
-        AppendTokenRuns(token, &list, tokenInsertIndex);
+        if (isAppended) {
+            AppendTokenRuns(token, &list, tokenInsertIndex);
 
-        return MarkTruncated(LineResolverCreateLine(typesetter, truncatedStart, end, &list,
-            GetBaseLevel(typesetter, truncatedStart)));
+            truncatedLine = MarkTruncated(LineResolverCreateLine(typesetter, truncatedStart, end, &list,
+                GetBaseLevel(typesetter, truncatedStart)));
+        } else {
+            RunListFinalize(&list);
+        }
+    } else {
+        truncatedLine = LineResolverCreateSimpleLine(typesetter, truncatedStart, end, TRFalse, 0.0f);
     }
 
-    return LineResolverCreateSimpleLine(typesetter, truncatedStart, end, TRFalse, 0.0f);
+    return truncatedLine;
 }
 
 static ComposedLineRef CreateMiddleTruncatedLine(TypesetterRef typesetter, TRUInteger start,
     TRUInteger end, TRFloat tokenlessWidth, TRBreakMode breakMode, ComposedLineRef token)
 {
+    ComposedLineRef truncatedLine = NULL;
     TRFloat halfWidth = tokenlessWidth / 2.0f;
     TRUInteger firstMidEnd = BreakResolverSuggestForwardBreak(typesetter, halfWidth, start, end,
         breakMode);
@@ -485,8 +381,10 @@ static ComposedLineRef CreateMiddleTruncatedLine(TypesetterRef typesetter, TRUIn
         breakMode);
 
     if (firstMidEnd < secondMidStart) {
-        RunList list;
         TRUInteger tokenInsertIndex = 0;
+        TRBoolean isAppended = TRTrue;
+        RunList list;
+        TRUInteger leadingIndex, trailingIndex;
 
         /* The whitespaces that are inside are excluded, as the token replaces them. */
         firstMidEnd = TextBufferGetTrailingWhitespaceStart(&typesetter->buffer, start, firstMidEnd);
@@ -495,35 +393,39 @@ static ComposedLineRef CreateMiddleTruncatedLine(TypesetterRef typesetter, TRUIn
         RunListInitialize(&list);
 
         if (start < firstMidEnd || secondMidStart < end) {
-            TRUInteger leadingIndex, trailingIndex;
-
-            if (!AppendRunsAroundSkip(typesetter, start, end, firstMidEnd, secondMidStart, &list,
-                    &leadingIndex, &trailingIndex)) {
-                RunListFinalize(&list);
-                return NULL;
-            }
+            isAppended = AppendRunsAroundSkip(typesetter, start, end, firstMidEnd, secondMidStart,
+                &list, &leadingIndex, &trailingIndex);
 
             tokenInsertIndex = (leadingIndex == TRInvalidIndex ? 0 : leadingIndex);
         }
 
-        AppendTokenRuns(token, &list, tokenInsertIndex);
+        if (isAppended) {
+            AppendTokenRuns(token, &list, tokenInsertIndex);
 
-        return MarkTruncated(LineResolverCreateLine(typesetter, start, end, &list,
-            GetBaseLevel(typesetter, start)));
+            truncatedLine = MarkTruncated(LineResolverCreateLine(typesetter, start, end, &list,
+                GetBaseLevel(typesetter, start)));
+        } else {
+            RunListFinalize(&list);
+        }
+    } else {
+        truncatedLine = LineResolverCreateSimpleLine(typesetter, start, end, TRFalse, 0.0f);
     }
 
-    return LineResolverCreateSimpleLine(typesetter, start, end, TRFalse, 0.0f);
+    return truncatedLine;
 }
 
 static ComposedLineRef CreateEndTruncatedLine(TypesetterRef typesetter, TRUInteger start,
     TRUInteger end, TRFloat tokenlessWidth, TRBreakMode breakMode, ComposedLineRef token)
 {
+    ComposedLineRef truncatedLine = NULL;
     TRUInteger truncatedEnd = BreakResolverSuggestForwardBreak(typesetter, tokenlessWidth, start,
         end, breakMode);
 
     if (truncatedEnd < end) {
-        RunList list;
         TRUInteger tokenInsertIndex = 0;
+        TRBoolean isAppended = TRTrue;
+        RunList list;
+        TRUInteger leadingIndex, trailingIndex;
 
         /* The trailing whitespaces are excluded, as the token replaces them. */
         truncatedEnd = TextBufferGetTrailingWhitespaceStart(&typesetter->buffer, start, truncatedEnd);
@@ -531,47 +433,25 @@ static ComposedLineRef CreateEndTruncatedLine(TypesetterRef typesetter, TRUInteg
         RunListInitialize(&list);
 
         if (start < truncatedEnd) {
-            TRUInteger leadingIndex, trailingIndex;
-
-            if (!AppendRunsAroundSkip(typesetter, start, end, truncatedEnd, end, &list,
-                    &leadingIndex, &trailingIndex)) {
-                RunListFinalize(&list);
-                return NULL;
-            }
+            isAppended = AppendRunsAroundSkip(typesetter, start, end, truncatedEnd, end, &list,
+                &leadingIndex, &trailingIndex);
 
             tokenInsertIndex = (leadingIndex == TRInvalidIndex ? 0 : leadingIndex);
         }
 
-        AppendTokenRuns(token, &list, tokenInsertIndex);
+        if (isAppended) {
+            AppendTokenRuns(token, &list, tokenInsertIndex);
 
-        return MarkTruncated(LineResolverCreateLine(typesetter, start, truncatedEnd, &list,
-            GetBaseLevel(typesetter, start)));
+            truncatedLine = MarkTruncated(LineResolverCreateLine(typesetter, start, truncatedEnd, &list,
+                GetBaseLevel(typesetter, start)));
+        } else {
+            RunListFinalize(&list);
+        }
+    } else {
+        truncatedLine = LineResolverCreateSimpleLine(typesetter, start, truncatedEnd, TRFalse, 0.0f);
     }
 
-    return LineResolverCreateSimpleLine(typesetter, start, truncatedEnd, TRFalse, 0.0f);
-}
-
-TR_INTERNAL ComposedLineRef LineResolverCreateTruncatedLine(TypesetterRef typesetter,
-    TRUInteger start, TRUInteger end, TRFloat extent, TRBreakMode breakMode,
-    TRTruncationPlace truncationPlace, ComposedLineRef tokenLine)
-{
-    TRFloat tokenlessWidth = extent - tokenLine->extent;
-
-    switch (truncationPlace) {
-    case TRTruncationPlaceStart:
-        return CreateStartTruncatedLine(typesetter, start, end, tokenlessWidth, breakMode,
-            tokenLine);
-
-    case TRTruncationPlaceMiddle:
-        return CreateMiddleTruncatedLine(typesetter, start, end, tokenlessWidth, breakMode,
-            tokenLine);
-
-    case TRTruncationPlaceEnd:
-        return CreateEndTruncatedLine(typesetter, start, end, tokenlessWidth, breakMode,
-            tokenLine);
-    }
-
-    return NULL;
+    return truncatedLine;
 }
 
 /* Counts the code units of the inner whitespaces of a range. */
@@ -592,20 +472,293 @@ static TRUInteger ComputeSpaceCount(TypesetterRef typesetter, TRUInteger start, 
     return spaceCount;
 }
 
+/* Adds the share of each inner whitespace to the advances of the glyphs that show it. */
+static void AddSpaceAdvances(TypesetterRef typesetter, GlyphRunRef glyphRun, TRUInteger runStart,
+    TRUInteger runEnd, TRFloat spaceAddition, TRFloat *advances)
+{
+    TRUInteger index = runStart;
+
+    while (index < runEnd) {
+        TRUInteger spaceStart = TextBufferFindWhitespace(&typesetter->buffer, index, runEnd);
+        TRUInteger spaceEnd = TextBufferGetLeadingWhitespaceEnd(&typesetter->buffer, spaceStart,
+            runEnd);
+
+        index = spaceEnd;
+
+        if (spaceStart != spaceEnd) {
+            TRUInteger glyphStart, glyphEnd, glyphIndex;
+            TRFloat distribution;
+            TRFloat advanceAddition;
+
+            TextRunGetGlyphRange(glyphRun->textRun, spaceStart, spaceEnd, &glyphStart, &glyphEnd);
+
+            /* The glyphs of the run start from the first glyph of its range. */
+            glyphStart -= glyphRun->glyphStart;
+            glyphEnd -= glyphRun->glyphStart;
+
+            distribution = (TRFloat)(spaceEnd - spaceStart) / (TRFloat)(glyphEnd - glyphStart);
+            advanceAddition = spaceAddition * distribution;
+
+            for (glyphIndex = glyphStart; glyphIndex < glyphEnd; glyphIndex++) {
+                advances[glyphIndex] += advanceAddition;
+            }
+        }
+    }
+}
+
+/* Replaces the run at the index of the list with its justified version. */
+static TRBoolean JustifyRun(TypesetterRef typesetter, RunList *list, TRUInteger runIndex,
+    TRUInteger wordStart, TRUInteger wordEnd, TRFloat spaceAddition)
+{
+    TRBoolean isJustified = TRTrue;
+    GlyphRunRef glyphRun = list->items[runIndex];
+
+    /* There is nothing to add to a replacement, or to a run without any space in it. */
+    if (glyphRun->textRun->kind != TextRunKindReplacement && glyphRun->glyphCount > 0) {
+        TRFloat *advances;
+
+        advances = AllocatorAllocateBlock(sizeof(TRFloat) * glyphRun->glyphCount);
+
+        if (advances) {
+            TRUInteger runStart = (wordStart > glyphRun->codeUnitStart
+                                   ? wordStart : glyphRun->codeUnitStart);
+            TRUInteger runEnd = (wordEnd < glyphRun->codeUnitEnd
+                                 ? wordEnd : glyphRun->codeUnitEnd);
+            GlyphRunRef justifiedRun;
+
+            memcpy(advances, GlyphRunGetAdvances(glyphRun), sizeof(TRFloat) * glyphRun->glyphCount);
+
+            AddSpaceAdvances(typesetter, glyphRun, runStart, runEnd, spaceAddition, advances);
+
+            justifiedRun = GlyphRunCreateJustified(glyphRun, advances);
+            AllocatorDeallocateBlock(advances);
+
+            if (justifiedRun) {
+                TRGlyphRunRelease(glyphRun);
+                list->items[runIndex] = justifiedRun;
+            } else {
+                isJustified = TRFalse;
+            }
+        } else {
+            isJustified = TRFalse;
+        }
+    }
+
+    return isJustified;
+}
+
+TR_INTERNAL void RunListInitialize(RunList *list)
+{
+    list->items = NULL;
+    list->count = 0;
+    list->capacity = 0;
+    list->hasFailed = TRFalse;
+}
+
+TR_INTERNAL void RunListFinalize(RunList *list)
+{
+    TRUInteger index;
+
+    for (index = 0; index < list->count; index++) {
+        TRGlyphRunRelease(list->items[index]);
+    }
+
+    AllocatorDeallocateBlock(list->items);
+    RunListInitialize(list);
+}
+
+TR_INTERNAL void RunListInsert(RunList *list, TRUInteger index, GlyphRunRef glyphRun)
+{
+    /* The index MUST NOT be greater than the count. */
+    TRAssert(index <= list->count);
+
+    if (!glyphRun) {
+        list->hasFailed = TRTrue;
+    } else if (EnsureRunListCapacity(list)) {
+        memmove(&list->items[index + 1], &list->items[index],
+            (list->count - index) * sizeof(GlyphRunRef));
+        list->items[index] = glyphRun;
+        list->count += 1;
+    } else {
+        TRGlyphRunRelease(glyphRun);
+        list->hasFailed = TRTrue;
+    }
+}
+
+TR_INTERNAL TRBoolean LineResolverForEachVisualRun(TypesetterRef typesetter, TRUInteger start,
+    TRUInteger end, VisualRunFunc func, void *context)
+{
+    TRBoolean isEnumerated = TRFalse;
+    TRUInteger paragraphIndex = TypesetterFindParagraph(typesetter, start);
+
+    if (paragraphIndex != TRInvalidIndex) {
+        SBTextRef sbText = TRTextGetSheenBidiText(typesetter->text);
+        TRBoolean isRTL;
+        TRUInteger feasibleStart;
+        TRUInteger feasibleEnd;
+
+        isRTL = (typesetter->paragraphs[paragraphIndex].baseLevel & 1) == 1;
+
+        /* The paragraphs of a right-to-left line are shown from the last one to the first. */
+        if (isRTL && typesetter->paragraphs[paragraphIndex].end < end) {
+            paragraphIndex = TypesetterFindParagraph(typesetter, end - 1);
+        }
+
+        do {
+            const ParagraphInfo *paragraph = &typesetter->paragraphs[paragraphIndex];
+
+            feasibleStart = (paragraph->start > start ? paragraph->start : start);
+            feasibleEnd = (paragraph->end < end ? paragraph->end : end);
+
+            isEnumerated = ForEachVisualRunInRange(sbText, feasibleStart, feasibleEnd, func, context);
+
+            if (!isEnumerated || !MoveToNextParagraph(&paragraphIndex, isRTL)) {
+                break;
+            }
+        } while (isRTL ? feasibleStart != start : feasibleEnd != end);
+    }
+
+    return isEnumerated;
+}
+
+TR_INTERNAL void LineResolverAppendVisualRuns(TypesetterRef typesetter, TRUInteger start,
+    TRUInteger end, RunList *list, TRBoolean hasLayoutWidth, TRFloat layoutWidth)
+{
+    TRUInteger insertIndex = list->count;
+    TRUInteger visualStart = start;
+    TRBoolean hasPrevious = TRFalse;
+    TRUInt8 previousLevel = 0;
+
+    /*
+     * ASSUMPTIONS:
+     *      - The range may fall in one or more text runs.
+     *      - Consecutive text runs may have the same bidirectional level.
+     */
+    while (visualStart < end && !list->hasFailed) {
+        TRUInteger runIndex = TypesetterFindRun(typesetter, visualStart);
+
+        if (runIndex == TRInvalidIndex) {
+            list->hasFailed = TRTrue;
+        } else {
+            TextRunRef textRun;
+            TRUInteger feasibleStart;
+            TRUInteger feasibleEnd;
+            TRUInt8 bidiLevel;
+            TRBoolean isForwardRun;
+
+            textRun = typesetter->runs[runIndex];
+            feasibleStart = (textRun->codeUnitStart > visualStart
+                             ? textRun->codeUnitStart : visualStart);
+            feasibleEnd = (textRun->codeUnitEnd < end ? textRun->codeUnitEnd : end);
+            bidiLevel = textRun->bidiLevel;
+            isForwardRun = (bidiLevel & 1) == 0;
+
+            if (hasPrevious && (bidiLevel != previousLevel || isForwardRun)) {
+                insertIndex = list->count;
+            }
+
+            if (textRun->kind == TextRunKindReplacement) {
+                insertIndex = AppendReplacementRun(typesetter, list, textRun, insertIndex,
+                    feasibleStart, feasibleEnd, isForwardRun, hasLayoutWidth, layoutWidth);
+            } else {
+                insertIndex = AppendPaintedRuns(typesetter, list, textRun, insertIndex,
+                    feasibleStart, feasibleEnd, isForwardRun);
+            }
+
+            hasPrevious = TRTrue;
+            previousLevel = bidiLevel;
+            visualStart = feasibleEnd;
+        }
+    }
+}
+
+TR_INTERNAL ComposedLineRef LineResolverCreateLine(TypesetterRef typesetter, TRUInteger start,
+    TRUInteger end, RunList *list, TRUInt8 paragraphLevel)
+{
+    ComposedLineRef line = NULL;
+
+    if (list->hasFailed) {
+        RunListFinalize(list);
+    } else {
+        line = ComposedLineCreate(&typesetter->buffer, start, end, list->items, list->count,
+            paragraphLevel);
+
+        /* The line took the references of the runs, and the memory of the list is still the list's. */
+        list->count = 0;
+        RunListFinalize(list);
+    }
+
+    return line;
+}
+
+TR_INTERNAL ComposedLineRef LineResolverCreateSimpleLine(TypesetterRef typesetter,
+    TRUInteger start, TRUInteger end, TRBoolean hasLayoutWidth, TRFloat layoutWidth)
+{
+    ComposedLineRef simpleLine = NULL;
+    TRUInteger paragraphIndex = TypesetterFindParagraph(typesetter, start);
+    RunList list;
+    SimpleLineContext context;
+
+    RunListInitialize(&list);
+
+    context.typesetter = typesetter;
+    context.list = &list;
+    context.hasLayoutWidth = hasLayoutWidth;
+    context.layoutWidth = layoutWidth;
+
+    if (paragraphIndex != TRInvalidIndex
+            && LineResolverForEachVisualRun(typesetter, start, end, AppendRunOfSimpleLine,
+                &context)) {
+        simpleLine = LineResolverCreateLine(typesetter, start, end, &list,
+            typesetter->paragraphs[paragraphIndex].baseLevel);
+    } else {
+        RunListFinalize(&list);
+    }
+
+    return simpleLine;
+}
+
+TR_INTERNAL ComposedLineRef LineResolverCreateTruncatedLine(TypesetterRef typesetter,
+    TRUInteger start, TRUInteger end, TRFloat extent, TRBreakMode breakMode,
+    TRTruncationPlace truncationPlace, ComposedLineRef tokenLine)
+{
+    ComposedLineRef truncatedLine = NULL;
+    TRFloat tokenlessWidth = extent - tokenLine->extent;
+
+    switch (truncationPlace) {
+    case TRTruncationPlaceStart:
+        truncatedLine = CreateStartTruncatedLine(typesetter, start, end, tokenlessWidth, breakMode,
+            tokenLine);
+        break;
+
+    case TRTruncationPlaceMiddle:
+        truncatedLine = CreateMiddleTruncatedLine(typesetter, start, end, tokenlessWidth, breakMode,
+            tokenLine);
+        break;
+
+    case TRTruncationPlaceEnd:
+        truncatedLine = CreateEndTruncatedLine(typesetter, start, end, tokenlessWidth, breakMode,
+            tokenLine);
+        break;
+    }
+
+    return truncatedLine;
+}
+
 TR_INTERNAL ComposedLineRef LineResolverCreateJustifiedLine(TypesetterRef typesetter,
     TRUInteger start, TRUInteger end, TRFloat justificationFactor, TRFloat justificationExtent)
 {
+    ComposedLineRef justifiedLine = NULL;
     TRUInteger wordStart = TextBufferGetLeadingWhitespaceEnd(&typesetter->buffer, start, end);
     TRUInteger wordEnd = TextBufferGetTrailingWhitespaceStart(&typesetter->buffer, start, end);
     TRFloat actualWidth = TypesetterMeasureRange(typesetter, start, wordEnd);
     TRFloat extraWidth = justificationExtent - actualWidth;
     TRFloat availableWidth = extraWidth * justificationFactor;
     TRUInteger innerSpaceCount = ComputeSpaceCount(typesetter, wordStart, wordEnd);
-    TRFloat spaceAddition = (innerSpaceCount > 0 ? availableWidth / (TRFloat)innerSpaceCount : 0.0f);
-    SimpleLineContext context;
     TRUInteger paragraphIndex = TypesetterFindParagraph(typesetter, start);
+    TRBoolean isJustified = TRFalse;
+    SimpleLineContext context;
     RunList list;
-    TRUInteger runIndex;
 
     RunListInitialize(&list);
 
@@ -614,74 +767,27 @@ TR_INTERNAL ComposedLineRef LineResolverCreateJustifiedLine(TypesetterRef typese
     context.hasLayoutWidth = TRFalse;
     context.layoutWidth = 0.0f;
 
-    if (paragraphIndex == TRInvalidIndex
-            || !LineResolverForEachVisualRun(typesetter, start, end, AppendRunOfSimpleLine,
-                &context) || list.hasFailed) {
+    if (paragraphIndex != TRInvalidIndex
+            && LineResolverForEachVisualRun(typesetter, start, end, AppendRunOfSimpleLine,
+                &context) && !list.hasFailed) {
+        TRFloat spaceAddition = (innerSpaceCount > 0
+                                 ? availableWidth / (TRFloat)innerSpaceCount : 0.0f);
+        TRUInteger runIndex;
+
+        isJustified = TRTrue;
+
+        for (runIndex = 0; isJustified && runIndex < list.count; runIndex++) {
+            isJustified = JustifyRun(typesetter, &list, runIndex, wordStart, wordEnd,
+                spaceAddition);
+        }
+    }
+
+    if (isJustified) {
+        justifiedLine = LineResolverCreateLine(typesetter, start, end, &list,
+            typesetter->paragraphs[paragraphIndex].baseLevel);
+    } else {
         RunListFinalize(&list);
-        return NULL;
     }
 
-    for (runIndex = 0; runIndex < list.count; runIndex++) {
-        GlyphRunRef glyphRun = list.items[runIndex];
-        TRUInteger runStart = (wordStart > glyphRun->codeUnitStart ? wordStart : glyphRun->codeUnitStart);
-        TRUInteger runEnd = (wordEnd < glyphRun->codeUnitEnd ? wordEnd : glyphRun->codeUnitEnd);
-        TRFloat *advances;
-        GlyphRunRef justifiedRun;
-        TRUInteger index;
-
-        /* There is nothing to add to a replacement, or to a run without any space in it. */
-        if (glyphRun->textRun->kind == TextRunKindReplacement || glyphRun->glyphCount == 0) {
-            continue;
-        }
-
-        advances = AllocatorAllocateBlock(sizeof(TRFloat) * glyphRun->glyphCount);
-        if (!advances) {
-            RunListFinalize(&list);
-            return NULL;
-        }
-
-        memcpy(advances, GlyphRunGetAdvances(glyphRun), sizeof(TRFloat) * glyphRun->glyphCount);
-
-        index = runStart;
-        while (index < runEnd) {
-            TRUInteger spaceStart = TextBufferFindWhitespace(&typesetter->buffer, index, runEnd);
-            TRUInteger spaceEnd = TextBufferGetLeadingWhitespaceEnd(&typesetter->buffer, spaceStart,
-                runEnd);
-
-            index = spaceEnd;
-
-            if (spaceStart != spaceEnd) {
-                TRUInteger glyphStart, glyphEnd, glyphIndex;
-                TRFloat distribution;
-                TRFloat advanceAddition;
-
-                TextRunGetGlyphRange(glyphRun->textRun, spaceStart, spaceEnd, &glyphStart, &glyphEnd);
-
-                /* The glyphs of the run start from the first glyph of its range. */
-                glyphStart -= glyphRun->glyphStart;
-                glyphEnd -= glyphRun->glyphStart;
-
-                distribution = (TRFloat)(spaceEnd - spaceStart) / (TRFloat)(glyphEnd - glyphStart);
-                advanceAddition = spaceAddition * distribution;
-
-                for (glyphIndex = glyphStart; glyphIndex < glyphEnd; glyphIndex++) {
-                    advances[glyphIndex] += advanceAddition;
-                }
-            }
-        }
-
-        justifiedRun = GlyphRunCreateJustified(glyphRun, advances);
-        AllocatorDeallocateBlock(advances);
-
-        if (!justifiedRun) {
-            RunListFinalize(&list);
-            return NULL;
-        }
-
-        TRGlyphRunRelease(glyphRun);
-        list.items[runIndex] = justifiedRun;
-    }
-
-    return LineResolverCreateLine(typesetter, start, end, &list,
-        typesetter->paragraphs[paragraphIndex].baseLevel);
+    return justifiedLine;
 }

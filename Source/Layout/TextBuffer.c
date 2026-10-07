@@ -25,25 +25,58 @@
 
 #define InvalidCodePoint    0xFFFFFFFF
 
+/* Gets the index of the code point that ends at the given index, not going before the start. */
+static TRUInteger GetPreviousCodePointStart(const TextBuffer *buffer, TRUInteger start,
+    TRUInteger index)
+{
+    TRUInteger previous = index - 1;
+
+    /* Skip the continuation units of the code point that ends at the index. */
+    if (buffer->encoding == TRStringEncodingUTF8) {
+        while (previous > start && (TextBufferGetCodeUnit(buffer, previous) & 0xC0) == 0x80) {
+            previous -= 1;
+        }
+    } else if (buffer->encoding == TRStringEncodingUTF16) {
+        TRUInt32 unit = TextBufferGetCodeUnit(buffer, previous);
+
+        if (unit >= 0xDC00 && unit <= 0xDFFF && previous > start) {
+            TRUInt32 high = TextBufferGetCodeUnit(buffer, previous - 1);
+
+            if (high >= 0xD800 && high <= 0xDBFF) {
+                previous -= 1;
+            }
+        }
+    }
+
+    return previous;
+}
+
 TR_INTERNAL TRUInt32 TextBufferDecodeNext(const TextBuffer *buffer, TRUInteger *index)
 {
+    TRUInt32 codePoint = InvalidCodePoint;
+
     /* Index MUST be less than the length. */
     TRAssert(*index < buffer->length);
 
     switch (buffer->encoding) {
     case TRStringEncodingUTF8:
-        return SBCodepointDecodeNextFromUTF8(buffer->codeUnits, buffer->length, index);
+        codePoint = SBCodepointDecodeNextFromUTF8(buffer->codeUnits, buffer->length, index);
+        break;
 
     case TRStringEncodingUTF16:
-        return SBCodepointDecodeNextFromUTF16(buffer->codeUnits, buffer->length, index);
+        codePoint = SBCodepointDecodeNextFromUTF16(buffer->codeUnits, buffer->length, index);
+        break;
 
     case TRStringEncodingUTF32:
-        return ((const TRUInt32 *)buffer->codeUnits)[(*index)++];
+        codePoint = ((const TRUInt32 *)buffer->codeUnits)[(*index)++];
+        break;
+
+    default:
+        (*index)++;
+        break;
     }
 
-    (*index)++;
-
-    return InvalidCodePoint;
+    return codePoint;
 }
 
 TR_INTERNAL TRUInt32 TextBufferGetCodePoint(const TextBuffer *buffer, TRUInteger index)
@@ -53,112 +86,113 @@ TR_INTERNAL TRUInt32 TextBufferGetCodePoint(const TextBuffer *buffer, TRUInteger
 
 TR_INTERNAL TRUInt32 TextBufferGetCodeUnit(const TextBuffer *buffer, TRUInteger index)
 {
+    TRUInt32 codeUnit = 0;
+
     /* Index MUST be less than the length. */
     TRAssert(index < buffer->length);
 
     switch (buffer->encoding) {
     case TRStringEncodingUTF8:
-        return ((const TRUInt8 *)buffer->codeUnits)[index];
+        codeUnit = ((const TRUInt8 *)buffer->codeUnits)[index];
+        break;
 
     case TRStringEncodingUTF16:
-        return ((const TRUInt16 *)buffer->codeUnits)[index];
+        codeUnit = ((const TRUInt16 *)buffer->codeUnits)[index];
+        break;
 
     case TRStringEncodingUTF32:
-        return ((const TRUInt32 *)buffer->codeUnits)[index];
+        codeUnit = ((const TRUInt32 *)buffer->codeUnits)[index];
+        break;
     }
 
-    return 0;
+    return codeUnit;
 }
 
 TR_INTERNAL TRBoolean TextBufferIsWhitespace(TRUInt32 codePoint)
 {
+    TRBoolean isWhitespace;
+
     if (codePoint <= 0x20) {
-        return (codePoint >= 0x09 && codePoint <= 0x0D) || codePoint == 0x20;
+        isWhitespace = (codePoint >= 0x09 && codePoint <= 0x0D) || codePoint == 0x20;
+    } else {
+        switch (codePoint) {
+        case 0x0085:
+        case 0x00A0:
+        case 0x1680:
+        case 0x2028:
+        case 0x2029:
+        case 0x202F:
+        case 0x205F:
+        case 0x3000:
+            isWhitespace = TRTrue;
+            break;
+
+        default:
+            isWhitespace = (codePoint >= 0x2000 && codePoint <= 0x200A);
+            break;
+        }
     }
 
-    switch (codePoint) {
-    case 0x0085:
-    case 0x00A0:
-    case 0x1680:
-    case 0x2028:
-    case 0x2029:
-    case 0x202F:
-    case 0x205F:
-    case 0x3000:
-        return TRTrue;
-    }
-
-    return (codePoint >= 0x2000 && codePoint <= 0x200A);
+    return isWhitespace;
 }
 
 TR_INTERNAL TRUInteger TextBufferGetLeadingWhitespaceEnd(const TextBuffer *buffer,
     TRUInteger start, TRUInteger end)
 {
-    TRUInteger index = start;
-
-    while (index < end) {
-        TRUInteger next = index;
-
-        if (!TextBufferIsWhitespace(TextBufferDecodeNext(buffer, &next))) {
-            return index;
-        }
-
-        index = next;
-    }
-
-    return end;
-}
-
-TR_INTERNAL TRUInteger TextBufferGetTrailingWhitespaceStart(const TextBuffer *buffer,
-    TRUInteger start, TRUInteger end)
-{
-    TRUInteger index = end;
-
-    /* Scan backward by code points, which are found by going back to the start of each. */
-    while (index > start) {
-        TRUInteger previous = index - 1;
-
-        /* Skip the continuation units of the code point that ends at the index. */
-        if (buffer->encoding == TRStringEncodingUTF8) {
-            while (previous > start && (TextBufferGetCodeUnit(buffer, previous) & 0xC0) == 0x80) {
-                previous -= 1;
-            }
-        } else if (buffer->encoding == TRStringEncodingUTF16) {
-            TRUInt32 unit = TextBufferGetCodeUnit(buffer, previous);
-
-            if (unit >= 0xDC00 && unit <= 0xDFFF && previous > start) {
-                TRUInt32 high = TextBufferGetCodeUnit(buffer, previous - 1);
-
-                if (high >= 0xD800 && high <= 0xDBFF) {
-                    previous -= 1;
-                }
-            }
-        }
-
-        if (!TextBufferIsWhitespace(TextBufferGetCodePoint(buffer, previous))) {
-            return index;
-        }
-
-        index = previous;
-    }
-
-    return start;
-}
-
-TR_INTERNAL TRUInteger TextBufferFindWhitespace(const TextBuffer *buffer, TRUInteger start,
-    TRUInteger end)
-{
+    TRUInteger whitespaceEnd = end;
     TRUInteger index = start;
 
     while (index < end) {
         TRUInteger next = index;
 
         if (TextBufferIsWhitespace(TextBufferDecodeNext(buffer, &next))) {
-            return index;
+            index = next;
+        } else {
+            whitespaceEnd = index;
+            break;
         }
-
-        index = next;
     }
 
-    return end;
+    return whitespaceEnd;
+}
+
+TR_INTERNAL TRUInteger TextBufferGetTrailingWhitespaceStart(const TextBuffer *buffer,
+    TRUInteger start, TRUInteger end)
+{
+    TRUInteger whitespaceStart = start;
+    TRUInteger index = end;
+
+    /* Scan backward by code points, which are found by going back to the start of each. */
+    while (index > start) {
+        TRUInteger previous = GetPreviousCodePointStart(buffer, start, index);
+
+        if (TextBufferIsWhitespace(TextBufferGetCodePoint(buffer, previous))) {
+            index = previous;
+        } else {
+            whitespaceStart = index;
+            break;
+        }
+    }
+
+    return whitespaceStart;
+}
+
+TR_INTERNAL TRUInteger TextBufferFindWhitespace(const TextBuffer *buffer, TRUInteger start,
+    TRUInteger end)
+{
+    TRUInteger whitespaceStart = end;
+    TRUInteger index = start;
+
+    while (index < end) {
+        TRUInteger next = index;
+
+        if (TextBufferIsWhitespace(TextBufferDecodeNext(buffer, &next))) {
+            whitespaceStart = index;
+            break;
+        } else {
+            index = next;
+        }
+    }
+
+    return whitespaceStart;
 }

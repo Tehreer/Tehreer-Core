@@ -20,6 +20,51 @@
 
 #include "CaretEdgesBuilder.h"
 
+/* Adds the advances of the glyphs from the reference index to the one that the cluster ends at. */
+static TRFloat SumClusterAdvance(TRBoolean isBackward, const TRFloat *glyphAdvances,
+    TRUInteger *refIndex, TRUInteger glyphIndex)
+{
+    TRFloat clusterAdvance = 0.0f;
+
+    if (isBackward) {
+        while (*refIndex > glyphIndex) {
+            clusterAdvance += glyphAdvances[*refIndex - 1];
+            *refIndex -= 1;
+        }
+    } else {
+        while (*refIndex < glyphIndex) {
+            clusterAdvance += glyphAdvances[*refIndex - 1];
+            *refIndex += 1;
+        }
+    }
+
+    return clusterAdvance;
+}
+
+/* Divides the advance evenly between the caret stops of the cluster. */
+static void DivideClusterAdvance(TRFloat clusterAdvance, TRUInteger totalStops,
+    const TRBoolean *caretStops, TRUInteger codeUnitCount, TRUInteger codeUnitIndex,
+    TRUInteger *clusterStart, TRFloat *caretAdvances)
+{
+    TRFloat distance = 0.0f;
+    TRUInteger counter = 1;
+
+    while (*clusterStart < codeUnitIndex) {
+        TRFloat advance = 0.0f;
+
+        if (!caretStops || caretStops[*clusterStart] || *clusterStart == codeUnitCount - 1) {
+            TRFloat previous = distance;
+
+            distance = (clusterAdvance * (TRFloat)counter) / (TRFloat)totalStops;
+            advance = distance - previous;
+            counter += 1;
+        }
+
+        caretAdvances[*clusterStart] = advance;
+        *clusterStart += 1;
+    }
+}
+
 /*
  * Glyph indexes are one-based here, so that a cluster boundary before the first glyph can be told
  * apart from the one at the start of the first cluster.
@@ -40,55 +85,27 @@ static void BuildCaretAdvances(TRBoolean isBackward, const TRFloat *glyphAdvance
 
     for (codeUnitIndex = 1; codeUnitIndex <= codeUnitCount; codeUnitIndex++) {
         TRUInteger oldIndex = glyphIndex;
+        TRBoolean isStop = TRTrue;
 
         if (codeUnitIndex != codeUnitCount) {
             glyphIndex = clusterMap[codeUnitIndex] + 1;
-
-            if (caretStops && !caretStops[codeUnitIndex - 1]) {
-                continue;
-            }
-
-            totalStops += 1;
+            isStop = (!caretStops || caretStops[codeUnitIndex - 1]);
         } else {
-            totalStops += 1;
             glyphIndex = (isBackward ? 0 : glyphCount + 1);
         }
 
-        if (glyphIndex != oldIndex) {
-            TRFloat clusterAdvance = 0.0f;
-            TRFloat distance = 0.0f;
-            TRUInteger counter = 1;
+        if (isStop) {
+            totalStops += 1;
 
-            /* Find out the advance of the current cluster. */
-            if (isBackward) {
-                while (refIndex > glyphIndex) {
-                    clusterAdvance += glyphAdvances[refIndex - 1];
-                    refIndex -= 1;
-                }
-            } else {
-                while (refIndex < glyphIndex) {
-                    clusterAdvance += glyphAdvances[refIndex - 1];
-                    refIndex += 1;
-                }
+            if (glyphIndex != oldIndex) {
+                TRFloat clusterAdvance = SumClusterAdvance(isBackward, glyphAdvances, &refIndex,
+                    glyphIndex);
+
+                DivideClusterAdvance(clusterAdvance, totalStops, caretStops, codeUnitCount,
+                    codeUnitIndex, &clusterStart, caretAdvances);
+
+                totalStops = 0;
             }
-
-            /* Divide the advance evenly between the caret stops of the cluster. */
-            while (clusterStart < codeUnitIndex) {
-                TRFloat advance = 0.0f;
-
-                if (!caretStops || caretStops[clusterStart] || clusterStart == codeUnitCount - 1) {
-                    TRFloat previous = distance;
-
-                    distance = (clusterAdvance * (TRFloat)counter) / (TRFloat)totalStops;
-                    advance = distance - previous;
-                    counter += 1;
-                }
-
-                caretAdvances[clusterStart] = advance;
-                clusterStart += 1;
-            }
-
-            totalStops = 0;
         }
     }
 }
@@ -97,39 +114,38 @@ TR_INTERNAL void CaretEdgesBuild(TRBoolean isBackward, TRBoolean isRTL,
     const TRFloat *glyphAdvances, TRUInteger glyphCount, const TRUInteger *clusterMap,
     TRUInteger codeUnitCount, const TRBoolean *caretStops, TRFloat *caretEdges)
 {
-    TRFloat distance = 0.0f;
-
     if (codeUnitCount == 0) {
         caretEdges[0] = 0.0f;
-        return;
-    }
-
-    BuildCaretAdvances(isBackward, glyphAdvances, glyphCount, clusterMap, codeUnitCount,
-        caretStops, caretEdges);
-
-    if (isRTL) {
-        TRUInteger index = codeUnitCount;
-
-        /* The last edge is zero, and the edges grow toward the first code unit. */
-        caretEdges[codeUnitCount] = 0.0f;
-
-        while (index > 0) {
-            index -= 1;
-
-            distance += caretEdges[index];
-            caretEdges[index] = distance;
-        }
     } else {
-        TRFloat advance = caretEdges[0];
-        TRUInteger index;
+        TRFloat distance = 0.0f;
 
-        /* The first edge is zero, and the edges grow toward the last code unit. */
-        caretEdges[0] = 0.0f;
+        BuildCaretAdvances(isBackward, glyphAdvances, glyphCount, clusterMap, codeUnitCount,
+            caretStops, caretEdges);
 
-        for (index = 1; index <= codeUnitCount; index++) {
-            distance += advance;
-            advance = caretEdges[index];
-            caretEdges[index] = distance;
+        if (isRTL) {
+            TRUInteger index = codeUnitCount;
+
+            /* The last edge is zero, and the edges grow toward the first code unit. */
+            caretEdges[codeUnitCount] = 0.0f;
+
+            while (index > 0) {
+                index -= 1;
+
+                distance += caretEdges[index];
+                caretEdges[index] = distance;
+            }
+        } else {
+            TRFloat advance = caretEdges[0];
+            TRUInteger index;
+
+            /* The first edge is zero, and the edges grow toward the last code unit. */
+            caretEdges[0] = 0.0f;
+
+            for (index = 1; index <= codeUnitCount; index++) {
+                distance += advance;
+                advance = caretEdges[index];
+                caretEdges[index] = distance;
+            }
         }
     }
 }

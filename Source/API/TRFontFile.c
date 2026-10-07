@@ -132,52 +132,58 @@ TR_INTERNAL FT_Face TRFontFileCreateFTFace(TRFontFileRef fontFile, TRUInteger fa
 
 TR_PUBLIC TRFontFileRef TRFontFileCreateFromPath(const char *path)
 {
-    FT_Open_Args arguments;
-    TRUInteger length;
-    char *pathCopy;
+    TRFontFileRef fontFile = NULL;
 
-    if (!path) {
-        return NULL;
+    if (path) {
+        TRUInteger length;
+        char *pathCopy;
+
+        length = strlen(path) + 1;
+        pathCopy = malloc(length);
+
+        if (pathCopy) {
+            FT_Open_Args arguments;
+
+            memcpy(pathCopy, path, length);
+
+            arguments.flags = FT_OPEN_PATHNAME;
+            arguments.memory_base = NULL;
+            arguments.memory_size = 0;
+            arguments.pathname = pathCopy;
+            arguments.stream = NULL;
+
+            fontFile = CreateFontFileWithArguments(&arguments);
+        }
     }
 
-    length = strlen(path) + 1;
-    pathCopy = malloc(length);
-    if (!pathCopy) {
-        return NULL;
-    }
-    memcpy(pathCopy, path, length);
-
-    arguments.flags = FT_OPEN_PATHNAME;
-    arguments.memory_base = NULL;
-    arguments.memory_size = 0;
-    arguments.pathname = pathCopy;
-    arguments.stream = NULL;
-
-    return CreateFontFileWithArguments(&arguments);
+    return fontFile;
 }
 
 TR_PUBLIC TRFontFileRef TRFontFileCreateFromMemory(const void *memory, TRUInteger size)
 {
-    FT_Open_Args arguments;
-    void *memoryCopy;
+    TRFontFileRef fontFile = NULL;
 
-    if (!memory || size == 0) {
-        return NULL;
+    if (memory && size > 0) {
+        void *memoryCopy;
+
+        memoryCopy = malloc(size);
+
+        if (memoryCopy) {
+            FT_Open_Args arguments;
+
+            memcpy(memoryCopy, memory, size);
+
+            arguments.flags = FT_OPEN_MEMORY;
+            arguments.memory_base = memoryCopy;
+            arguments.memory_size = (FT_Long)size;
+            arguments.pathname = NULL;
+            arguments.stream = NULL;
+
+            fontFile = CreateFontFileWithArguments(&arguments);
+        }
     }
 
-    memoryCopy = malloc(size);
-    if (!memoryCopy) {
-        return NULL;
-    }
-    memcpy(memoryCopy, memory, size);
-
-    arguments.flags = FT_OPEN_MEMORY;
-    arguments.memory_base = memoryCopy;
-    arguments.memory_size = (FT_Long)size;
-    arguments.pathname = NULL;
-    arguments.stream = NULL;
-
-    return CreateFontFileWithArguments(&arguments);
+    return fontFile;
 }
 
 TR_PUBLIC TRUInteger TRFontFileGetFaceCount(TRFontFileRef fontFile)

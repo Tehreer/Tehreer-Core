@@ -36,6 +36,11 @@ static void FinalizeGlyphImage(ObjectRef object)
     GlyphBitmapDestroy(image->bitmap);
 }
 
+static TRUInteger GetBytesPerPixel(const GlyphBitmap *bitmap)
+{
+    return (bitmap->format == BitmapFormatARGB ? 4 : 1);
+}
+
 TR_INTERNAL TRGlyphImageRef TRGlyphImageCreate(GlyphBitmapRef bitmap)
 {
     const TRUInteger size = sizeof(TRGlyphImage);
@@ -56,11 +61,6 @@ TR_INTERNAL TRGlyphImageRef TRGlyphImageCreate(GlyphBitmapRef bitmap)
     }
 
     return image;
-}
-
-static TRUInteger GetBytesPerPixel(const GlyphBitmap *bitmap)
-{
-    return (bitmap->format == BitmapFormatARGB ? 4 : 1);
 }
 
 TRGlyphImageFormat TRGlyphImageGetFormat(TRGlyphImageRef image)
@@ -108,23 +108,20 @@ void *TRGlyphImageGetNativeData(TRGlyphImageRef image)
 
 TRBoolean TRGlyphImageSetNativeData(TRGlyphImageRef image, void *data, void (*destroy)(void *data))
 {
+    TRBoolean isSet = TRFalse;
     TRGlyphImage *mutableImage = (TRGlyphImage *)image;
     void *expected = NULL;
-
-    if (!data) {
-        return TRFalse;
-    }
 
     /*
      * The destroy function is only read when the image is destroyed. That cannot happen while the
      * caller holds the image, so it is safe to store it after the exchange.
      */
-    if (AtomicPtrCompareAndSet(&mutableImage->_nativeData, &expected, data)) {
+    if (data && AtomicPtrCompareAndSet(&mutableImage->_nativeData, &expected, data)) {
         mutableImage->_destroyNativeData = destroy;
-        return TRTrue;
+        isSet = TRTrue;
     }
 
-    return TRFalse;
+    return isSet;
 }
 
 TRGlyphImageRef TRGlyphImageRetain(TRGlyphImageRef image)

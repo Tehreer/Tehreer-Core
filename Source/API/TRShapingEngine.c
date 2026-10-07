@@ -44,15 +44,117 @@ static void FinalizeShapingEngine(ObjectRef object)
     AllocatorDeallocateBlock(engine->features);
 }
 
+static void AddCodeUnits(hb_buffer_t *buffer, const void *codeUnits, int length,
+    TRStringEncoding encoding)
+{
+    switch (encoding) {
+    case TRStringEncodingUTF8:
+        hb_buffer_add_utf8(buffer, codeUnits, length, 0, length);
+        break;
+
+    case TRStringEncodingUTF16:
+        hb_buffer_add_utf16(buffer, codeUnits, length, 0, length);
+        break;
+
+    case TRStringEncodingUTF32:
+        hb_buffer_add_utf32(buffer, codeUnits, length, 0, length);
+        break;
+    }
+}
+
+static TRBoolean IsShapingPossible(TRShapingEngineRef engine, const void *codeUnits,
+    TRUInteger length, TRStringEncoding encoding)
+{
+    TRBoolean isPossible = TRFalse;
+
+    if (engine->typeface && (length == 0 || codeUnits) && length <= INT_MAX
+            && encoding <= TRStringEncodingUTF32) {
+        isPossible = TRTrue;
+    }
+
+    return isPossible;
+}
+
+static hb_feature_t *CreateHBFeatures(TRShapingEngineRef engine, TRUInteger length)
+{
+    hb_feature_t *hbFeatures = NULL;
+
+    if (engine->featureCount > 0) {
+        hbFeatures = AllocatorAllocateBlock(sizeof(hb_feature_t) * engine->featureCount);
+    }
+
+    if (hbFeatures) {
+        TRUInteger index;
+
+        for (index = 0; index < engine->featureCount; index++) {
+            hbFeatures[index].tag = engine->features[index].tag;
+            hbFeatures[index].value = engine->features[index].value;
+            hbFeatures[index].start = 0;
+            hbFeatures[index].end = (unsigned int)length;
+        }
+    }
+
+    return hbFeatures;
+}
+
+static TRShapingResultRef ShapeCodeUnits(TRShapingEngineRef engine, hb_feature_t *hbFeatures,
+    const void *codeUnits, TRUInteger length, TRStringEncoding encoding)
+{
+    TRTypefaceRef typeface = engine->typeface;
+    TRShapingResultRef shapingResult = NULL;
+    hb_buffer_t *buffer;
+    hb_font_t *hbFont;
+    unsigned int ppem;
+    TRBoolean isBackward;
+    TRBoolean isRTL;
+    TRFloat typeSize;
+
+    buffer = hb_buffer_create();
+    hb_buffer_set_script(buffer, hb_ot_tag_to_script(engine->scriptTag));
+    hb_buffer_set_language(buffer, hb_ot_tag_to_language(engine->languageTag));
+    hb_buffer_set_direction(buffer, (engine->writingDirection == TRWritingDirectionRightToLeft
+                                     ? HB_DIRECTION_RTL : HB_DIRECTION_LTR));
+
+    if (length > 0) {
+        AddCodeUnits(buffer, codeUnits, (int)length, encoding);
+    }
+
+    typeSize = (engine->typeSize > 0.0f ? engine->typeSize : 0.0f);
+    ppem = (unsigned int)(typeSize + 0.5f);
+
+    /* The sub font keeps the glyph lookups of the typeface, but has a size of its own. */
+    hbFont = hb_font_create_sub_font(typeface->shapableFace->hbFont);
+    hb_font_set_ppem(hbFont, ppem, ppem);
+
+    hb_shape(hbFont, buffer, hbFeatures, (unsigned int)engine->featureCount);
+
+    hb_font_destroy(hbFont);
+
+    isBackward = (engine->shapingOrder == TRShapingOrderBackward);
+    isRTL = (isBackward
+             ? engine->writingDirection != TRWritingDirectionRightToLeft
+             : engine->writingDirection == TRWritingDirectionRightToLeft);
+
+    if (typeface->unitsPerEM > 0 && hb_buffer_allocation_successful(buffer)) {
+        shapingResult = TRShapingResultCreate(buffer, length, typeSize / (TRFloat)typeface->unitsPerEM,
+            isBackward, isRTL);
+    }
+
+    hb_buffer_destroy(buffer);
+
+    return shapingResult;
+}
+
 TRWritingDirection TRShapingEngineGetScriptDefaultDirection(TRTag scriptTag)
 {
+    TRWritingDirection writingDirection = TRWritingDirectionLeftToRight;
     hb_script_t script = hb_ot_tag_to_script(scriptTag);
 
     if (hb_script_get_horizontal_direction(script) == HB_DIRECTION_RTL) {
-        return TRWritingDirectionRightToLeft;
+        writingDirection = TRWritingDirectionRightToLeft;
     }
 
-    return TRWritingDirectionLeftToRight;
+    return writingDirection;
 }
 
 TRShapingEngineRef TRShapingEngineCreate(void)
@@ -118,120 +220,52 @@ void TRShapingEngineSetShapingOrder(TRShapingEngineRef engine, TRShapingOrder sh
 TRBoolean TRShapingEngineSetOpenTypeFeatures(TRShapingEngineRef engine,
     const TROpenTypeFeature *features, TRUInteger count)
 {
-    TROpenTypeFeature *copy = NULL;
+    TRBoolean isSet = TRFalse;
 
     if (!features || count == 0) {
         AllocatorDeallocateBlock(engine->features);
         engine->features = NULL;
         engine->featureCount = 0;
 
-        return TRTrue;
+        isSet = TRTrue;
+    } else if (count <= (TRUInteger)(-1) / sizeof(TROpenTypeFeature)) {
+        TROpenTypeFeature *copy;
+
+        copy = AllocatorAllocateBlock(sizeof(TROpenTypeFeature) * count);
+
+        if (copy) {
+            memcpy(copy, features, sizeof(TROpenTypeFeature) * count);
+
+            AllocatorDeallocateBlock(engine->features);
+            engine->features = copy;
+            engine->featureCount = count;
+
+            isSet = TRTrue;
+        }
     }
 
-    if (count > (TRUInteger)(-1) / sizeof(TROpenTypeFeature)) {
-        return TRFalse;
-    }
-
-    copy = AllocatorAllocateBlock(sizeof(TROpenTypeFeature) * count);
-    if (!copy) {
-        return TRFalse;
-    }
-
-    memcpy(copy, features, sizeof(TROpenTypeFeature) * count);
-
-    AllocatorDeallocateBlock(engine->features);
-    engine->features = copy;
-    engine->featureCount = count;
-
-    return TRTrue;
-}
-
-static void AddCodeUnits(hb_buffer_t *buffer, const void *codeUnits, int length,
-    TRStringEncoding encoding)
-{
-    switch (encoding) {
-    case TRStringEncodingUTF8:
-        hb_buffer_add_utf8(buffer, codeUnits, length, 0, length);
-        break;
-
-    case TRStringEncodingUTF16:
-        hb_buffer_add_utf16(buffer, codeUnits, length, 0, length);
-        break;
-
-    case TRStringEncodingUTF32:
-        hb_buffer_add_utf32(buffer, codeUnits, length, 0, length);
-        break;
-    }
+    return isSet;
 }
 
 TRShapingResultRef TRShapingEngineShape(TRShapingEngineRef engine, const void *codeUnits,
     TRUInteger length, TRStringEncoding encoding)
 {
-    TRTypefaceRef typeface = engine->typeface;
-    TRShapingResultRef result = NULL;
-    hb_feature_t *hbFeatures = NULL;
-    hb_buffer_t *buffer;
-    hb_font_t *hbFont;
-    unsigned int ppem;
-    TRBoolean isBackward;
-    TRBoolean isRTL;
-    TRFloat typeSize;
-    TRUInteger index;
+    TRShapingResultRef shapingResult = NULL;
 
-    if (!typeface || (length > 0 && !codeUnits) || length > INT_MAX
-            || encoding > TRStringEncodingUTF32) {
-        return NULL;
-    }
+    if (IsShapingPossible(engine, codeUnits, length, encoding)) {
+        hb_feature_t *hbFeatures;
 
-    if (engine->featureCount > 0) {
-        hbFeatures = AllocatorAllocateBlock(sizeof(hb_feature_t) * engine->featureCount);
-        if (!hbFeatures) {
-            return NULL;
+        hbFeatures = CreateHBFeatures(engine, length);
+
+        /* Without features, a NULL array is valid; otherwise it means allocation failed. */
+        if (engine->featureCount == 0 || hbFeatures) {
+            shapingResult = ShapeCodeUnits(engine, hbFeatures, codeUnits, length, encoding);
         }
 
-        for (index = 0; index < engine->featureCount; index++) {
-            hbFeatures[index].tag = engine->features[index].tag;
-            hbFeatures[index].value = engine->features[index].value;
-            hbFeatures[index].start = 0;
-            hbFeatures[index].end = (unsigned int)length;
-        }
+        AllocatorDeallocateBlock(hbFeatures);
     }
 
-    buffer = hb_buffer_create();
-    hb_buffer_set_script(buffer, hb_ot_tag_to_script(engine->scriptTag));
-    hb_buffer_set_language(buffer, hb_ot_tag_to_language(engine->languageTag));
-    hb_buffer_set_direction(buffer, (engine->writingDirection == TRWritingDirectionRightToLeft
-                                     ? HB_DIRECTION_RTL : HB_DIRECTION_LTR));
-
-    if (length > 0) {
-        AddCodeUnits(buffer, codeUnits, (int)length, encoding);
-    }
-
-    typeSize = (engine->typeSize > 0.0f ? engine->typeSize : 0.0f);
-    ppem = (unsigned int)(typeSize + 0.5f);
-
-    /* The sub font keeps the glyph lookups of the typeface, but has a size of its own. */
-    hbFont = hb_font_create_sub_font(typeface->shapableFace->hbFont);
-    hb_font_set_ppem(hbFont, ppem, ppem);
-
-    hb_shape(hbFont, buffer, hbFeatures, (unsigned int)engine->featureCount);
-
-    hb_font_destroy(hbFont);
-
-    isBackward = (engine->shapingOrder == TRShapingOrderBackward);
-    isRTL = (isBackward
-             ? engine->writingDirection != TRWritingDirectionRightToLeft
-             : engine->writingDirection == TRWritingDirectionRightToLeft);
-
-    if (typeface->unitsPerEM > 0 && hb_buffer_allocation_successful(buffer)) {
-        result = TRShapingResultCreate(buffer, length, typeSize / (TRFloat)typeface->unitsPerEM,
-            isBackward, isRTL);
-    }
-
-    hb_buffer_destroy(buffer);
-    AllocatorDeallocateBlock(hbFeatures);
-
-    return result;
+    return shapingResult;
 }
 
 TRShapingEngineRef TRShapingEngineRetain(TRShapingEngineRef engine)

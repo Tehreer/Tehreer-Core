@@ -38,37 +38,6 @@ static void FinalizePath(ObjectRef object)
     MutexUnlock(&freetype->mutex);
 }
 
-TR_INTERNAL TRPathRef TRPathCreateFromOutline(const FT_Outline *outline)
-{
-    const TRUInteger size = sizeof(TRPath);
-    void *pointer = NULL;
-    TRPath *path;
-
-    path = ObjectCreate(&size, 1, &pointer, FinalizePath);
-
-    if (path) {
-        FreeTypeRef freetype = FreeTypeGetDefault();
-        FT_Error error;
-
-        MutexLock(&freetype->mutex);
-
-        error = FT_Outline_New(freetype->library, outline->n_points, outline->n_contours,
-            &path->outline);
-        if (error == FT_Err_Ok) {
-            error = FT_Outline_Copy(outline, &path->outline);
-        }
-
-        MutexUnlock(&freetype->mutex);
-
-        if (error != FT_Err_Ok) {
-            ObjectRelease(path);
-            path = NULL;
-        }
-    }
-
-    return path;
-}
-
 typedef struct _Enumeration {
     const TRPathCallbacks *callbacks;
     void *userData;
@@ -165,32 +134,61 @@ static int EnumerateCubicTo(const FT_Vector *control1, const FT_Vector *control2
     return 0;
 }
 
+TR_INTERNAL TRPathRef TRPathCreateFromOutline(const FT_Outline *outline)
+{
+    const TRUInteger size = sizeof(TRPath);
+    void *pointer = NULL;
+    TRPath *path;
+
+    path = ObjectCreate(&size, 1, &pointer, FinalizePath);
+
+    if (path) {
+        FreeTypeRef freetype = FreeTypeGetDefault();
+        FT_Error error;
+
+        MutexLock(&freetype->mutex);
+
+        error = FT_Outline_New(freetype->library, outline->n_points, outline->n_contours,
+            &path->outline);
+        if (error == FT_Err_Ok) {
+            error = FT_Outline_Copy(outline, &path->outline);
+        }
+
+        MutexUnlock(&freetype->mutex);
+
+        if (error != FT_Err_Ok) {
+            ObjectRelease(path);
+            path = NULL;
+        }
+    }
+
+    return path;
+}
+
 void TRPathEnumerate(TRPathRef path, const TRAffineTransform *transform,
     const TRPathCallbacks *callbacks, void *userData)
 {
-    FT_Outline_Funcs funcs;
-    Enumeration enumeration;
+    if (callbacks && path->outline.n_contours > 0) {
+        FT_Outline_Funcs funcs;
+        Enumeration enumeration;
 
-    if (!callbacks || path->outline.n_contours == 0) {
-        return;
+        funcs.move_to = EnumerateMoveTo;
+        funcs.line_to = EnumerateLineTo;
+        funcs.conic_to = EnumerateConicTo;
+        funcs.cubic_to = EnumerateCubicTo;
+        funcs.shift = 0;
+        funcs.delta = 0;
+
+        enumeration.callbacks = callbacks;
+        enumeration.userData = userData;
+        enumeration.transform = transform;
+        enumeration.isOpen = TRFalse;
+
+        /* The outline is only read, so dropping the const qualifier is safe. */
+        FT_Outline_Decompose((FT_Outline *)&path->outline, &funcs, &enumeration);
+
+        CloseContour(&enumeration);
     }
-
-    funcs.move_to = EnumerateMoveTo;
-    funcs.line_to = EnumerateLineTo;
-    funcs.conic_to = EnumerateConicTo;
-    funcs.cubic_to = EnumerateCubicTo;
-    funcs.shift = 0;
-    funcs.delta = 0;
-
-    enumeration.callbacks = callbacks;
-    enumeration.userData = userData;
-    enumeration.transform = transform;
-    enumeration.isOpen = TRFalse;
-
-    /* The outline is only read, so dropping the const qualifier is safe. */
-    FT_Outline_Decompose((FT_Outline *)&path->outline, &funcs, &enumeration);
-
-    CloseContour(&enumeration);
 }
 
 TRPathRef TRPathRetain(TRPathRef path)

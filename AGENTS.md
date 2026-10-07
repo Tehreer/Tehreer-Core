@@ -108,6 +108,17 @@ No automated formatter is configured. Match the conventions below, derived from 
 2. Internal module headers via angle brackets: `<API/...>`, `<Core/...>`, `<Font/...>`, `<Graphics/...>`
 3. Quoted local companion: `#include "TRTypeface.h"`
 
+### Control Flow and Function Ordering
+
+Full rules and examples: `.claude/skills/code-style/SKILL.md`.
+
+- **No early exit from a function:** one `return` per function, as its last statement; no `goto`. Loops may use `break`/`continue` when that reads better than extra loop conditions or flags
+- **Result variable:** declare the returned variable at the top with its default value, set it inside `if` branches, return it last; name it after what it holds (`glyphImage`, `path`, `isFound`), not `result`
+- **Nesting:** at most 3 nested block levels in a function body; split into `static` helpers beyond that
+- **Declarations:** declare each variable in the innermost block that uses it (function level only when it is needed in several blocks); at the top of each block, variables with an initial value come first, those without come after
+- **No bare blocks:** every `{ }` block follows a keyword (`if`, `for`, `while`, `do`, `switch`, `case`)
+- **Order in a `.c` file:** private `static` functions first (callees before callers), then `TR_INTERNAL` functions in header order, then public API functions last in public header order
+
 ### Comments
 
 - Apache 2.0 license block at the top of every file
@@ -243,5 +254,6 @@ CMake build **one standalone executable per suite** (e.g. `AtomicTests`, `OnceTe
 ### Don't
 
 - Use `//` comments in C sources
+- Write early exits from a function (`return`, `goto`), nest blocks deeper than 3 levels, open a block with a bare `{`, declare uninitialized variables before initialized ones, declare variables far from where they are used, or place functions out of the static → internal → public order
 - Break C89 compatibility in library code
 - Expose internal struct layouts in public headers

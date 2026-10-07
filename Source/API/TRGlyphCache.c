@@ -32,6 +32,11 @@ static void FinalizeGlyphCache(ObjectRef object)
     GlyphCacheFinalize(object);
 }
 
+static void InitDefaultCache(void)
+{
+    DefaultCache = TRGlyphCacheCreate(DefaultCapacity);
+}
+
 TRGlyphCacheRef TRGlyphCacheCreate(TRUInteger capacity)
 {
     const TRUInteger size = sizeof(GlyphCache);
@@ -50,14 +55,10 @@ TRGlyphCacheRef TRGlyphCacheCreate(TRUInteger capacity)
     return cache;
 }
 
-static void InitDefaultCache(void)
-{
-    DefaultCache = TRGlyphCacheCreate(DefaultCapacity);
-}
-
 TRGlyphCacheRef TRGlyphCacheGetDefault(void)
 {
     static Once once = OnceMake();
+
     OnceExecute(&once, InitDefaultCache);
 
     return DefaultCache;

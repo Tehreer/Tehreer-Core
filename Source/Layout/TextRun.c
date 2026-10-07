@@ -94,12 +94,55 @@ static TextRunRef AllocateTextRun(TextRunKind kind, TRUInteger codeUnitStart,
     return textRun;
 }
 
+static TRUInteger GetForwardGlyphIndex(TextRunRef textRun, TRUInteger mappingIndex)
+{
+    TRUInteger glyphIndex = textRun->glyphCount - 1;
+    TRUInteger common = textRun->clusterMap[mappingIndex];
+    TRUInteger length = textRun->codeUnitEnd - textRun->codeUnitStart;
+    TRUInteger index;
+
+    for (index = mappingIndex + 1; index < length; index++) {
+        TRUInteger mapping = textRun->clusterMap[index];
+
+        if (mapping != common) {
+            glyphIndex = mapping - 1;
+            break;
+        }
+    }
+
+    return glyphIndex;
+}
+
+static TRUInteger GetBackwardGlyphIndex(TextRunRef textRun, TRUInteger mappingIndex)
+{
+    TRUInteger glyphIndex = textRun->glyphCount - 1;
+    TRUInteger common = textRun->clusterMap[mappingIndex];
+    TRUInteger index;
+
+    for (index = mappingIndex; index > 0; index--) {
+        TRUInteger mapping = textRun->clusterMap[index - 1];
+
+        if (mapping != common) {
+            glyphIndex = mapping - 1;
+            break;
+        }
+    }
+
+    return glyphIndex;
+}
+
 #undef RUN
+
 #undef GLYPH_IDS
+
 #undef GLYPH_OFFSETS
+
 #undef GLYPH_ADVANCES
+
 #undef CLUSTER_MAP
+
 #undef CARET_EDGES
+
 #undef COUNT
 
 TR_INTERNAL TextRunRef TextRunCreateIntrinsic(TRUInteger codeUnitStart, TRUInteger codeUnitEnd,
@@ -167,8 +210,8 @@ TR_INTERNAL TextRunRef TextRunCreateReplacement(TRUInteger codeUnitStart, TRUInt
         typeface, typeSize);
 
     if (textRun) {
-        TRReplacementRoom room;
         TRUInteger length = codeUnitEnd - codeUnitStart;
+        TRReplacementRoom room;
         TRUInteger index;
 
         TRReplacementComputeRoom(replacement, layoutWidth, &room);
@@ -204,22 +247,22 @@ TR_INTERNAL TextRunRef TextRunCreateReplacement(TRUInteger codeUnitStart, TRUInt
 
 TR_INTERNAL TextRunRef TextRunCreateForLayoutWidth(TextRunRef textRun, TRFloat layoutWidth)
 {
-    TextRunRef forFrame;
+    TextRunRef sizedRun;
 
-    if (textRun->kind != TextRunKindReplacement) {
-        return TextRunRetain(textRun);
+    if (textRun->kind == TextRunKindReplacement) {
+        sizedRun = TextRunCreateReplacement(textRun->codeUnitStart, textRun->codeUnitEnd,
+            textRun->bidiLevel, textRun->replacement, textRun->typeface, textRun->typeSize,
+            layoutWidth);
+
+        /* The room that a frame decides includes the space around the replacement. */
+        if (sizedRun) {
+            sizedRun->leading = 0.0f;
+        }
+    } else {
+        sizedRun = TextRunRetain(textRun);
     }
 
-    forFrame = TextRunCreateReplacement(textRun->codeUnitStart, textRun->codeUnitEnd,
-        textRun->bidiLevel, textRun->replacement, textRun->typeface, textRun->typeSize,
-        layoutWidth);
-
-    /* The room that a frame decides includes the space around the replacement. */
-    if (forFrame) {
-        forFrame->leading = 0.0f;
-    }
-
-    return forFrame;
+    return sizedRun;
 }
 
 TR_INTERNAL TRBoolean TextRunIsBlock(TextRunRef textRun)
@@ -233,110 +276,83 @@ TR_INTERNAL TRBoolean TextRunIsRTL(TextRunRef textRun)
     return (textRun->bidiLevel & 1) == 1;
 }
 
-static TRUInteger GetForwardGlyphIndex(TextRunRef textRun, TRUInteger mappingIndex)
-{
-    TRUInteger common = textRun->clusterMap[mappingIndex];
-    TRUInteger length = textRun->codeUnitEnd - textRun->codeUnitStart;
-    TRUInteger index;
-
-    for (index = mappingIndex + 1; index < length; index++) {
-        TRUInteger mapping = textRun->clusterMap[index];
-
-        if (mapping != common) {
-            return mapping - 1;
-        }
-    }
-
-    return textRun->glyphCount - 1;
-}
-
-static TRUInteger GetBackwardGlyphIndex(TextRunRef textRun, TRUInteger mappingIndex)
-{
-    TRUInteger common = textRun->clusterMap[mappingIndex];
-    TRUInteger index;
-
-    for (index = mappingIndex; index > 0; index--) {
-        TRUInteger mapping = textRun->clusterMap[index - 1];
-
-        if (mapping != common) {
-            return mapping - 1;
-        }
-    }
-
-    return textRun->glyphCount - 1;
-}
-
 TR_INTERNAL TRUInteger TextRunGetClusterStart(TextRunRef textRun, TRUInteger index)
 {
-    TRUInteger mappingIndex = index - textRun->codeUnitStart;
-    TRUInteger common;
-    TRUInteger i;
+    TRUInteger clusterStart = textRun->codeUnitStart;
 
-    if (textRun->kind == TextRunKindReplacement) {
-        return textRun->codeUnitStart;
-    }
+    if (textRun->kind != TextRunKindReplacement) {
+        TRUInteger mappingIndex = index - textRun->codeUnitStart;
+        TRUInteger common;
+        TRUInteger i;
 
-    common = textRun->clusterMap[mappingIndex];
+        common = textRun->clusterMap[mappingIndex];
 
-    for (i = mappingIndex; i > 0; i--) {
-        if (textRun->clusterMap[i - 1] != common) {
-            return i + textRun->codeUnitStart;
+        for (i = mappingIndex; i > 0; i--) {
+            if (textRun->clusterMap[i - 1] != common) {
+                clusterStart = i + textRun->codeUnitStart;
+                break;
+            }
         }
     }
 
-    return textRun->codeUnitStart;
+    return clusterStart;
 }
 
 TR_INTERNAL TRUInteger TextRunGetClusterEnd(TextRunRef textRun, TRUInteger index)
 {
-    TRUInteger mappingIndex = index - textRun->codeUnitStart;
-    TRUInteger length = textRun->codeUnitEnd - textRun->codeUnitStart;
-    TRUInteger common;
-    TRUInteger i;
+    TRUInteger clusterEnd = textRun->codeUnitEnd;
 
-    if (textRun->kind == TextRunKindReplacement) {
-        return textRun->codeUnitEnd;
-    }
+    if (textRun->kind != TextRunKindReplacement) {
+        TRUInteger mappingIndex = index - textRun->codeUnitStart;
+        TRUInteger length = textRun->codeUnitEnd - textRun->codeUnitStart;
+        TRUInteger common;
+        TRUInteger i;
 
-    common = textRun->clusterMap[mappingIndex];
+        common = textRun->clusterMap[mappingIndex];
 
-    for (i = mappingIndex + 1; i < length; i++) {
-        if (textRun->clusterMap[i] != common) {
-            return i + textRun->codeUnitStart;
+        for (i = mappingIndex + 1; i < length; i++) {
+            if (textRun->clusterMap[i] != common) {
+                clusterEnd = i + textRun->codeUnitStart;
+                break;
+            }
         }
     }
 
-    return length + textRun->codeUnitStart;
+    return clusterEnd;
 }
 
 TR_INTERNAL TRUInteger TextRunGetLeadingGlyphIndex(TextRunRef textRun, TRUInteger index)
 {
-    TRUInteger mappingIndex = index - textRun->codeUnitStart;
+    TRUInteger glyphIndex = 0;
 
-    if (textRun->kind == TextRunKindReplacement) {
-        return 0;
+    if (textRun->kind != TextRunKindReplacement) {
+        TRUInteger mappingIndex = index - textRun->codeUnitStart;
+
+        if (textRun->isBackward) {
+            glyphIndex = GetBackwardGlyphIndex(textRun, mappingIndex);
+        } else {
+            glyphIndex = textRun->clusterMap[mappingIndex];
+        }
     }
 
-    if (textRun->isBackward) {
-        return GetBackwardGlyphIndex(textRun, mappingIndex);
-    }
-
-    return textRun->clusterMap[mappingIndex];
+    return glyphIndex;
 }
 
 TR_INTERNAL TRUInteger TextRunGetTrailingGlyphIndex(TextRunRef textRun, TRUInteger index)
 {
-    TRUInteger mappingIndex = index - textRun->codeUnitStart;
+    TRUInteger glyphIndex = 0;
 
-    if (textRun->kind == TextRunKindReplacement) {
-        return 0;
+    if (textRun->kind != TextRunKindReplacement) {
+        TRUInteger mappingIndex = index - textRun->codeUnitStart;
+
+        if (textRun->isBackward) {
+            glyphIndex = textRun->clusterMap[mappingIndex];
+        } else {
+            glyphIndex = GetForwardGlyphIndex(textRun, mappingIndex);
+        }
     }
 
-    if (textRun->isBackward) {
-        return textRun->clusterMap[mappingIndex];
-    }
-
-    return GetForwardGlyphIndex(textRun, mappingIndex);
+    return glyphIndex;
 }
 
 TR_INTERNAL void TextRunGetGlyphRange(TextRunRef textRun, TRUInteger start, TRUInteger end,

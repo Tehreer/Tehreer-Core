@@ -30,6 +30,21 @@
 /* Marks an entry that has no advance yet. */
 #define EmptyAdvance    (-2147483647 - 1)
 
+static TRInt32 *CreatePage(void)
+{
+    TRInt32 *page = AllocatorAllocateBlock(sizeof(TRInt32) * PageSize);
+
+    if (page) {
+        TRUInteger index;
+
+        for (index = 0; index < PageSize; index++) {
+            page[index] = EmptyAdvance;
+        }
+    }
+
+    return page;
+}
+
 TR_INTERNAL void AdvanceCacheInitialize(AdvanceCacheRef cache, TRUInteger glyphCount)
 {
     TRUInteger pageCount = (glyphCount + PageMask) >> PageBits;
@@ -92,15 +107,7 @@ TR_INTERNAL void AdvanceCachePut(AdvanceCacheRef cache, TRGlyphID glyphID, TRInt
         MutexLock(&cache->_mutex);
 
         if (!*pageRef) {
-            *pageRef = AllocatorAllocateBlock(sizeof(TRInt32) * PageSize);
-
-            if (*pageRef) {
-                TRUInteger index;
-
-                for (index = 0; index < PageSize; index++) {
-                    (*pageRef)[index] = EmptyAdvance;
-                }
-            }
+            *pageRef = CreatePage();
         }
 
         if (*pageRef) {
