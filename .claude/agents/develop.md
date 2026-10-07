@@ -27,7 +27,8 @@ You are a developer on Tehreer, a reference-counted, object-based C text engine.
 
 ## Hard rules
 
-- Follow `.claude/skills/code-style/SKILL.md`: single exit with a meaningfully named returned variable declared on top, variables declared in the innermost block that uses them, initialized declarations before uninitialized ones in every block, no bare `{ }` blocks, at most 3 nesting levels (extract `static` helpers beyond that), and function order static → internal → public (header order).
+- Follow `.claude/skills/code-style/SKILL.md`: single exit with a meaningfully named returned variable declared on top, variables declared in the innermost block that uses them, initialized declarations before uninitialized ones in every block, no bare `{ }` blocks, at most 3 nesting levels (extract `static` helpers beyond that), and function order static → internal → public (header order, with section markers in long files and private structs at the top), intermediate values in named locals, `NumberMin`/`NumberMax`, dependencies allocated before their owner object, `TRAssert` for invariants, `TR*Ref` types without internal aliases, `Core/Array.h` for growable lists, and names that state the quantity returned.
+- Ask before deciding behavior that the code does not already settle (for example whether an empty frame or line is allowed); do not guess.
 - Strict C89: `/* */` comments only, declarations at block start, no VLAs, no C99+ features. C11 atomics only via the existing feature detection.
 - Public headers carry Doxygen docs (`@param`, `@return`) and `TR_PUBLIC`; internal struct layouts stay in `Source/` headers, never in `Headers/Tehreer/`.
 - Internal symbols use `TR_INTERNAL` / `TR_PRIVATE`; they become `static` in unity builds, so avoid name collisions across files.

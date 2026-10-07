@@ -16,7 +16,7 @@ Tehreer is a text engine whose aim is to provide core implementation for all maj
 | Path | Role |
 |------|------|
 | `Headers/Tehreer/` | Public, installable API headers |
-| `Source/API/` | Public API implementations + internal API headers |
+| `Source/API/` | Public API implementations + internal API headers; every internal function and struct of a public type lives here too, never in another folder |
 | `Source/Core/` | Memory, objects, atomics, Mutex |
 | `Source/Tehreer.c` | Unity-build aggregator |
 | `Tests/` | C++14 test harness |
@@ -69,7 +69,8 @@ No automated formatter is configured. Match the conventions below, derived from 
 | Public functions, types, macros | `TR` + PascalCase | `TRTextCreate`, `TRStringEncodingUTF8` |
 | Opaque references | `TR` + Name + `Ref` | `TRTypefaceRef` |
 | Internal structs | `_Tag` + short name + `Ref` | `AttributeRegistry`, `AttributeRegistryRef` |
-| Internal functions | PascalCase module prefix | `RenderableFaceCopyTable`, `GlyphBitmapCreateFromSlot` |
+| Structs behind a public object | `TR` + Name, used as `TRName *` to modify and `TRNameRef` otherwise; no internal alias | `TRComposedLine *`, `TRComposedLineRef` |
+| Internal functions | PascalCase module prefix; `TR` + class name when the class is public | `RenderableFaceCopyTable`, `GlyphBitmapCreateFromSlot`, `TRComposedLineCreate`, `TRTypesetterFindParagraph` |
 | Private struct fields | Leading `_` | `_base`, `_text` |
 | Local variables | camelCase | `isInitialized`, `dictIndex` |
 | Boolean locals | `is` prefix | `isAllocated`, `isEnsured` |
@@ -117,7 +118,8 @@ Full rules and examples: `.claude/skills/code-style/SKILL.md`.
 - **Nesting:** at most 3 nested block levels in a function body; split into `static` helpers beyond that
 - **Declarations:** declare each variable in the innermost block that uses it (function level only when it is needed in several blocks); at the top of each block, variables with an initial value come first, those without come after
 - **No bare blocks:** every `{ }` block follows a keyword (`if`, `for`, `while`, `do`, `switch`, `case`)
-- **Order in a `.c` file:** private `static` functions first (callees before callers), then `TR_INTERNAL` functions in header order, then public API functions last in public header order
+- **Order in a `.c` file:** private structs at the top, then private `static` functions (callees before callers, grouped under `/* ---------- Name ---------- */` markers in long files), then `TR_INTERNAL` functions in header order, then public API functions last in public header order
+- **Readable values:** name intermediate values (rects, derived numbers) in locals, read getters once, use `NumberMin`/`NumberMax`, allocate dependencies before the owning object, assert invariants with `TRAssert` instead of re-checking them, and use `Core/Array.h` for growable lists
 
 ### Comments
 
