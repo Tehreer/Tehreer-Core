@@ -47,6 +47,9 @@ typedef struct _TRTypeface {
 
     const TRStringView *familyName;
     const TRStringView *subfamilyName;
+    const TRStringView *fullName;
+    TRStringView fullNameView;
+    TRUInt16 *fullNameUnits;
 
     TRUInt32 unitsPerEM;
     TRUInt32 ascent;

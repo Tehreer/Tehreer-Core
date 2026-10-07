@@ -39,7 +39,8 @@
 #define FACE_COORDINATES    2
 #define RAW_COLORS          3
 #define FACE_COLORS         4
-#define COUNT               5
+#define FULL_NAME           5
+#define COUNT               6
 
 static void FinalizeTypeface(ObjectRef object)
 {
@@ -49,7 +50,8 @@ static void FinalizeTypeface(ObjectRef object)
     RenderableFaceRelease(typeface->renderableFace);
 }
 
-static TRTypeface *AllocateTypeface(TRUInteger variationAxisCount, TRUInteger paletteEntryCount)
+static TRTypeface *AllocateTypeface(TRUInteger variationAxisCount, TRUInteger paletteEntryCount,
+    TRUInteger fullNameUnits)
 {
     void *pointers[COUNT] = { NULL };
     TRUInteger sizes[COUNT] = { 0 };
@@ -60,6 +62,7 @@ static TRTypeface *AllocateTypeface(TRUInteger variationAxisCount, TRUInteger pa
     sizes[FACE_COORDINATES] = sizeof(TRFloat) * variationAxisCount;
     sizes[RAW_COLORS]       = sizeof(FT_Color) * paletteEntryCount;
     sizes[FACE_COLORS]      = sizeof(TRColor) * paletteEntryCount;
+    sizes[FULL_NAME]        = sizeof(TRUInt16) * fullNameUnits;
 
     typeface = ObjectCreate(sizes, COUNT, pointers, FinalizeTypeface);
 
@@ -70,6 +73,8 @@ static TRTypeface *AllocateTypeface(TRUInteger variationAxisCount, TRUInteger pa
         typeface->faceCoordinates = pointers[FACE_COORDINATES];
         typeface->rawColors = pointers[RAW_COLORS];
         typeface->faceColors = pointers[FACE_COLORS];
+        typeface->fullNameUnits = pointers[FULL_NAME];
+        typeface->fullName = NULL;
     }
 
     return typeface;
@@ -80,6 +85,7 @@ static TRTypeface *AllocateTypeface(TRUInteger variationAxisCount, TRUInteger pa
 #undef FACE_COORDINATES
 #undef RAW_COLORS
 #undef FACE_COLORS
+#undef FULL_NAME
 #undef COUNT
 
 
@@ -120,13 +126,71 @@ static void InitializeColors(TRTypeface *typeface, FaceMetadataRef metadata,
     }
 }
 
+/* Returns the number of code units that the longest full name of a font can have. */
+static TRUInteger GetFullNameCapacity(FaceMetadataRef metadata)
+{
+    TRUInteger styleLength = (metadata->subfamilyName ? metadata->subfamilyName->length : 0);
+    TRUInteger familyLength = (metadata->familyName ? metadata->familyName->length : 0);
+    TRUInteger index;
+
+    for (index = 0; index < metadata->namedStyleCount; index++) {
+        const TRStringView *name = metadata->namedStylesPtr[index].subfamilyName;
+
+        if (name && name->length > styleLength) {
+            styleLength = name->length;
+        }
+    }
+
+    return familyLength + 1 + styleLength;
+}
+
+/*
+ * Sets the full name of a typeface. A variable font that has named styles shows the full name of
+ * the style that the coordinates match, or none if they match nothing. Otherwise it is the full
+ * name of the font, or the family name followed by the style name if the font has none.
+ */
+static void InitializeFullName(TRTypeface *typeface, FaceMetadataRef metadata)
+{
+    const TRStringView *family = metadata->familyName;
+    const TRStringView *style = typeface->subfamilyName;
+    TRBoolean isStyled = (metadata->variationAxisCount > 0 && metadata->namedStyleCount > 0);
+
+    if (isStyled && !style) {
+        /* The coordinates match no style. */
+        typeface->fullName = NULL;
+    } else if (!isStyled && metadata->fullName) {
+        typeface->fullName = metadata->fullName;
+    } else if (family || style) {
+        TRUInt16 *units = typeface->fullNameUnits;
+        TRUInteger length = 0;
+
+        if (family) {
+            memcpy(units, family->buffer, family->length * sizeof(TRUInt16));
+            length = family->length;
+        }
+        if (style) {
+            if (family) {
+                units[length++] = ' ';
+            }
+            memcpy(units + length, style->buffer, style->length * sizeof(TRUInt16));
+            length += style->length;
+        }
+
+        typeface->fullNameView.buffer = units;
+        typeface->fullNameView.length = length;
+        typeface->fullNameView.encoding = TRStringEncodingUTF16;
+        typeface->fullName = &typeface->fullNameView;
+    }
+}
+
 TR_INTERNAL TRTypefaceRef TRTypefaceCreateDerived(RenderableFaceRef renderableFace,
     ShapableFaceRef shapableFace, const TRFloat *variationCoordinates, const TRColor *colors)
 {
     FaceMetadataRef metadata = renderableFace->metadata;
     TRTypeface *typeface;
 
-    typeface = AllocateTypeface(metadata->variationAxisCount, metadata->paletteEntryCount);
+    typeface = AllocateTypeface(metadata->variationAxisCount, metadata->paletteEntryCount,
+        GetFullNameCapacity(metadata));
 
     if (typeface) {
         const TRStringView *subfamilyName = NULL;
@@ -140,10 +204,16 @@ TR_INTERNAL TRTypefaceRef TRTypefaceCreateDerived(RenderableFaceRef renderableFa
             &description);
         RenderableFaceGetMetrics(renderableFace, typeface->rawCoordinates, &metrics);
 
+        /* A variable font without named styles keeps the style name of the font. */
+        if (!subfamilyName && metadata->namedStyleCount == 0) {
+            subfamilyName = metadata->subfamilyName;
+        }
+
         typeface->renderableFace = RenderableFaceRetain(renderableFace);
         typeface->shapableFace = ShapableFaceRetain(shapableFace);
         typeface->familyName = metadata->familyName;
         typeface->subfamilyName = subfamilyName;
+        InitializeFullName(typeface, metadata);
         typeface->weight = description.weight;
         typeface->width = description.width;
         typeface->slope = description.slope;
@@ -397,7 +467,7 @@ const TRStringView *TRTypefaceGetSubfamilyName(TRTypefaceRef typeface)
 
 const TRStringView *TRTypefaceGetFullName(TRTypefaceRef typeface)
 {
-    return typeface->renderableFace->metadata->fullName;
+    return typeface->fullName;
 }
 
 TRRect TRTypefaceGetBoundingBox(TRTypefaceRef typeface)

@@ -431,7 +431,21 @@ void TypefaceTests::testDerivedOutlivesSource() {
 void TypefaceTests::testNamesAndMetrics() {
     TRTypefaceRef typeface = createTypeface("Roboto-Variable.abc.ttf");
 
-    assert(toString(TRTypefaceGetFullName(typeface)) == "Roboto");
+    /* A variable font is named after the style that its coordinates match. */
+    assert(toString(TRTypefaceGetFullName(typeface)) == "Roboto Regular");
+
+    const TRFloat thinCoordinates[] = { 100.0f, 100.0f };
+    TRTypefaceRef thin = TRTypefaceCreateWithVariation(typeface, thinCoordinates, 2);
+    assert(toString(TRTypefaceGetSubfamilyName(thin)) == "Thin");
+    assert(toString(TRTypefaceGetFullName(thin)) == "Roboto Thin");
+    TRTypefaceRelease(thin);
+
+    /* It has no full name if they match no style. */
+    const TRFloat oddCoordinates[] = { 123.0f, 100.0f };
+    TRTypefaceRef odd = TRTypefaceCreateWithVariation(typeface, oddCoordinates, 2);
+    assert(TRTypefaceGetSubfamilyName(odd) == nullptr);
+    assert(TRTypefaceGetFullName(odd) == nullptr);
+    TRTypefaceRelease(odd);
 
     TRRect box = TRTypefaceGetBoundingBox(typeface);
     assert(box.origin.x == -1510.0f);
