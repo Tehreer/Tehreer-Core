@@ -117,7 +117,7 @@ set(SB_CONFIG_UNITY ON CACHE BOOL "Enable SheenBidi unity mode" FORCE)
 FetchContent_Declare(
   SheenBidi
   GIT_REPOSITORY https://github.com/Tehreer/SheenBidi.git
-  GIT_TAG 8f12eb4020d0ab4012d081c1595e68ff73ddf37c
+  GIT_TAG db959420f1566d77ae877bd6d13a9ba258d5e466
 )
 FetchContent_MakeAvailable(SheenBidi)
 
