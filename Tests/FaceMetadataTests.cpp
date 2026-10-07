@@ -229,7 +229,7 @@ void FaceMetadataTests::testVariableColorFace() {
 
     const TRNamedStyle &regular = metadata->namedStylesPtr[0];
     assert(toString(regular.subfamilyName) == "Regular");
-    assert(toString(regular.postScriptName) == "RocherColor-Regular");
+    assert(regular.postScriptName == nullptr);
     assert(regular.coordinatesPtr[0] == 100.0f);
     assert(regular.coordinatesPtr[1] == 100.0f);
 

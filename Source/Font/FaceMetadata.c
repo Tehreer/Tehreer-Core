@@ -289,6 +289,16 @@ static RawMetadata *CreateRawMetadata(MemoryRef memory, FT_Face ftFace)
 
                 memcpy(namedStyle->coordinates, ftStyle->coords, variationAxisCount * sizeof(FT_Fixed));
 
+                if (hasAppendedDefault && styleIndex == 0) {
+                    /* The default instance takes the style name of the font, and has no record. */
+                    namedStyle->subfamilyName = rawMetadata->subfamilyName;
+                    nameCount += 1;
+                    nameBytes += NameStringGetCapacity(&namedStyle->subfamilyName);
+
+                    namedStyle->postScriptName = emptyName;
+                    continue;
+                }
+
                 SearchEnglishName(ftFace, ftStyle->strid, &namedStyle->subfamilyName);
                 nameCount += 1;
                 nameBytes += NameStringGetCapacity(&namedStyle->subfamilyName);
