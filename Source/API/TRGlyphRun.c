@@ -406,6 +406,15 @@ TRFloat TRGlyphRunGetDistance(TRGlyphRunRef run, TRUInteger index)
     return run->caretEdges[index - GlyphRunGetActualStart((GlyphRunRef)run)];
 }
 
+TRFloat TRGlyphRunGetClusterDistance(TRGlyphRunRef run, TRUInteger index)
+{
+    /* The index MUST be within the run, including its start and end extras, or the end of them. */
+    TRAssert(index >= run->codeUnitStart - run->startExtra
+          && index <= run->codeUnitEnd + run->endExtra);
+
+    return run->caretEdges[index - GlyphRunGetActualStart((GlyphRunRef)run)];
+}
+
 TRUInteger TRGlyphRunGetIndexOfCodeUnit(TRGlyphRunRef run, TRFloat distance)
 {
     TRUInteger actualStart = GlyphRunGetActualStart((GlyphRunRef)run);

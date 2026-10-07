@@ -157,6 +157,14 @@ TR_PUBLIC TRUInteger TRGlyphRunGetTrailingGlyphIndex(TRGlyphRunRef run, TRUInteg
 TR_PUBLIC TRFloat TRGlyphRunGetDistance(TRGlyphRunRef run, TRUInteger index);
 
 /**
+ * Returns the distance from the start of the run to the boundary before a code unit, just like
+ * `TRGlyphRunGetDistance`, but the code unit can also belong to the clusters that are split by
+ * the start or the end of the run. So, the distance can be negative or exceed the extent of the
+ * run. It is meant for drawing the parts of those clusters that are in the run.
+ */
+TR_PUBLIC TRFloat TRGlyphRunGetClusterDistance(TRGlyphRunRef run, TRUInteger index);
+
+/**
  * Returns the code unit boundary that is closest to a distance from the start of the run.
  */
 TR_PUBLIC TRUInteger TRGlyphRunGetIndexOfCodeUnit(TRGlyphRunRef run, TRFloat distance);
