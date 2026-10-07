@@ -133,6 +133,18 @@ When a function requires something of its input (a frame has at least one line, 
 - A public function has one purpose that its name states. Do not add a getter with several optional out-parameters; keep such lookups internal until there is a clear use for them.
 - In public structs, keep identifying members (name, tag, flags) together at the top, before the numeric members.
 
+## 14. Memory, containers and state
+
+- Never call `malloc`, `calloc`, `realloc` or `free` directly, in any folder. Use `AllocatorAllocateBlock`, `AllocatorAllocateZeroedBlock`, `AllocatorReallocateBlock` and `AllocatorDeallocateBlock` from `Core/Allocator.h`. Only `Core/Allocator.c` touches the C allocator.
+- Use `Array` from `Core/Array.h` for every growable or table-like block of items (lists of lines, hash buckets), including the ones that a public object keeps, instead of a raw pointer with a count.
+- Give an enum an explicit `Unknown` value (zero) instead of a separate `hasX` flag next to the field.
+- Public types are mutable struct pointers when the library has to modify them after creation (for example a `TRGlyphImageRef` that gets native data); do not hide that with a `const` typedef and a cast.
+- Do not lock for state that is not shared. Check what a library call really touches (the outline functions of FreeType only read the allocator of the library) before wrapping it in the library mutex.
+- Public API shape: when a function would return several items that need releasing, prefer an enumeration with a callback (as `TRPathEnumerate` does). It needs no allocation and no release call. A public object type is for things that have an identity.
+- Do not expose accessors that only give back what the caller passed in (`userData`), and do not put knobs in a public contract that one caller needs (`leading`); use a kind enum instead of a boolean flag (`TRReplacementKind`).
+- Replace bit twiddling on raw bytes with named macros (`ReadUInt16BE`, offsets and sizes), and use the decoding functions that SheenBidi gives (`SBCodepointDecodePrevious...`) instead of rewriting them.
+- Name a local after the type of what it holds (`shapableFace`), and do not leave blank lines inside a group of `#undef`s.
+
 ## Applying the rules to an existing function
 
 1. List every `return`, `goto`, `break`, `continue` that is not the last statement.
