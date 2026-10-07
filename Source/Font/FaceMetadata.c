@@ -38,6 +38,7 @@ typedef struct _VariationAxis {
     FT_Fixed minValue;
     FT_Fixed defaultValue;
     FT_Fixed maxValue;
+    TRUInt32 flags;
 } VariationAxis;
 
 typedef struct _NamedStyle {
@@ -246,6 +247,15 @@ static RawMetadata *CreateRawMetadata(MemoryRef memory, FT_Face ftFace)
                 variationAxis->minValue = ftAxis->minimum;
                 variationAxis->defaultValue = ftAxis->def;
                 variationAxis->maxValue = ftAxis->maximum;
+                variationAxis->flags = 0;
+
+                {
+                    FT_UInt flags = 0;
+
+                    if (FT_Get_Var_Axis_Flags(ftVariations, (FT_UInt)index, &flags) == 0) {
+                        variationAxis->flags = flags;
+                    }
+                }
             }
 
             for (index = 0; index < namedStyleCount; index++) {
@@ -397,6 +407,7 @@ static FaceMetadataRef CreateFaceMetadata(RawMetadata *rawMetadata)
                 faceAxis->minValue = rawAxis->minValue / 65536.0;
                 faceAxis->maxValue = rawAxis->maxValue / 65536.0;
                 faceAxis->defaultValue = rawAxis->defaultValue / 65536.0;
+                faceAxis->flags = rawAxis->flags;
             }
         } else {
             faceMetadata->variationAxesPtr = NULL;

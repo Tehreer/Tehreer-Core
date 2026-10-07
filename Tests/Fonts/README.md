@@ -8,6 +8,7 @@ fetched dependency.
 |------|----------|
 | `Roboto-Regular.abc.ttf` | Static font subset (glyphs `a`, `b`, `c`) |
 | `Roboto-Variable.abc.ttf` | Variable font with `wght` and `wdth` axes and 18 named styles |
+| `Roboto-Variable.hidden.ttf` | `Roboto-Variable.abc.ttf` with the hidden flag set on the `wght` axis (made for these tests) |
 | `RocherColorGX.abc.ttf` | Variable color font with 11 palettes of 4 entries |
 | `COLRv0.extents.ttf` | Color font without names, 2 palettes, color glyph 13 |
 | `nameID.dup.expected.ttf` | Font with Macintosh-only English names |

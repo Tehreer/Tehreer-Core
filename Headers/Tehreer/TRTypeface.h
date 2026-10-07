@@ -60,12 +60,20 @@ enum {
 };
 typedef TRUInt32 TRSlope;
 
+/**
+ * Flags of a variation axis.
+ */
+enum {
+    TRVariationAxisFlagHidden = 0x0001  /**< The axis should not be shown in user interfaces. */
+};
+
 typedef struct _TRVariationAxis {
     const TRStringView *name;
     TRTag tag;
     TRFloat minValue;
     TRFloat maxValue;
     TRFloat defaultValue;
+    TRUInt32 flags;
 } TRVariationAxis;
 
 typedef struct _TRNamedStyle {

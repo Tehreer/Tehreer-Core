@@ -30,6 +30,7 @@ private:
     void testNamelessFace();
     void testFaceWithoutOS2Table();
     void testVariableFace();
+    void testAxisFlags();
     void testNamedStyles();
     void testVariableColorFace();
     void testPalettes();
