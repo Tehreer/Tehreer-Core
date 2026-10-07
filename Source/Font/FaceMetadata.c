@@ -19,6 +19,7 @@
 #include FT_FREETYPE_H
 #include FT_MULTIPLE_MASTERS_H
 #include FT_SFNT_NAMES_H
+#include FT_TRUETYPE_TABLES_H
 
 #include <string.h>
 
@@ -150,6 +151,26 @@ static RawMetadata *AllocateRawMetadata(MemoryRef memory, TRUInteger variationAx
 #undef COUNT
 
 
+/*
+ * FreeType adds the default instance as the last named style if the font has no record for it,
+ * while it is meant to come first. Returns TRTrue if the last style has been added that way, which
+ * is found by comparing the style count with the instance count of the `fvar` table.
+ */
+static TRBoolean HasAppendedDefaultStyle(FT_Face ftFace, TRUInteger namedStyleCount)
+{
+    FT_Byte header[16];
+    FT_ULong length = sizeof(header);
+
+    if (namedStyleCount > 0
+            && FT_Load_Sfnt_Table(ftFace, FT_MAKE_TAG('f', 'v', 'a', 'r'), 0, header, &length) == 0
+            && length == sizeof(header)) {
+        TRUInteger instanceCount = ((TRUInteger)header[12] << 8) | header[13];
+        return (namedStyleCount == instanceCount + 1);
+    }
+
+    return TRFalse;
+}
+
 static RawMetadata *CreateRawMetadata(MemoryRef memory, FT_Face ftFace)
 {
     FreeTypeRef freetype = FreeTypeGetDefault();
@@ -233,6 +254,7 @@ static RawMetadata *CreateRawMetadata(MemoryRef memory, FT_Face ftFace)
         }
 
         if (ftVariations) {
+            TRBoolean hasAppendedDefault = HasAppendedDefaultStyle(ftFace, namedStyleCount);
             TRUInteger index;
 
             for (index = 0; index < variationAxisCount; index++) {
@@ -260,7 +282,10 @@ static RawMetadata *CreateRawMetadata(MemoryRef memory, FT_Face ftFace)
 
             for (index = 0; index < namedStyleCount; index++) {
                 const FT_Var_Named_Style *ftStyle = &ftVariations->namedstyle[index];
-                NamedStyle *namedStyle = &rawMetadata->namedStyles[index];
+                TRUInteger styleIndex = (hasAppendedDefault
+                                         ? (index == namedStyleCount - 1 ? 0 : index + 1)
+                                         : index);
+                NamedStyle *namedStyle = &rawMetadata->namedStyles[styleIndex];
 
                 memcpy(namedStyle->coordinates, ftStyle->coords, variationAxisCount * sizeof(FT_Fixed));
 

@@ -224,15 +224,19 @@ void FaceMetadataTests::testVariableColorFace() {
     assert(metadata->variationAxesPtr[1].tag == TRTagMake('S', 'H', 'D', 'W'));
     assert(metadata->variationAxesPtr[1].name == nullptr);
 
+    /* The font has four instances, but none for its default coordinates, which come first. */
     assert(metadata->namedStyleCount == 5);
-    assert(metadata->namedStylesPtr[0].subfamilyName == nullptr);
-    assert(metadata->namedStylesPtr[0].postScriptName == nullptr);
-    assert(metadata->namedStylesPtr[0].coordinatesPtr[0] == 100.0f);
-    assert(metadata->namedStylesPtr[0].coordinatesPtr[1] == 50.0f);
 
-    const TRNamedStyle &regular = metadata->namedStylesPtr[4];
+    const TRNamedStyle &regular = metadata->namedStylesPtr[0];
     assert(toString(regular.subfamilyName) == "Regular");
     assert(toString(regular.postScriptName) == "RocherColor-Regular");
+    assert(regular.coordinatesPtr[0] == 100.0f);
+    assert(regular.coordinatesPtr[1] == 100.0f);
+
+    assert(metadata->namedStylesPtr[1].subfamilyName == nullptr);
+    assert(metadata->namedStylesPtr[1].postScriptName == nullptr);
+    assert(metadata->namedStylesPtr[1].coordinatesPtr[0] == 100.0f);
+    assert(metadata->namedStylesPtr[1].coordinatesPtr[1] == 50.0f);
 
     FaceMetadataRelease(metadata);
 }
