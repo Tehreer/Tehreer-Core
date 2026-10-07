@@ -43,6 +43,7 @@ private:
     void testDerivedKeepsOtherTraits();
     void testDerivedOutlivesSource();
     void testNamesAndMetrics();
+    void testTableData();
     void testGlyphIDs();
     void testGlyphAdvance();
     void testGlyphPath();

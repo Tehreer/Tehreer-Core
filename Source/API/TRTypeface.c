@@ -502,6 +502,25 @@ TRInt32 TRTypefaceGetStrikeoutThickness(TRTypefaceRef typeface)
     return typeface->strikeoutThickness;
 }
 
+TRUInteger TRTypefaceGetTableData(TRTypefaceRef typeface, TRTag tag, void *buffer,
+    TRUInteger capacity)
+{
+    void *table = NULL;
+    TRUInteger size = 0;
+
+    RenderableFaceCopyTable(typeface->renderableFace, tag, &table, &size);
+
+    if (table) {
+        if (buffer) {
+            memcpy(buffer, table, (size < capacity ? size : capacity));
+        }
+
+        AllocatorDeallocateBlock(table);
+    }
+
+    return size;
+}
+
 TRGlyphID TRTypefaceGetGlyphID(TRTypefaceRef typeface, TRUInt32 codePoint)
 {
     return RenderableFaceGetCodePointGlyphID(typeface->renderableFace, codePoint);

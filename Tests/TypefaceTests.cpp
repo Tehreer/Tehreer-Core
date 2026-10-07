@@ -62,6 +62,7 @@ void TypefaceTests::run() {
     testDerivedKeepsOtherTraits();
     testDerivedOutlivesSource();
     testNamesAndMetrics();
+    testTableData();
     testGlyphIDs();
     testGlyphAdvance();
     testGlyphPath();
@@ -470,6 +471,27 @@ void TypefaceTests::testNamesAndMetrics() {
     TRTypefaceRef macNames = createTypeface("nameID.dup.expected.ttf");
     assert(toString(TRTypefaceGetFamilyName(macNames)) == "Roboto");
     TRTypefaceRelease(macNames);
+}
+
+void TypefaceTests::testTableData() {
+    TRTypefaceRef typeface = createTypeface("Roboto-Regular.abc.ttf");
+    const TRTag head = TRTagMake('h', 'e', 'a', 'd');
+
+    /* The head table is 54 bytes, and begins with the version 1.0. */
+    assert(TRTypefaceGetTableData(typeface, head, nullptr, 0) == 54);
+
+    uint8_t buffer[54] = { 0 };
+    assert(TRTypefaceGetTableData(typeface, head, buffer, sizeof(buffer)) == 54);
+    assert(buffer[0] == 0 && buffer[1] == 1 && buffer[2] == 0 && buffer[3] == 0);
+
+    /* A table that does not fit is cut short, and the rest of the buffer is left alone. */
+    uint8_t small[6] = { 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE };
+    assert(TRTypefaceGetTableData(typeface, head, small, 4) == 54);
+    assert(small[1] == 1 && small[4] == 0xEE && small[5] == 0xEE);
+
+    assert(TRTypefaceGetTableData(typeface, TRTagMake('Z', 'Z', 'Z', 'Z'), buffer, sizeof(buffer)) == 0);
+
+    TRTypefaceRelease(typeface);
 }
 
 void TypefaceTests::testGlyphIDs() {

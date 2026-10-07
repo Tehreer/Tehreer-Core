@@ -264,6 +264,23 @@ TR_PUBLIC TRFloat TRTypefaceGetGlyphAdvance(TRTypefaceRef typeface, TRGlyphID gl
 TR_PUBLIC TRPathRef TRTypefaceCreateGlyphPath(TRTypefaceRef typeface, TRGlyphID glyphID,
     TRFloat typeSize);
 
+/**
+ * Copies the data of a table of the font.
+ *
+ * @param typeface
+ *      The typeface.
+ * @param tag
+ *      The tag of the table.
+ * @param buffer
+ *      Receives the data of the table, or `NULL` if only its size is wanted.
+ * @param capacity
+ *      The number of bytes that `buffer` can hold. A table that is bigger is cut short.
+ * @return
+ *      The size of the table in bytes, which is zero if the font has no such table.
+ */
+TR_PUBLIC TRUInteger TRTypefaceGetTableData(TRTypefaceRef typeface, TRTag tag, void *buffer,
+    TRUInteger capacity);
+
 TR_PUBLIC TRTypefaceRef TRTypefaceRetain(TRTypefaceRef typeface);
 
 TR_PUBLIC void TRTypefaceRelease(TRTypefaceRef typeface);
