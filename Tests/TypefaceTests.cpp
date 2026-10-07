@@ -452,10 +452,9 @@ void TypefaceTests::testNamesAndMetrics() {
     assert(TRTypefaceGetStrikeoutThickness(noOS2) == 0);
     TRTypefaceRelease(noOS2);
 
-    /* Names in unsupported encodings are absent. */
+    /* Names of the Macintosh platform are in Mac Roman. */
     TRTypefaceRef macNames = createTypeface("nameID.dup.expected.ttf");
-    assert(TRTypefaceGetFamilyName(macNames) == nullptr);
-    assert(TRTypefaceGetFullName(macNames) == nullptr);
+    assert(toString(TRTypefaceGetFamilyName(macNames)) == "Roboto");
     TRTypefaceRelease(macNames);
 }
 

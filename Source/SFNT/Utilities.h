@@ -65,7 +65,8 @@ enum {
 
 enum {
     SFNTEncodingUnknown = 0,
-    SFNTEncodingUTF16BE = 1
+    SFNTEncodingUTF16BE = 1,
+    SFNTEncodingMacRoman = 2
 };
 typedef TRUInt16 SFNTEncoding;
 
@@ -90,6 +91,11 @@ typedef struct _NameString {
 
 TR_INTERNAL TRBoolean SFNTIsEnglishLanguage(TRUInt16 platformID, TRUInt16 languageID);
 TR_INTERNAL SFNTEncoding SFNTGetNameEncoding(TRUInt16 platformID, TRUInt16 encodingID);
+
+/*
+ * Returns the number of bytes that the code units of a name take after it is converted to UTF-16.
+ */
+TR_INTERNAL TRUInteger NameStringGetCapacity(const NameString *nameString);
 
 TR_INTERNAL TRWeight GetWeightFromValue(TRUInt16 value);
 TR_INTERNAL TRWeight GetWeightFromWGHTCoordinate(TRFloat coordinate);

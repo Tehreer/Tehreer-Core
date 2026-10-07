@@ -11,7 +11,7 @@ fetched dependency.
 | `Roboto-Variable.hidden.ttf` | `Roboto-Variable.abc.ttf` with the hidden flag set on the `wght` axis (made for these tests) |
 | `RocherColorGX.abc.ttf` | Variable color font with 11 palettes of 4 entries |
 | `COLRv0.extents.ttf` | Color font without names, 2 palettes, color glyph 13 |
-| `nameID.dup.expected.ttf` | Font with Macintosh-only English names |
+| `nameID.dup.expected.ttf` | Font with Macintosh-only English names (Mac Roman) |
 | `varc-6868.ttf` | Font without an OS/2 table |
 
 The Roboto subsets derive from Roboto (Apache License 2.0), and `RocherColorGX` is licensed under

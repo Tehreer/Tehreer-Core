@@ -36,6 +36,7 @@ private:
     void testNameStringToStringView();
     void testNameStringToStringViewOddLength();
     void testNameStringToStringViewInvalid();
+    void testMacRomanNames();
     void testSearchEnglishName();
     void testSearchEnglishNameMissing();
     void testSearchEnglishNameMacintosh();

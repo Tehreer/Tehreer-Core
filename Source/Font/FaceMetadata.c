@@ -214,15 +214,15 @@ static RawMetadata *CreateRawMetadata(MemoryRef memory, FT_Face ftFace)
 
         SearchFamilyName(ftFace, os2Table, &rawMetadata->familyName);
         nameCount += 1;
-        nameBytes += rawMetadata->familyName.length;
+        nameBytes += NameStringGetCapacity(&rawMetadata->familyName);
 
         SearchSubfamilyName(ftFace, os2Table, &rawMetadata->subfamilyName);
         nameCount += 1;
-        nameBytes += rawMetadata->subfamilyName.length;
+        nameBytes += NameStringGetCapacity(&rawMetadata->subfamilyName);
 
         SearchFullName(ftFace, &rawMetadata->fullName);
         nameCount += 1;
-        nameBytes += rawMetadata->fullName.length;
+        nameBytes += NameStringGetCapacity(&rawMetadata->fullName);
 
         rawMetadata->weight = TRWeightRegular;
         rawMetadata->width = TRWidthNormal;
@@ -263,7 +263,7 @@ static RawMetadata *CreateRawMetadata(MemoryRef memory, FT_Face ftFace)
 
                 SearchEnglishName(ftFace, ftAxis->strid, &variationAxis->name);
                 nameCount += 1;
-                nameBytes += variationAxis->name.length;
+                nameBytes += NameStringGetCapacity(&variationAxis->name);
 
                 variationAxis->tag = ftAxis->tag;
                 variationAxis->minValue = ftAxis->minimum;
@@ -291,14 +291,14 @@ static RawMetadata *CreateRawMetadata(MemoryRef memory, FT_Face ftFace)
 
                 SearchEnglishName(ftFace, ftStyle->strid, &namedStyle->subfamilyName);
                 nameCount += 1;
-                nameBytes += namedStyle->subfamilyName.length;
+                nameBytes += NameStringGetCapacity(&namedStyle->subfamilyName);
 
                 if (ftStyle->psid == 0xFFFF) {
                     namedStyle->postScriptName = emptyName;
                 } else {
                     SearchEnglishName(ftFace, ftStyle->psid, &namedStyle->postScriptName);
                     nameCount += 1;
-                    nameBytes += namedStyle->postScriptName.length;
+                    nameBytes += NameStringGetCapacity(&namedStyle->postScriptName);
                 }
             }
         }
@@ -318,7 +318,7 @@ static RawMetadata *CreateRawMetadata(MemoryRef memory, FT_Face ftFace)
                 } else {
                     SearchEnglishName(ftFace, nameID, &entryNames[index]);
                     nameCount += 1;
-                    nameBytes += entryNames[index].length;
+                    nameBytes += NameStringGetCapacity(&entryNames[index]);
                 }
             }
 
@@ -346,7 +346,7 @@ static RawMetadata *CreateRawMetadata(MemoryRef memory, FT_Face ftFace)
                 } else {
                     SearchEnglishName(ftFace, nameID, &palette->name);
                     nameCount += 1;
-                    nameBytes += palette->name.length;
+                    nameBytes += NameStringGetCapacity(&palette->name);
                 }
 
                 palette->flags = (paletteFlags ? paletteFlags[index] : 0);
