@@ -90,6 +90,7 @@ TR_INTERNAL ComposedLineRef ComposedLineCreate(const TextBuffer *buffer, TRUInte
     line->extent = 0.0f;
     line->trailingWhitespaceExtent = 0.0f;
     line->isBlock = TRFalse;
+    line->isTruncated = TRFalse;
     line->flushFactor = 0.0f;
     line->intrinsicMargin = 0.0f;
 
@@ -221,6 +222,11 @@ TRFloat TRComposedLineGetTrailingWhitespaceExtent(TRComposedLineRef line)
 TRBoolean TRComposedLineIsBlock(TRComposedLineRef line)
 {
     return line->isBlock;
+}
+
+TRBoolean TRComposedLineIsTruncated(TRComposedLineRef line)
+{
+    return line->isTruncated;
 }
 
 TRUInteger TRComposedLineGetGlyphRunCount(TRComposedLineRef line)

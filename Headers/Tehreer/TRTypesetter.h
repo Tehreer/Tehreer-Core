@@ -132,6 +132,23 @@ TR_PUBLIC TRComposedLineRef TRTypesetterCreateSimpleLine(TRTypesetterRef typeset
     TRRange range);
 
 /**
+ * Creates a simple line for a frame that is some width wide. The replacements that decide their
+ * room by the width of the frame, such as a view that fills it, get it from `layoutWidth`, which
+ * `TRTypesetterCreateSimpleLine()` leaves at zero.
+ *
+ * @param typesetter
+ *      The typesetter.
+ * @param range
+ *      The code units of the line, which MUST NOT be empty and MUST be within the text.
+ * @param layoutWidth
+ *      The width of the frame.
+ * @return
+ *      New line, or `NULL` on failure.
+ */
+TR_PUBLIC TRComposedLineRef TRTypesetterCreateFrameLine(TRTypesetterRef typesetter, TRRange range,
+    TRFloat layoutWidth);
+
+/**
  * Creates a line that is made of a token, such as an ellipsis, to show where text was cut out of
  * a line. It is shaped like the text at the place of the truncation.
  *

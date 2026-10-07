@@ -716,6 +716,12 @@ void ComposedLineTests::testBlockLine() {
     assert(TRGlyphRunGetWidth(TRComposedLineGetGlyphRun(line, 0)) == 120.0f);
     TRComposedLineRelease(line);
 
+    line = TRTypesetterCreateFrameLine(f.typesetter, { 0, 2 }, 150.0f);
+    assert(line != nullptr);
+    assert(TRGlyphRunGetWidth(TRComposedLineGetGlyphRun(line, 0)) == 150.0f);
+    assert(!TRComposedLineIsTruncated(line));
+    TRComposedLineRelease(line);
+
     TRReplacementRelease(block);
 }
 
@@ -745,6 +751,7 @@ void ComposedLineTests::testTruncation() {
     assert(TRComposedLineGetCodeUnitRange(end).index == 0);
     assert(TRComposedLineGetCodeUnitRange(end).length == 2);
     assert(TRComposedLineGetGlyphRunCount(end) == 2);
+    assert(TRComposedLineIsTruncated(end));
 
     TRComposedLineRef start = TRTypesetterCreateTruncatedLine(typesetter, all, extent,
         TRBreakModeCharacter, TRTruncationPlaceStart, token);
@@ -753,6 +760,7 @@ void ComposedLineTests::testTruncation() {
     assert(TRComposedLineGetCodeUnitRange(start).index == 4);
     assert(TRComposedLineGetCodeUnitRange(start).length == 2);
     assert(TRComposedLineGetGlyphRunCount(start) == 2);
+    assert(TRComposedLineIsTruncated(start));
 
     TRComposedLineRef middle = TRTypesetterCreateTruncatedLine(typesetter, all, extent,
         TRBreakModeCharacter, TRTruncationPlaceMiddle, token);
@@ -761,6 +769,7 @@ void ComposedLineTests::testTruncation() {
     assert(TRComposedLineGetCodeUnitRange(middle).index == 0);
     assert(TRComposedLineGetCodeUnitRange(middle).length == 6);
     assert(TRComposedLineGetGlyphRunCount(middle) == 3);
+    assert(TRComposedLineIsTruncated(middle));
 
     /* Nothing is cut out if the text fits. */
     TRComposedLineRef fits = TRTypesetterCreateTruncatedLine(typesetter, all, 10000.0f,
@@ -768,6 +777,7 @@ void ComposedLineTests::testTruncation() {
     assert(fits != nullptr);
     assert(TRComposedLineGetWidth(fits) == 2.0f * (A + B + C));
     assert(TRComposedLineGetGlyphRunCount(fits) == 1);
+    assert(!TRComposedLineIsTruncated(fits));
 
     TRComposedLineRelease(fits);
     TRComposedLineRelease(middle);

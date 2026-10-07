@@ -38,6 +38,7 @@ typedef struct _TRComposedLine {
     TRFloat extent;
     TRFloat trailingWhitespaceExtent;
     TRBoolean isBlock;
+    TRBoolean isTruncated;
     GlyphRunRef *runs;
     TRUInteger runCount;
 

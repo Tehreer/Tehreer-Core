@@ -254,6 +254,14 @@ void FrameTests::testTruncation() {
     assert(TRComposedLineGetCodeUnitRange(line).length == 2);
     TRComposedFrameRelease(frame);
 
+    /* A line that shows the token is not justified, as it would lose it. */
+    TRFrameResolverSetJustificationEnabled(f.resolver, TRTrue);
+    frame = f.frame();
+    assert(near(TRComposedLineGetWidth(TRComposedFrameGetLine(frame, 0)), A + B + 3.0f * Notdef));
+    assert(TRComposedLineIsTruncated(TRComposedFrameGetLine(frame, 0)));
+    TRComposedFrameRelease(frame);
+    TRFrameResolverSetJustificationEnabled(f.resolver, TRFalse);
+
     /* There is nothing to cut if everything fits. */
     TRFrameResolverSetFrameSize(f.resolver, 10000.0f, Height);
     frame = f.frame();

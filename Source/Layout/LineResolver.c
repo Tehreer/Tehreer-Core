@@ -427,6 +427,16 @@ static void AppendTokenRuns(ComposedLineRef token, RunList *list, TRUInteger ind
     }
 }
 
+/* Marks a line that shows a token in place of some of its text. */
+static ComposedLineRef MarkTruncated(ComposedLineRef line)
+{
+    if (line) {
+        line->isTruncated = TRTrue;
+    }
+
+    return line;
+}
+
 static TRUInt8 GetBaseLevel(TypesetterRef typesetter, TRUInteger index)
 {
     return typesetter->paragraphs[TypesetterFindParagraph(typesetter, index)].baseLevel;
@@ -458,8 +468,8 @@ static ComposedLineRef CreateStartTruncatedLine(TypesetterRef typesetter, TRUInt
 
         AppendTokenRuns(token, &list, tokenInsertIndex);
 
-        return LineResolverCreateLine(typesetter, truncatedStart, end, &list,
-            GetBaseLevel(typesetter, truncatedStart));
+        return MarkTruncated(LineResolverCreateLine(typesetter, truncatedStart, end, &list,
+            GetBaseLevel(typesetter, truncatedStart)));
     }
 
     return LineResolverCreateSimpleLine(typesetter, truncatedStart, end, TRFalse, 0.0f);
@@ -498,7 +508,8 @@ static ComposedLineRef CreateMiddleTruncatedLine(TypesetterRef typesetter, TRUIn
 
         AppendTokenRuns(token, &list, tokenInsertIndex);
 
-        return LineResolverCreateLine(typesetter, start, end, &list, GetBaseLevel(typesetter, start));
+        return MarkTruncated(LineResolverCreateLine(typesetter, start, end, &list,
+            GetBaseLevel(typesetter, start)));
     }
 
     return LineResolverCreateSimpleLine(typesetter, start, end, TRFalse, 0.0f);
@@ -533,8 +544,8 @@ static ComposedLineRef CreateEndTruncatedLine(TypesetterRef typesetter, TRUInteg
 
         AppendTokenRuns(token, &list, tokenInsertIndex);
 
-        return LineResolverCreateLine(typesetter, start, truncatedEnd, &list,
-            GetBaseLevel(typesetter, start));
+        return MarkTruncated(LineResolverCreateLine(typesetter, start, truncatedEnd, &list,
+            GetBaseLevel(typesetter, start)));
     }
 
     return LineResolverCreateSimpleLine(typesetter, start, truncatedEnd, TRFalse, 0.0f);

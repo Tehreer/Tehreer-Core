@@ -252,6 +252,16 @@ TRComposedLineRef TRTypesetterCreateSimpleLine(TRTypesetterRef typesetter, TRRan
         range.index + range.length, TRFalse, 0.0f);
 }
 
+TRComposedLineRef TRTypesetterCreateFrameLine(TRTypesetterRef typesetter, TRRange range,
+    TRFloat layoutWidth)
+{
+    /* The range MUST NOT be empty, and MUST be within the text. */
+    TRAssert(range.length > 0 && range.index + range.length <= typesetter->buffer.length);
+
+    return LineResolverCreateSimpleLine((TypesetterRef)typesetter, range.index,
+        range.index + range.length, TRTrue, layoutWidth);
+}
+
 TRComposedLineRef TRTypesetterCreateTruncationToken(TRTypesetterRef typesetter, TRRange range,
     TRTruncationPlace truncationPlace, const void *tokenString, TRUInteger tokenLength,
     TRStringEncoding tokenEncoding)

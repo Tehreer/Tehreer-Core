@@ -91,6 +91,12 @@ TR_PUBLIC TRFloat TRComposedLineGetTrailingWhitespaceExtent(TRComposedLineRef li
 TR_PUBLIC TRBoolean TRComposedLineIsBlock(TRComposedLineRef line);
 
 /**
+ * Returns whether the line shows a token in place of some of its text. Such a line cannot be
+ * made again from its range, as that would show the text that was cut out.
+ */
+TR_PUBLIC TRBoolean TRComposedLineIsTruncated(TRComposedLineRef line);
+
+/**
  * Returns the number of glyph runs, and a glyph run by its index. The run is not retained for the
  * caller, and stays valid as long as the line is alive.
  */

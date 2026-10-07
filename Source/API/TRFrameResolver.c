@@ -691,6 +691,11 @@ static void ResolveJustification(FrameContext *context, FrameResolverRef resolve
             continue;
         }
 
+        /* The line that shows a token cannot be made again from its text. */
+        if (line->isTruncated) {
+            continue;
+        }
+
         /* The line of a view has nothing to justify, and the one before it ends there. */
         if (line->isBlock || EndsBeforeBlock(typesetter, line->codeUnitEnd)) {
             continue;
