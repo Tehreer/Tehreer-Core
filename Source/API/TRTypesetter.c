@@ -229,6 +229,26 @@ TR_INTERNAL TRFloat TypesetterMeasureRange(TypesetterRef typesetter, TRUInteger 
     return extent;
 }
 
+void TRTypesetterGetParagraph(TRTypesetterRef typesetter, TRUInteger index, TRRange *range,
+    TRUInt8 *baseLevel)
+{
+    TypesetterRef actual = (TypesetterRef)typesetter;
+    const ParagraphInfo *paragraph;
+
+    /* The index MUST be less than the number of code units. */
+    TRAssert(index < actual->buffer.length);
+
+    paragraph = &actual->paragraphs[TypesetterFindParagraph(actual, index)];
+
+    if (range) {
+        range->index = paragraph->start;
+        range->length = paragraph->end - paragraph->start;
+    }
+    if (baseLevel) {
+        *baseLevel = paragraph->baseLevel;
+    }
+}
+
 TRUInteger TRTypesetterSuggestForwardBreak(TRTypesetterRef typesetter, TRRange range,
     TRFloat extent, TRBreakMode breakMode)
 {

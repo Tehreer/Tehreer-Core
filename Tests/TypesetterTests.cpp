@@ -363,6 +363,20 @@ void TypesetterTests::testParagraphs() {
         assert(typesetter->runs[i]->codeUnitEnd == ends[i]);
     }
 
+    /* The public lookup finds the paragraph of any code unit. */
+    for (TRUInteger index = 0; index < 9; index++) {
+        TRRange range;
+        TRUInt8 baseLevel = 0xFF;
+
+        TRTypesetterGetParagraph(typesetter, index, &range, &baseLevel);
+
+        const size_t expected = (index < 3 ? 0 : (index < 6 ? 1 : (index < 7 ? 2 : 3)));
+        assert(range.index == starts[expected]);
+        assert(range.index + range.length == ends[expected]);
+        assert(baseLevel == 0);
+    }
+    TRTypesetterGetParagraph(typesetter, 4, nullptr, nullptr);
+
     TRTypesetterRelease(typesetter);
     TRTextRelease(text);
     TRTypefaceRelease(typeface);
