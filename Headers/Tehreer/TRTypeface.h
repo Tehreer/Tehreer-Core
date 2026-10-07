@@ -70,10 +70,10 @@ enum {
 typedef struct _TRVariationAxis {
     const TRStringView *name;
     TRTag tag;
+    TRUInt32 flags;
     TRFloat minValue;
     TRFloat maxValue;
     TRFloat defaultValue;
-    TRUInt32 flags;
 } TRVariationAxis;
 
 typedef struct _TRNamedStyle {

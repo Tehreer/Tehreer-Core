@@ -29,13 +29,19 @@
 
 #include "TRComposedFrame.h"
 
+typedef struct _SelectionContext {
+    TRComposedLineRef line;
+    TRSelectionFunc func;
+    void *userData;
+} SelectionContext;
+
 static void FinalizeComposedFrame(ObjectRef object)
 {
-    ComposedFrameRef frame = object;
+    TRComposedFrameRef frame = object;
     TRUInteger index;
 
     for (index = 0; index < frame->lineCount; index++) {
-        TRComposedLineRelease((TRComposedLineRef)frame->lines[index]);
+        TRComposedLineRelease(frame->lines[index]);
     }
 
     AllocatorDeallocateBlock(frame->lines);
@@ -53,23 +59,20 @@ static TRRect MakeRect(TRFloat left, TRFloat top, TRFloat right, TRFloat bottom)
     return rect;
 }
 
-typedef struct _SelectionContext {
-    ComposedLineRef line;
-    TRSelectionFunc func;
-    void *userData;
-} SelectionContext;
-
 static void AddSelectionPart(void *userData, TRFloat left, TRFloat right)
 {
     SelectionContext *context = userData;
-    ComposedLineRef line = context->line;
+    TRComposedLineRef line = context->line;
+    TRFloat top = TRComposedLineGetTop(line);
+    TRFloat bottom = TRComposedLineGetBottom(line);
+    TRRect rect;
 
-    context->func(context->userData,
-        MakeRect(left + line->origin.x, ComposedLineGetTop(line), right + line->origin.x,
-            ComposedLineGetBottom(line)));
+    rect = MakeRect(left + line->origin.x, top, right + line->origin.x, bottom);
+
+    context->func(context->userData, rect);
 }
 
-static void AddSelectionParts(ComposedLineRef line, TRUInteger start, TRUInteger end,
+static void AddSelectionParts(TRComposedLineRef line, TRUInteger start, TRUInteger end,
     TRSelectionFunc func, void *userData)
 {
     SelectionContext context;
@@ -82,7 +85,7 @@ static void AddSelectionParts(ComposedLineRef line, TRUInteger start, TRUInteger
     range.index = start;
     range.length = end - start;
 
-    TRComposedLineEnumerateEdges((TRComposedLineRef)line, range, AddSelectionPart, &context);
+    TRComposedLineEnumerateEdges(line, range, AddSelectionPart, &context);
 }
 
 static void AddSelectionAcrossLines(TRComposedFrameRef frame, TRRange range, TRUInteger firstIndex,
@@ -91,80 +94,85 @@ static void AddSelectionAcrossLines(TRComposedFrameRef frame, TRRange range, TRU
     const TRFloat frameLeft = 0.0f;
     const TRFloat frameRight = frame->width;
     TRUInteger rangeEnd = range.index + range.length;
-    ComposedLineRef firstLine = frame->lines[firstIndex];
-    ComposedLineRef lastLine = frame->lines[lastIndex];
+    TRComposedLineRef firstLine = frame->lines[firstIndex];
+    TRComposedLineRef lastLine = frame->lines[lastIndex];
     TRBoolean isRTL = (lastLine->paragraphLevel & 1) == 1;
     TRUInteger midIndex;
+    TRRect rect;
 
     /* Select each intersecting part of first line. */
     AddSelectionParts(firstLine, range.index, firstLine->codeUnitEnd, func, userData);
 
     /* Select trailing padding of first line. */
     if (isRTL) {
-        func(userData, MakeRect(frameLeft, ComposedLineGetTop(firstLine),
-            firstLine->origin.x, ComposedLineGetBottom(firstLine)));
+        rect = MakeRect(frameLeft, TRComposedLineGetTop(firstLine), firstLine->origin.x,
+            TRComposedLineGetBottom(firstLine));
     } else {
-        func(userData, MakeRect(firstLine->origin.x + firstLine->extent,
-            ComposedLineGetTop(firstLine), frameRight, ComposedLineGetBottom(firstLine)));
+        rect = MakeRect(firstLine->origin.x + firstLine->extent, TRComposedLineGetTop(firstLine),
+            frameRight, TRComposedLineGetBottom(firstLine));
     }
+    func(userData, rect);
 
     /* Select whole part of each mid line. */
     for (midIndex = firstIndex + 1; midIndex < lastIndex; midIndex++) {
-        ComposedLineRef midLine = frame->lines[midIndex];
+        TRComposedLineRef midLine = frame->lines[midIndex];
 
-        func(userData, MakeRect(frameLeft, ComposedLineGetTop(midLine), frameRight,
-            ComposedLineGetBottom(midLine)));
+        rect = MakeRect(frameLeft, TRComposedLineGetTop(midLine), frameRight,
+            TRComposedLineGetBottom(midLine));
+        func(userData, rect);
     }
 
     /* Select leading padding of last line. */
     if (isRTL) {
-        func(userData, MakeRect(lastLine->origin.x + lastLine->extent,
-            ComposedLineGetTop(lastLine), frameRight, ComposedLineGetBottom(lastLine)));
+        rect = MakeRect(lastLine->origin.x + lastLine->extent, TRComposedLineGetTop(lastLine),
+            frameRight, TRComposedLineGetBottom(lastLine));
     } else {
-        func(userData, MakeRect(frameLeft, ComposedLineGetTop(lastLine),
-            lastLine->origin.x, ComposedLineGetBottom(lastLine)));
+        rect = MakeRect(frameLeft, TRComposedLineGetTop(lastLine), lastLine->origin.x,
+            TRComposedLineGetBottom(lastLine));
     }
+    func(userData, rect);
 
     /* Select each intersecting part of last line. */
     AddSelectionParts(lastLine, lastLine->codeUnitStart, rangeEnd, func, userData);
 }
 
-TR_INTERNAL ComposedFrameRef ComposedFrameCreate(TRUInteger start, TRUInteger end,
-    ComposedLineRef *lines, TRUInteger lineCount, TRFloat width, TRFloat height)
+TR_INTERNAL TRComposedFrame *TRComposedFrameCreate(TRUInteger start, TRUInteger end,
+    TRComposedLine **lines, TRUInteger lineCount, TRFloat width, TRFloat height)
 {
     const TRUInteger size = sizeof(TRComposedFrame);
-    void *pointer = NULL;
-    ComposedFrameRef frame;
+    TRComposedFrame *frame = NULL;
+    TRComposedLineRef *frameLines;
+    TRUInteger index;
 
-    frame = ObjectCreate(&size, 1, &pointer, FinalizeComposedFrame);
+    /* The frame MUST have at least one line. */
+    TRAssert(lineCount > 0);
 
-    if (frame) {
-        frame->lines = NULL;
-        frame->lineCount = 0;
+    frameLines = AllocatorAllocateBlock(lineCount * sizeof(TRComposedLineRef));
 
-        if (lineCount > 0) {
-            frame->lines = AllocatorAllocateBlock(lineCount * sizeof(ComposedLineRef));
+    if (frameLines) {
+        void *pointer = NULL;
+
+        frame = ObjectCreate(&size, 1, &pointer, FinalizeComposedFrame);
+
+        if (frame) {
+            for (index = 0; index < lineCount; index++) {
+                frameLines[index] = lines[index];
+            }
+
+            frame->lines = frameLines;
+            frame->lineCount = lineCount;
+            frame->codeUnitStart = start;
+            frame->codeUnitEnd = end;
+            frame->width = width;
+            frame->height = height;
+        } else {
+            AllocatorDeallocateBlock(frameLines);
         }
     }
 
-    if (frame && (lineCount == 0 || frame->lines)) {
-        if (lineCount > 0) {
-            memcpy(frame->lines, lines, lineCount * sizeof(ComposedLineRef));
-        }
-        frame->lineCount = lineCount;
-        frame->codeUnitStart = start;
-        frame->codeUnitEnd = end;
-        frame->width = width;
-        frame->height = height;
-    } else {
-        TRUInteger index;
-
+    if (!frame) {
         for (index = 0; index < lineCount; index++) {
-            TRComposedLineRelease((TRComposedLineRef)lines[index]);
-        }
-        if (frame) {
-            ObjectRelease(frame);
-            frame = NULL;
+            TRComposedLineRelease(lines[index]);
         }
     }
 
@@ -201,7 +209,7 @@ TRComposedLineRef TRComposedFrameGetLine(TRComposedFrameRef frame, TRUInteger in
     /* The index MUST be less than the line count. */
     TRAssert(index < frame->lineCount);
 
-    return (TRComposedLineRef)frame->lines[index];
+    return frame->lines[index];
 }
 
 TRUInteger TRComposedFrameGetIndexOfLineForCodeUnit(TRComposedFrameRef frame, TRUInteger index)
@@ -215,7 +223,7 @@ TRUInteger TRComposedFrameGetIndexOfLineForCodeUnit(TRComposedFrameRef frame, TR
 
     while (low < high) {
         TRUInteger mid = low + ((high - low) >> 1);
-        const ComposedLineRef line = frame->lines[mid];
+        TRComposedLineRef line = frame->lines[mid];
 
         if (index >= line->codeUnitEnd) {
             low = mid + 1;
@@ -239,9 +247,10 @@ TRUInteger TRComposedFrameGetIndexOfLineAtPosition(TRComposedFrameRef frame, TRP
     TRAssert(frame->lineCount > 0);
 
     for (index = 0; index < frame->lineCount; index++) {
-        ComposedLineRef line = frame->lines[index];
+        TRComposedLineRef line = frame->lines[index];
 
-        if (position.y >= ComposedLineGetTop(line) && position.y <= ComposedLineGetBottom(line)) {
+        if (position.y >= TRComposedLineGetTop(line)
+                && position.y <= TRComposedLineGetBottom(line)) {
             lineIndex = index;
             break;
         }
@@ -268,12 +277,13 @@ void TRComposedFrameEnumerateSelection(TRComposedFrameRef frame, TRRange range,
     firstIndex = TRComposedFrameGetIndexOfLineForCodeUnit(frame, range.index);
     lastIndex = TRComposedFrameGetIndexOfLineForCodeUnit(frame, rangeEnd - 1);
 
-    if (firstIndex != TRInvalidIndex && lastIndex != TRInvalidIndex) {
-        if (firstIndex == lastIndex) {
-            AddSelectionParts(frame->lines[firstIndex], range.index, rangeEnd, func, userData);
-        } else {
-            AddSelectionAcrossLines(frame, range, firstIndex, lastIndex, func, userData);
-        }
+    /* The lines of the frame MUST cover each code unit of the range. */
+    TRAssert(firstIndex != TRInvalidIndex && lastIndex != TRInvalidIndex);
+
+    if (firstIndex == lastIndex) {
+        AddSelectionParts(frame->lines[firstIndex], range.index, rangeEnd, func, userData);
+    } else {
+        AddSelectionAcrossLines(frame, range, firstIndex, lastIndex, func, userData);
     }
 }
 

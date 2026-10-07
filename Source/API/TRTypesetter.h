@@ -44,16 +44,16 @@ typedef struct _TRTypesetter {
     TextRunRef *blocks;
     TRUInteger blockCount;
     BreakClassifierRef breaks;
-} TRTypesetter, *TypesetterRef;
+} TRTypesetter;
 
 /* Returns the index of the paragraph that has the code unit, which MUST be within the text. */
-TR_INTERNAL TRUInteger TypesetterFindParagraph(TypesetterRef typesetter, TRUInteger index);
+TR_INTERNAL TRUInteger TRTypesetterFindParagraph(TRTypesetterRef typesetter, TRUInteger index);
 
 /* Returns the index of the run that has the code unit, which MUST be within the text. */
-TR_INTERNAL TRUInteger TypesetterFindRun(TypesetterRef typesetter, TRUInteger index);
+TR_INTERNAL TRUInteger TRTypesetterFindRun(TRTypesetterRef typesetter, TRUInteger index);
 
 /* Returns the extent of a range of code units, which MAY be empty, as the runs measure it. */
-TR_INTERNAL TRFloat TypesetterMeasureRange(TypesetterRef typesetter, TRUInteger start,
+TR_INTERNAL TRFloat TRTypesetterMeasureRange(TRTypesetterRef typesetter, TRUInteger start,
     TRUInteger end);
 
 #endif

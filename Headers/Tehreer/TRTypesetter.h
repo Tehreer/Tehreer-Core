@@ -82,21 +82,6 @@ TR_PUBLIC TRTypesetterRef TRTypesetterCreate(TRTextRef text,
 TR_PUBLIC TRUInteger TRTypesetterGetCodeUnitCount(TRTypesetterRef typesetter);
 
 /**
- * Finds the paragraph that has a code unit.
- *
- * @param typesetter
- *      The typesetter.
- * @param index
- *      The index of the code unit, which MUST be less than the number of code units.
- * @param range
- *      Receives the code units of the paragraph, or `NULL` if it is not wanted.
- * @param baseLevel
- *      Receives the base bidirectional level of the paragraph, or `NULL` if it is not wanted.
- */
-TR_PUBLIC void TRTypesetterGetParagraph(TRTypesetterRef typesetter, TRUInteger index,
-    TRRange *range, TRUInt8 *baseLevel);
-
-/**
  * Suggests where to break a line forward from the start of a range. The measurement goes from the
  * first code unit to the last. If the whole range fits in the extent, its end is returned.
  * Otherwise the index of the first code unit that does not fit is returned, at least one character

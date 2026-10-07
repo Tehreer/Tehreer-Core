@@ -31,7 +31,7 @@
  * The typesetter receives the paragraphs and the runs, which it has to free if this fails. Returns
  * `TRFalse` if some text has no typeface, or on failure.
  */
-TR_INTERNAL TRBoolean ShapeResolverResolve(TypesetterRef typesetter,
+TR_INTERNAL TRBoolean ShapeResolverResolve(TRTypesetter *typesetter,
     const TRAttribute *defaultAttributes, TRUInteger defaultAttributeCount);
 
 #endif

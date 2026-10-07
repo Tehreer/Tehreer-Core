@@ -219,6 +219,7 @@ if(BUILD_TESTS)
   set(TEST_TARGETS
     AdvanceCacheTests
     AllocatorTests
+    ArrayTests
     AtomicTests
     AttributeListTests
     AttributeRegistryTests
@@ -293,6 +294,10 @@ if(BUILD_TESTS)
   set(CaretEdgesBuilderTests
     Tests/CaretEdgesBuilderTests.h
     Tests/CaretEdgesBuilderTests.cpp
+  )
+  set(ArrayTests
+    Tests/ArrayTests.h
+    Tests/ArrayTests.cpp
   )
   set(AtomicTests
     Tests/AtomicTests.h

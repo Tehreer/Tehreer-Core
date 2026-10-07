@@ -29,7 +29,6 @@
 #include <API/TRGlyphImage.h>
 #include <API/TRTypeface.h>
 #include <Core/Object.h>
-#include <Graphics/GlyphCache.h>
 
 #include "TRRenderer.h"
 
@@ -58,7 +57,7 @@ static TRInt32 ToPixelSize(const TRRenderer *renderer, TRFloat scale)
     return (size > 0.0f ? ToFixed(size, 64.0f) : 0);
 }
 
-static GlyphCacheRef GetCache(const TRRenderer *renderer)
+static TRGlyphCacheRef GetCache(const TRRenderer *renderer)
 {
     return (renderer->cache ? renderer->cache : TRGlyphCacheGetDefault());
 }
@@ -241,7 +240,8 @@ TRGlyphImageRef TRRendererGetGlyphImage(TRRendererRef renderer, TRGlyphID glyphI
 
         SetupDataKey(renderer, &key);
 
-        glyphImage = GlyphCacheGetImage(GetCache(renderer), &key, glyphID, renderer->foregroundColor);
+        glyphImage = TRGlyphCacheGetImage(GetCache(renderer), &key, glyphID,
+            renderer->foregroundColor);
     }
 
     return glyphImage;
@@ -264,7 +264,7 @@ TRGlyphImageRef TRRendererGetStrokeImage(TRRendererRef renderer, TRGlyphID glyph
         strokeKey.lineJoin = renderer->strokeJoin;
         strokeKey.miterLimit = ToFixed(miter, 65536.0f);
 
-        strokeImage = GlyphCacheGetStrokeImage(GetCache(renderer), &key, &strokeKey, glyphID);
+        strokeImage = TRGlyphCacheGetStrokeImage(GetCache(renderer), &key, &strokeKey, glyphID);
     }
 
     return strokeImage;
@@ -279,7 +279,7 @@ TRPathRef TRRendererGetGlyphPath(TRRendererRef renderer, TRGlyphID glyphID)
 
         SetupDataKey(renderer, &key);
 
-        glyphPath = GlyphCacheGetPath(GetCache(renderer), &key, glyphID);
+        glyphPath = TRGlyphCacheGetPath(GetCache(renderer), &key, glyphID);
     }
 
     return glyphPath;

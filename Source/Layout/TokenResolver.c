@@ -90,11 +90,11 @@ static TRUInteger EncodeEllipsis(TRStringEncoding encoding, TRUInt8 *buffer)
     return length;
 }
 
-TR_INTERNAL ComposedLineRef TokenResolverCreateTokenLine(TypesetterRef typesetter,
+TR_INTERNAL TRComposedLine *TokenResolverCreateTokenLine(TRTypesetterRef typesetter,
     TRUInteger start, TRUInteger end, TRTruncationPlace truncationPlace, const void *tokenString,
     TRUInteger tokenLength, TRStringEncoding tokenEncoding)
 {
-    ComposedLineRef tokenLine = NULL;
+    TRComposedLine *tokenLine = NULL;
     TRUInteger truncationIndex;
     TRUInteger runIndex;
 
@@ -115,7 +115,7 @@ TR_INTERNAL ComposedLineRef TokenResolverCreateTokenLine(TypesetterRef typesette
         break;
     }
 
-    runIndex = TypesetterFindRun(typesetter, truncationIndex);
+    runIndex = TRTypesetterFindRun(typesetter, truncationIndex);
 
     if (runIndex != TRInvalidIndex) {
         TextRunRef suitableRun;
@@ -151,7 +151,7 @@ TR_INTERNAL ComposedLineRef TokenResolverCreateTokenLine(TypesetterRef typesette
             tokenTypesetter = TRTypesetterCreate(tokenText, attributes, 2);
 
             if (tokenTypesetter) {
-                tokenLine = LineResolverCreateSimpleLine((TypesetterRef)tokenTypesetter, 0,
+                tokenLine = LineResolverCreateSimpleLine(tokenTypesetter, 0,
                     tokenLength, TRFalse, 0.0f);
 
                 TRTypesetterRelease(tokenTypesetter);

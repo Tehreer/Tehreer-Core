@@ -27,7 +27,7 @@
 
 /* A growable list of glyph runs, which owns the references that it holds. */
 typedef struct _RunList {
-    GlyphRunRef *items;
+    TRGlyphRun **items;
     TRUInteger count;
     TRUInteger capacity;
     TRBoolean hasFailed;
@@ -42,7 +42,7 @@ TR_INTERNAL void RunListFinalize(RunList *list);
  * Inserts a run at an index that MUST NOT be greater than the count. The list takes the reference
  * of the run, or releases it and fails if there is no memory.
  */
-TR_INTERNAL void RunListInsert(RunList *list, TRUInteger index, GlyphRunRef glyphRun);
+TR_INTERNAL void RunListInsert(RunList *list, TRUInteger index, TRGlyphRun *glyphRun);
 
 /* A part of a line in the order that it is shown, with the bidirectional level of its text. */
 typedef struct _VisualRun {
@@ -59,7 +59,7 @@ typedef void (*VisualRunFunc)(void *context, const VisualRun *visualRun);
  * paragraphs shows them one after another in the direction of the first of them. Returns TRFalse
  * if the runs could not be found.
  */
-TR_INTERNAL TRBoolean LineResolverForEachVisualRun(TypesetterRef typesetter, TRUInteger start,
+TR_INTERNAL TRBoolean LineResolverForEachVisualRun(TRTypesetterRef typesetter, TRUInteger start,
     TRUInteger end, VisualRunFunc func, void *context);
 
 /*
@@ -67,14 +67,14 @@ TR_INTERNAL TRBoolean LineResolverForEachVisualRun(TypesetterRef typesetter, TRU
  * added before those that precede them, which keeps the order in which they are shown. The room of
  * the replacements is that of the layout width, if there is one.
  */
-TR_INTERNAL void LineResolverAppendVisualRuns(TypesetterRef typesetter, TRUInteger start,
+TR_INTERNAL void LineResolverAppendVisualRuns(TRTypesetterRef typesetter, TRUInteger start,
     TRUInteger end, RunList *list, TRBoolean hasLayoutWidth, TRFloat layoutWidth);
 
 /*
  * Creates a line from a list of runs, whose references the line takes over. The list is left
  * empty. Returns NULL on failure.
  */
-TR_INTERNAL ComposedLineRef LineResolverCreateLine(TypesetterRef typesetter, TRUInteger start,
+TR_INTERNAL TRComposedLine *LineResolverCreateLine(TRTypesetterRef typesetter, TRUInteger start,
     TRUInteger end, RunList *list, TRUInt8 paragraphLevel);
 
 /*
@@ -82,7 +82,7 @@ TR_INTERNAL ComposedLineRef LineResolverCreateLine(TypesetterRef typesetter, TRU
  * MUST NOT be empty. The runs of the replacements of the line are sized for the layout width, if
  * there is one.
  */
-TR_INTERNAL ComposedLineRef LineResolverCreateSimpleLine(TypesetterRef typesetter,
+TR_INTERNAL TRComposedLine *LineResolverCreateSimpleLine(TRTypesetterRef typesetter,
     TRUInteger start, TRUInteger end, TRBoolean hasLayoutWidth, TRFloat layoutWidth);
 
 /*
@@ -90,16 +90,16 @@ TR_INTERNAL ComposedLineRef LineResolverCreateSimpleLine(TypesetterRef typesette
  * line in its place. The suggested breaks decide what is cut out. If nothing has to be cut, the
  * line is a simple one. The range MUST NOT be empty. Returns NULL on failure.
  */
-TR_INTERNAL ComposedLineRef LineResolverCreateTruncatedLine(TypesetterRef typesetter,
+TR_INTERNAL TRComposedLine *LineResolverCreateTruncatedLine(TRTypesetterRef typesetter,
     TRUInteger start, TRUInteger end, TRFloat extent, TRBreakMode breakMode,
-    TRTruncationPlace truncationPlace, ComposedLineRef tokenLine);
+    TRTruncationPlace truncationPlace, TRComposedLineRef tokenLine);
 
 /*
  * Creates a line of the range whose inner spaces are widened or squeezed so that it takes the
  * justification extent, as far as the factor says. The range MUST NOT be empty. Returns NULL on
  * failure.
  */
-TR_INTERNAL ComposedLineRef LineResolverCreateJustifiedLine(TypesetterRef typesetter,
+TR_INTERNAL TRComposedLine *LineResolverCreateJustifiedLine(TRTypesetterRef typesetter,
     TRUInteger start, TRUInteger end, TRFloat justificationFactor, TRFloat justificationExtent);
 
 #endif

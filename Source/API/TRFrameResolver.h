@@ -41,6 +41,6 @@ typedef struct _TRFrameResolver {
     TRUInteger maxLines;
     TRFloat extraLineSpacing;
     TRFloat lineHeightMultiplier;
-} TRFrameResolver, *FrameResolverRef;
+} TRFrameResolver;
 
 #endif

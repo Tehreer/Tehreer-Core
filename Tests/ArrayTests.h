@@ -14,35 +14,22 @@
  * limitations under the License.
  */
 
-
-#ifndef _TEHREER__FRAME_TESTS_H
-#define _TEHREER__FRAME_TESTS_H
+#ifndef _TEHREER__ARRAY_TESTS_H
+#define _TEHREER__ARRAY_TESTS_H
 
 namespace Tehreer {
 
-class FrameTests {
+class ArrayTests {
 public:
-    FrameTests() = default;
+    ArrayTests() = default;
 
     void run();
 
 private:
-    void testSingleLine();
-    void testFitting();
-    void testWrapping();
-    void testFrameRange();
-    void testHeightLimit();
-    void testMaxLines();
-    void testTruncation();
-    void testAlignments();
-    void testIndents();
-    void testParagraphSpacing();
-    void testLineHeights();
-    void testJustification();
-    void testRightToLeft();
-    void testIndexOfLine();
-    void testSelection();
-    void testFramesOutliveResolver();
+    void testInitialState();
+    void testAppendAndGet();
+    void testGrowth();
+    void testStructItems();
 };
 
 }

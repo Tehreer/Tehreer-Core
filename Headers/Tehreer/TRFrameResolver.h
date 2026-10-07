@@ -143,7 +143,7 @@ TR_PUBLIC void TRFrameResolverSetLineHeightMultiplier(TRFrameResolverRef resolve
  * @param resolver
  *      The resolver, which MUST have a typesetter.
  * @param range
- *      The code units of the frame, which MUST be within the text.
+ *      The code units of the frame, which MUST NOT be empty, and MUST be within the text.
  * @return
  *      New frame, or `NULL` on failure.
  */

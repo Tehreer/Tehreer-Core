@@ -35,6 +35,7 @@
 #include <API/TRTypesetter.c>
 #include <API/TRTypeface.c>
 #include <Core/Allocator.c>
+#include <Core/Array.c>
 #include <Core/Memory.c>
 #include <Core/NameWriter.c>
 #include <Core/Object.c>
@@ -42,7 +43,6 @@
 #include <Font/FaceMetadata.c>
 #include <Graphics/AdvanceCache.c>
 #include <Graphics/FreeType.c>
-#include <Graphics/GlyphCache.c>
 #include <Graphics/GlyphBitmap.c>
 #include <Graphics/RenderableFace.c>
 #include <Graphics/ShapableFace.c>

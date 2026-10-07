@@ -53,7 +53,6 @@ void FrameTests::run() {
     testRightToLeft();
     testIndexOfLine();
     testSelection();
-    testEmptyRange();
     testFramesOutliveResolver();
 }
 
@@ -547,16 +546,6 @@ void FrameTests::testSelection() {
         }
     }
     assert(hasMid);
-    TRComposedFrameRelease(frame);
-}
-
-void FrameTests::testEmptyRange() {
-    Fixture f(u"abc");
-
-    TRComposedFrameRef frame = TRFrameResolverCreateFrame(f.resolver, { 3, 0 });
-    assert(frame != nullptr);
-    assert(TRComposedFrameGetLineCount(frame) == 0);
-    assert(TRComposedFrameGetCodeUnitRange(frame).length == 0);
     TRComposedFrameRelease(frame);
 }
 

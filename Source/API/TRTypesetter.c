@@ -40,7 +40,7 @@
 
 static void FinalizeTypesetter(ObjectRef object)
 {
-    TypesetterRef typesetter = object;
+    TRTypesetter *typesetter = object;
     TRUInteger index;
 
     for (index = 0; index < typesetter->runCount; index++) {
@@ -60,7 +60,7 @@ static void FinalizeTypesetter(ObjectRef object)
     }
 }
 
-static TRBoolean CopyCodeUnits(TypesetterRef typesetter, TRTextRef text)
+static TRBoolean CopyCodeUnits(TRTypesetter *typesetter, TRTextRef text)
 {
     TRBoolean isCopied = TRFalse;
     TRUInteger length = TRTextGetLength(text);
@@ -85,7 +85,7 @@ static TRBoolean CopyCodeUnits(TypesetterRef typesetter, TRTextRef text)
     return isCopied;
 }
 
-static void FillBlocks(TypesetterRef typesetter)
+static void FillBlocks(TRTypesetter *typesetter)
 {
     TRUInteger blockIndex = 0;
     TRUInteger index;
@@ -97,7 +97,7 @@ static void FillBlocks(TypesetterRef typesetter)
     }
 }
 
-static TRBoolean CollectBlocks(TypesetterRef typesetter)
+static TRBoolean CollectBlocks(TRTypesetter *typesetter)
 {
     TRBoolean isCollected = TRTrue;
     TRUInteger blockCount = 0;
@@ -126,7 +126,7 @@ static TRBoolean CollectBlocks(TypesetterRef typesetter)
     return isCollected;
 }
 
-TR_INTERNAL TRUInteger TypesetterFindParagraph(TypesetterRef typesetter, TRUInteger index)
+TR_INTERNAL TRUInteger TRTypesetterFindParagraph(TRTypesetterRef typesetter, TRUInteger index)
 {
     TRUInteger paragraphIndex = TRInvalidIndex;
     TRUInteger low = 0;
@@ -149,7 +149,7 @@ TR_INTERNAL TRUInteger TypesetterFindParagraph(TypesetterRef typesetter, TRUInte
     return paragraphIndex;
 }
 
-TR_INTERNAL TRUInteger TypesetterFindRun(TypesetterRef typesetter, TRUInteger index)
+TR_INTERNAL TRUInteger TRTypesetterFindRun(TRTypesetterRef typesetter, TRUInteger index)
 {
     TRUInteger runIndex = TRInvalidIndex;
     TRUInteger low = 0;
@@ -172,13 +172,13 @@ TR_INTERNAL TRUInteger TypesetterFindRun(TypesetterRef typesetter, TRUInteger in
     return runIndex;
 }
 
-TR_INTERNAL TRFloat TypesetterMeasureRange(TypesetterRef typesetter, TRUInteger start,
+TR_INTERNAL TRFloat TRTypesetterMeasureRange(TRTypesetterRef typesetter, TRUInteger start,
     TRUInteger end)
 {
     TRFloat extent = 0.0f;
 
     if (start < end) {
-        TRUInteger runIndex = TypesetterFindRun(typesetter, start);
+        TRUInteger runIndex = TRTypesetterFindRun(typesetter, start);
 
         do {
             TextRunRef textRun = typesetter->runs[runIndex];
@@ -197,7 +197,7 @@ TR_INTERNAL TRFloat TypesetterMeasureRange(TypesetterRef typesetter, TRUInteger 
 TRTypesetterRef TRTypesetterCreate(TRTextRef text, const TRAttribute *defaultAttributes,
     TRUInteger defaultAttributeCount)
 {
-    TypesetterRef typesetter = NULL;
+    TRTypesetter *typesetter = NULL;
 
     if (text) {
         const TRUInteger size = sizeof(TRTypesetter);
@@ -243,37 +243,17 @@ TRUInteger TRTypesetterGetCodeUnitCount(TRTypesetterRef typesetter)
     return typesetter->buffer.length;
 }
 
-void TRTypesetterGetParagraph(TRTypesetterRef typesetter, TRUInteger index, TRRange *range,
-    TRUInt8 *baseLevel)
-{
-    TypesetterRef actual = (TypesetterRef)typesetter;
-    const ParagraphInfo *paragraph;
-
-    /* The index MUST be less than the number of code units. */
-    TRAssert(index < actual->buffer.length);
-
-    paragraph = &actual->paragraphs[TypesetterFindParagraph(actual, index)];
-
-    if (range) {
-        range->index = paragraph->start;
-        range->length = paragraph->end - paragraph->start;
-    }
-    if (baseLevel) {
-        *baseLevel = paragraph->baseLevel;
-    }
-}
-
 TRUInteger TRTypesetterSuggestForwardBreak(TRTypesetterRef typesetter, TRRange range,
     TRFloat extent, TRBreakMode breakMode)
 {
-    return BreakResolverSuggestForwardBreak((TypesetterRef)typesetter, extent, range.index,
+    return BreakResolverSuggestForwardBreak(typesetter, extent, range.index,
         range.index + range.length, breakMode);
 }
 
 TRUInteger TRTypesetterSuggestBackwardBreak(TRTypesetterRef typesetter, TRRange range,
     TRFloat extent, TRBreakMode breakMode)
 {
-    return BreakResolverSuggestBackwardBreak((TypesetterRef)typesetter, extent, range.index,
+    return BreakResolverSuggestBackwardBreak(typesetter, extent, range.index,
         range.index + range.length, breakMode);
 }
 
@@ -282,7 +262,7 @@ TRComposedLineRef TRTypesetterCreateSimpleLine(TRTypesetterRef typesetter, TRRan
     /* The range MUST NOT be empty, and MUST be within the text. */
     TRAssert(range.length > 0 && range.index + range.length <= typesetter->buffer.length);
 
-    return LineResolverCreateSimpleLine((TypesetterRef)typesetter, range.index,
+    return LineResolverCreateSimpleLine(typesetter, range.index,
         range.index + range.length, TRFalse, 0.0f);
 }
 
@@ -292,7 +272,7 @@ TRComposedLineRef TRTypesetterCreateFrameLine(TRTypesetterRef typesetter, TRRang
     /* The range MUST NOT be empty, and MUST be within the text. */
     TRAssert(range.length > 0 && range.index + range.length <= typesetter->buffer.length);
 
-    return LineResolverCreateSimpleLine((TypesetterRef)typesetter, range.index,
+    return LineResolverCreateSimpleLine(typesetter, range.index,
         range.index + range.length, TRTrue, layoutWidth);
 }
 
@@ -303,7 +283,7 @@ TRComposedLineRef TRTypesetterCreateTruncationToken(TRTypesetterRef typesetter, 
     /* The range MUST NOT be empty, and MUST be within the text. */
     TRAssert(range.length > 0 && range.index + range.length <= typesetter->buffer.length);
 
-    return TokenResolverCreateTokenLine((TypesetterRef)typesetter, range.index,
+    return TokenResolverCreateTokenLine(typesetter, range.index,
         range.index + range.length, truncationPlace, tokenString, tokenLength, tokenEncoding);
 }
 
@@ -314,8 +294,8 @@ TRComposedLineRef TRTypesetterCreateTruncatedLine(TRTypesetterRef typesetter, TR
     /* The range MUST NOT be empty, and MUST be within the text. */
     TRAssert(range.length > 0 && range.index + range.length <= typesetter->buffer.length);
 
-    return LineResolverCreateTruncatedLine((TypesetterRef)typesetter, range.index,
-        range.index + range.length, extent, breakMode, truncationPlace, (ComposedLineRef)tokenLine);
+    return LineResolverCreateTruncatedLine(typesetter, range.index,
+        range.index + range.length, extent, breakMode, truncationPlace, tokenLine);
 }
 
 TRComposedLineRef TRTypesetterCreateJustifiedLine(TRTypesetterRef typesetter, TRRange range,
@@ -324,7 +304,7 @@ TRComposedLineRef TRTypesetterCreateJustifiedLine(TRTypesetterRef typesetter, TR
     /* The range MUST NOT be empty, and MUST be within the text. */
     TRAssert(range.length > 0 && range.index + range.length <= typesetter->buffer.length);
 
-    return LineResolverCreateJustifiedLine((TypesetterRef)typesetter, range.index,
+    return LineResolverCreateJustifiedLine(typesetter, range.index,
         range.index + range.length, justificationFactor, justificationExtent);
 }
 

@@ -46,7 +46,7 @@ typedef struct _TRGlyphRun {
     TRBoolean hasForegroundColor;
     TRColor foregroundColor;
     const void *userData;
-} GlyphRun, *GlyphRunRef;
+} TRGlyphRun;
 
 /* What a run is painted with. */
 typedef struct _GlyphRunPaint {
@@ -59,26 +59,26 @@ typedef struct _GlyphRunPaint {
  * Creates a run for a range of a text run, which MUST NOT be empty. A replacement run is always
  * taken as a whole. Returns NULL on failure.
  */
-TR_INTERNAL GlyphRunRef GlyphRunCreate(TextRunRef textRun, TRUInteger start, TRUInteger end,
+TR_INTERNAL TRGlyphRun *TRGlyphRunCreate(TextRunRef textRun, TRUInteger start, TRUInteger end,
     const GlyphRunPaint *paint);
 
 /* Creates a copy of a run, which can be given another origin. */
-TR_INTERNAL GlyphRunRef GlyphRunCreateCopy(GlyphRunRef glyphRun);
+TR_INTERNAL TRGlyphRun *TRGlyphRunCreateCopy(TRGlyphRunRef glyphRun);
 
 /*
  * Creates a copy of a run with other advances for its glyphs, one for each of them, and the caret
  * edges that follow from them.
  */
-TR_INTERNAL GlyphRunRef GlyphRunCreateJustified(GlyphRunRef glyphRun, const TRFloat *advances);
+TR_INTERNAL TRGlyphRun *TRGlyphRunCreateJustified(TRGlyphRunRef glyphRun, const TRFloat *advances);
 
-TR_INTERNAL const TRFloat *GlyphRunGetAdvances(GlyphRunRef glyphRun);
-TR_INTERNAL TRBoolean GlyphRunIsRTL(GlyphRunRef glyphRun);
+TR_INTERNAL const TRFloat *TRGlyphRunGetAdvances(TRGlyphRunRef glyphRun);
+TR_INTERNAL TRBoolean TRGlyphRunIsRTL(TRGlyphRunRef glyphRun);
 
 /* The first code unit of the clusters, which can be before the run. */
-TR_INTERNAL TRUInteger GlyphRunGetActualStart(GlyphRunRef glyphRun);
+TR_INTERNAL TRUInteger TRGlyphRunGetActualStart(TRGlyphRunRef glyphRun);
 
 /* The extent of a range of code units of the run, which MAY be empty. */
-TR_INTERNAL TRFloat GlyphRunGetDistanceInRange(GlyphRunRef glyphRun, TRUInteger start,
+TR_INTERNAL TRFloat TRGlyphRunGetDistanceInRange(TRGlyphRunRef glyphRun, TRUInteger start,
     TRUInteger end);
 
 #endif

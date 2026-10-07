@@ -107,7 +107,7 @@ TR_PUBLIC TRGlyphRunRef TRComposedLineGetGlyphRun(TRComposedLineRef line, TRUInt
  * Returns the distance from the start of the line to the boundary before a code unit, which can be
  * the end of the line too.
  */
-TR_PUBLIC TRFloat TRComposedLineGetDistance(TRComposedLineRef line, TRUInteger index);
+TR_PUBLIC TRFloat TRComposedLineGetCodeUnitDistance(TRComposedLineRef line, TRUInteger index);
 
 /**
  * Passes the parts of the line that a range of code units covers to the function, as pairs of
@@ -120,7 +120,7 @@ TR_PUBLIC void TRComposedLineEnumerateEdges(TRComposedLineRef line, TRRange rang
 /**
  * Returns the code unit boundary that is closest to a distance from the start of the line.
  */
-TR_PUBLIC TRUInteger TRComposedLineGetIndexOfCodeUnit(TRComposedLineRef line, TRFloat distance);
+TR_PUBLIC TRUInteger TRComposedLineGetCodeUnitIndex(TRComposedLineRef line, TRFloat distance);
 
 /**
  * Returns how far to move the start of the line so that it is aligned. The flush factor is 0 for

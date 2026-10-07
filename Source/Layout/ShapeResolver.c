@@ -57,7 +57,7 @@ typedef struct _PendingRun {
 } PendingRun;
 
 typedef struct _ResolverContext {
-    TypesetterRef typesetter;
+    TRTypesetter *typesetter;
     TRShapingEngineRef engine;
     TRUInteger unitSize;
     ShapingStyle defaultStyle;
@@ -138,7 +138,7 @@ static TRBoolean EqualStyles(const ShapingStyle *first, const ShapingStyle *seco
 static TRBoolean AppendRun(ResolverContext *context, TextRunRef textRun)
 {
     TRBoolean isAppended = TRTrue;
-    TypesetterRef typesetter = context->typesetter;
+    TRTypesetter *typesetter = context->typesetter;
 
     if (typesetter->runCount == context->runCapacity) {
         TRUInteger newCapacity;
@@ -165,7 +165,7 @@ static TRBoolean AppendRun(ResolverContext *context, TextRunRef textRun)
 static TextRunRef ShapeIntrinsicRun(ResolverContext *context, const PendingRun *pending)
 {
     TextRunRef textRun = NULL;
-    TypesetterRef typesetter = context->typesetter;
+    TRTypesetter *typesetter = context->typesetter;
     const ShapingStyle *style = &pending->style;
     TRTag scriptTag = GetScriptTag(pending->script);
     TRWritingDirection direction = TRShapingEngineGetScriptDefaultDirection(scriptTag);
@@ -288,7 +288,7 @@ static TRBoolean ResolveParagraph(ResolverContext *context, SBUniformRunIterator
 static TRBoolean ResolveAllParagraphs(ResolverContext *context, SBUniformRunIteratorRef iterator)
 {
     TRBoolean isResolved = TRTrue;
-    TypesetterRef typesetter = context->typesetter;
+    TRTypesetter *typesetter = context->typesetter;
     TRUInteger index;
 
     /* Only what the characters set decides the runs; paragraph attributes are not run attributes. */
@@ -306,7 +306,7 @@ static TRBoolean ResolveAllParagraphs(ResolverContext *context, SBUniformRunIter
     return isResolved;
 }
 
-static TRBoolean AppendParagraph(TypesetterRef typesetter, TRUInteger *capacity,
+static TRBoolean AppendParagraph(TRTypesetter *typesetter, TRUInteger *capacity,
     const SBParagraphInfo *info)
 {
     TRBoolean isAppended = TRTrue;
@@ -339,7 +339,7 @@ static TRBoolean AppendParagraph(TypesetterRef typesetter, TRUInteger *capacity,
     return isAppended;
 }
 
-static TRBoolean ResolveParagraphs(TypesetterRef typesetter)
+static TRBoolean ResolveParagraphs(TRTypesetter *typesetter)
 {
     TRBoolean isResolved = TRFalse;
     SBTextRef sbText = TRTextGetSheenBidiText(typesetter->text);
@@ -365,7 +365,7 @@ static TRBoolean ResolveParagraphs(TypesetterRef typesetter)
     return isResolved;
 }
 
-TR_INTERNAL TRBoolean ShapeResolverResolve(TypesetterRef typesetter,
+TR_INTERNAL TRBoolean ShapeResolverResolve(TRTypesetter *typesetter,
     const TRAttribute *defaultAttributes, TRUInteger defaultAttributeCount)
 {
     TRBoolean isResolved = ResolveParagraphs(typesetter);

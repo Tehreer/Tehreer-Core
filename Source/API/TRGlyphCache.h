@@ -19,6 +19,9 @@
 
 #include <Tehreer/TRBase.h>
 #include <Tehreer/TRGlyphCache.h>
+#include <Tehreer/TRGlyphImage.h>
+#include <Tehreer/TRPath.h>
+#include <Tehreer/TRTypeface.h>
 
 #include <API/TRBase.h>
 #include <Core/Mutex.h>
@@ -40,6 +43,52 @@ typedef struct _TRGlyphCache {
     TRUInteger entryCount;
     struct _GlyphCacheEntry *firstEntry;
     struct _GlyphCacheEntry *lastEntry;
-} GlyphCache, *GlyphCacheRef;
+} TRGlyphCache;
+
+/*
+ * What decides the shape of a glyph: the typeface, the size in pixels in 26.6 format, and the
+ * horizontal skew in 16.16 format.
+ */
+typedef struct _GlyphDataKey {
+    TRTypefaceRef typeface;
+    TRInt32 pixelWidth;
+    TRInt32 pixelHeight;
+    TRInt32 skewX;
+} GlyphDataKey;
+
+/*
+ * The stroker settings: the line radius in 26.6 format, the cap and join in FreeType terms, and the
+ * miter limit in 16.16 format.
+ */
+typedef struct _GlyphStrokeKey {
+    TRInt32 lineRadius;
+    TRUInt32 lineCap;
+    TRUInt32 lineJoin;
+    TRInt32 miterLimit;
+} GlyphStrokeKey;
+
+/*
+ * The lookups below return a new reference, or NULL if the glyph has nothing to show or cannot be
+ * loaded. Glyphs are rendered without holding the lock of the cache, so threads that miss on the
+ * same glyph at the same time may all render it. The first result stays in the cache, and the
+ * others are used once and dropped.
+ */
+TR_INTERNAL TRBoolean TRGlyphCacheInitialize(TRGlyphCacheRef cache, TRUInteger capacity);
+TR_INTERNAL void TRGlyphCacheFinalize(TRGlyphCacheRef cache);
+
+/*
+ * Returns the image of the glyph in its default form, which uses the foreground color only if the
+ * glyph has layers that are painted with it.
+ */
+TR_INTERNAL TRGlyphImageRef TRGlyphCacheGetImage(TRGlyphCacheRef cache, const GlyphDataKey *key,
+    TRGlyphID glyphID, TRColor foregroundColor);
+
+/* Returns the image of the glyph that is made by stroking its outline. */
+TR_INTERNAL TRGlyphImageRef TRGlyphCacheGetStrokeImage(TRGlyphCacheRef cache,
+    const GlyphDataKey *key, const GlyphStrokeKey *strokeKey, TRGlyphID glyphID);
+
+/* Returns the outline of the glyph in pixels. */
+TR_INTERNAL TRPathRef TRGlyphCacheGetPath(TRGlyphCacheRef cache, const GlyphDataKey *key,
+    TRGlyphID glyphID);
 
 #endif

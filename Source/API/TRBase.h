@@ -104,5 +104,15 @@
  */
 #define TRInvalidIndex  (TRUInteger)(-1)
 
+/**
+ * Returns the smaller of two numbers. The arguments are evaluated more than once.
+ */
+#define NumberMin(a_, b_)   ((a_) < (b_) ? (a_) : (b_))
+
+/**
+ * Returns the larger of two numbers. The arguments are evaluated more than once.
+ */
+#define NumberMax(a_, b_)   ((a_) > (b_) ? (a_) : (b_))
+
 
 #endif

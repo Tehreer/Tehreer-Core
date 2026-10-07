@@ -31,16 +31,16 @@ typedef struct _TRComposedFrame {
     TRUInteger codeUnitEnd;
     TRFloat width;
     TRFloat height;
-    ComposedLineRef *lines;
+    TRComposedLineRef *lines;
     TRUInteger lineCount;
-} TRComposedFrame, *ComposedFrameRef;
+} TRComposedFrame;
 
 /*
  * Creates a frame from its lines, which are in the order of the text. The frame takes the
- * references of the lines, and the array that holds them is the caller's. Returns NULL on
- * failure, in which case the lines are released as well.
+ * references of the lines, and the array that holds them is the caller's. The frame MUST have at
+ * least one line. Returns NULL on failure, in which case the lines are released as well.
  */
-TR_INTERNAL ComposedFrameRef ComposedFrameCreate(TRUInteger start, TRUInteger end,
-    ComposedLineRef *lines, TRUInteger lineCount, TRFloat width, TRFloat height);
+TR_INTERNAL TRComposedFrame *TRComposedFrameCreate(TRUInteger start, TRUInteger end,
+    TRComposedLine **lines, TRUInteger lineCount, TRFloat width, TRFloat height);
 
 #endif

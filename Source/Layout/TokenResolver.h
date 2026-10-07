@@ -30,7 +30,7 @@
  * at the place of the truncation in the range, which MUST NOT be empty. If no token string is
  * given, it is an ellipsis, or three dots if the typeface has no ellipsis. Returns NULL on failure.
  */
-TR_INTERNAL ComposedLineRef TokenResolverCreateTokenLine(TypesetterRef typesetter,
+TR_INTERNAL TRComposedLine *TokenResolverCreateTokenLine(TRTypesetterRef typesetter,
     TRUInteger start, TRUInteger end, TRTruncationPlace truncationPlace, const void *tokenString,
     TRUInteger tokenLength, TRStringEncoding tokenEncoding);
 

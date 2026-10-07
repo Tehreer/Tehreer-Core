@@ -34,7 +34,7 @@
 
 static void FinalizeComposedLine(ObjectRef object)
 {
-    ComposedLineRef line = object;
+    TRComposedLine *line = object;
     TRUInteger index;
 
     for (index = 0; index < line->runCount; index++) {
@@ -44,109 +44,103 @@ static void FinalizeComposedLine(ObjectRef object)
     AllocatorDeallocateBlock(line->runs);
 }
 
-TR_INTERNAL ComposedLineRef ComposedLineCreate(const TextBuffer *buffer, TRUInteger start,
-    TRUInteger end, GlyphRunRef *runs, TRUInteger runCount, TRUInt8 paragraphLevel)
+static void ResolveLineMetrics(TRComposedLine *line, const TextBuffer *buffer)
 {
-    const TRUInteger size = sizeof(TRComposedLine);
-    void *pointer = NULL;
-    ComposedLineRef line = ObjectCreate(&size, 1, &pointer, FinalizeComposedLine);
+    TRUInteger trailingWhitespaceStart = TextBufferGetTrailingWhitespaceStart(buffer,
+        line->codeUnitStart, line->codeUnitEnd);
+    TRGlyphRun *blockRun = NULL;
     TRUInteger index;
 
-    if (line) {
-        line->runs = NULL;
-        line->runCount = 0;
+    for (index = 0; index < line->runCount; index++) {
+        TRGlyphRun *glyphRun = line->runs[index];
+        TRUInteger wsStart = NumberMax(glyphRun->codeUnitStart, trailingWhitespaceStart);
+        TRUInteger wsEnd = NumberMin(glyphRun->codeUnitEnd, line->codeUnitEnd);
+        TRFloat ascent = TRGlyphRunGetAscent(glyphRun);
+        TRFloat descent = TRGlyphRunGetDescent(glyphRun);
+        TRFloat leading = TRGlyphRunGetLeading(glyphRun);
+        TRFloat width = TRGlyphRunGetWidth(glyphRun);
 
-        if (runCount > 0) {
-            line->runs = AllocatorAllocateBlock(runCount * sizeof(GlyphRunRef));
+        glyphRun->origin.x = line->extent;
+
+        if (wsStart < wsEnd) {
+            line->trailingWhitespaceExtent += TRGlyphRunGetDistanceInRange(glyphRun, wsStart,
+                wsEnd);
+        }
+
+        line->ascent = NumberMax(line->ascent, ascent);
+        line->descent = NumberMax(line->descent, descent);
+        line->leading = NumberMax(line->leading, leading);
+        line->extent += width;
+
+        if (TextRunIsBlock(glyphRun->textRun)) {
+            blockRun = glyphRun;
         }
     }
 
-    if (line && (runCount == 0 || line->runs)) {
-        GlyphRunRef blockRun = NULL;
-        TRUInteger trailingWhitespaceStart;
+    /*
+     * A line that holds a block replacement is as tall as the replacement and its margins, and
+     * nothing else: the metrics of the newline that ends its paragraph would only add blank
+     * space.
+     */
+    if (blockRun) {
+        line->ascent = TRGlyphRunGetAscent(blockRun);
+        line->descent = TRGlyphRunGetDescent(blockRun);
+        line->leading = TRGlyphRunGetLeading(blockRun);
+        line->isBlock = TRTrue;
+    }
+}
 
-        memcpy(line->runs, runs, runCount * sizeof(GlyphRunRef));
-        line->runCount = runCount;
+TR_INTERNAL TRComposedLine *TRComposedLineCreate(const TextBuffer *buffer, TRUInteger start,
+    TRUInteger end, TRGlyphRun **runs, TRUInteger runCount, TRUInt8 paragraphLevel)
+{
+    const TRUInteger size = sizeof(TRComposedLine);
+    TRComposedLine *line = NULL;
+    TRGlyphRun **lineRuns;
+    TRUInteger index;
 
-        line->codeUnitStart = start;
-        line->codeUnitEnd = end;
-        line->paragraphLevel = paragraphLevel;
-        line->origin.x = 0.0f;
-        line->origin.y = 0.0f;
-        line->ascent = 0.0f;
-        line->descent = 0.0f;
-        line->leading = 0.0f;
-        line->extent = 0.0f;
-        line->trailingWhitespaceExtent = 0.0f;
-        line->isBlock = TRFalse;
-        line->isTruncated = TRFalse;
-        line->flushFactor = 0.0f;
-        line->intrinsicMargin = 0.0f;
+    /* The line MUST have at least one run. */
+    TRAssert(runCount > 0);
 
-        trailingWhitespaceStart = TextBufferGetTrailingWhitespaceStart(buffer, start, end);
+    lineRuns = AllocatorAllocateBlock(runCount * sizeof(TRGlyphRun *));
 
-        for (index = 0; index < runCount; index++) {
-            GlyphRunRef glyphRun = line->runs[index];
-            TRUInteger wsStart = (glyphRun->codeUnitStart > trailingWhitespaceStart
-                                  ? glyphRun->codeUnitStart : trailingWhitespaceStart);
-            TRUInteger wsEnd = (glyphRun->codeUnitEnd < end ? glyphRun->codeUnitEnd : end);
+    if (lineRuns) {
+        void *pointer = NULL;
 
-            glyphRun->origin.x = line->extent;
+        line = ObjectCreate(&size, 1, &pointer, FinalizeComposedLine);
 
-            if (wsStart < wsEnd) {
-                line->trailingWhitespaceExtent += GlyphRunGetDistanceInRange(glyphRun, wsStart,
-                    wsEnd);
-            }
+        if (line) {
+            memcpy(lineRuns, runs, runCount * sizeof(TRGlyphRun *));
 
-            if (TRGlyphRunGetAscent(glyphRun) > line->ascent) {
-                line->ascent = TRGlyphRunGetAscent(glyphRun);
-            }
-            if (TRGlyphRunGetDescent(glyphRun) > line->descent) {
-                line->descent = TRGlyphRunGetDescent(glyphRun);
-            }
-            if (TRGlyphRunGetLeading(glyphRun) > line->leading) {
-                line->leading = TRGlyphRunGetLeading(glyphRun);
-            }
+            line->runs = lineRuns;
+            line->runCount = runCount;
+            line->codeUnitStart = start;
+            line->codeUnitEnd = end;
+            line->paragraphLevel = paragraphLevel;
+            line->origin.x = 0.0f;
+            line->origin.y = 0.0f;
+            line->ascent = 0.0f;
+            line->descent = 0.0f;
+            line->leading = 0.0f;
+            line->extent = 0.0f;
+            line->trailingWhitespaceExtent = 0.0f;
+            line->isBlock = TRFalse;
+            line->isTruncated = TRFalse;
+            line->flushFactor = 0.0f;
+            line->intrinsicMargin = 0.0f;
 
-            line->extent += TRGlyphRunGetWidth(glyphRun);
-
-            if (TextRunIsBlock(glyphRun->textRun)) {
-                blockRun = glyphRun;
-            }
+            ResolveLineMetrics(line, buffer);
+        } else {
+            AllocatorDeallocateBlock(lineRuns);
         }
+    }
 
-        /*
-         * A line that holds a block replacement is as tall as the replacement and its margins, and
-         * nothing else: the metrics of the newline that ends its paragraph would only add blank
-         * space.
-         */
-        if (blockRun) {
-            line->ascent = TRGlyphRunGetAscent(blockRun);
-            line->descent = TRGlyphRunGetDescent(blockRun);
-            line->leading = TRGlyphRunGetLeading(blockRun);
-            line->isBlock = TRTrue;
-        }
-    } else {
+    if (!line) {
         for (index = 0; index < runCount; index++) {
             TRGlyphRunRelease(runs[index]);
-        }
-        if (line) {
-            ObjectRelease(line);
-            line = NULL;
         }
     }
 
     return line;
-}
-
-TR_INTERNAL TRFloat ComposedLineGetTop(ComposedLineRef line)
-{
-    return line->origin.y - line->ascent;
-}
-
-TR_INTERNAL TRFloat ComposedLineGetBottom(ComposedLineRef line)
-{
-    return line->origin.y + line->descent + line->leading;
 }
 
 TRRange TRComposedLineGetCodeUnitRange(TRComposedLineRef line)
@@ -196,12 +190,12 @@ TRFloat TRComposedLineGetHeight(TRComposedLineRef line)
 
 TRFloat TRComposedLineGetTop(TRComposedLineRef line)
 {
-    return ComposedLineGetTop((ComposedLineRef)line);
+    return line->origin.y - line->ascent;
 }
 
 TRFloat TRComposedLineGetBottom(TRComposedLineRef line)
 {
-    return ComposedLineGetBottom((ComposedLineRef)line);
+    return line->origin.y + line->descent + line->leading;
 }
 
 TRFloat TRComposedLineGetLeft(TRComposedLineRef line)
@@ -242,7 +236,7 @@ TRGlyphRunRef TRComposedLineGetGlyphRun(TRComposedLineRef line, TRUInteger index
     return line->runs[index];
 }
 
-TRFloat TRComposedLineGetDistance(TRComposedLineRef line, TRUInteger index)
+TRFloat TRComposedLineGetCodeUnitDistance(TRComposedLineRef line, TRUInteger index)
 {
     TRFloat distance = 0.0f;
     TRUInteger runIndex;
@@ -251,7 +245,7 @@ TRFloat TRComposedLineGetDistance(TRComposedLineRef line, TRUInteger index)
     TRAssert(index >= line->codeUnitStart && index <= line->codeUnitEnd);
 
     for (runIndex = 0; runIndex < line->runCount; runIndex++) {
-        GlyphRunRef glyphRun = line->runs[runIndex];
+        TRGlyphRunRef glyphRun = line->runs[runIndex];
 
         if (index >= glyphRun->codeUnitStart && index < glyphRun->codeUnitEnd) {
             distance += TRGlyphRunGetDistance(glyphRun, index);
@@ -267,28 +261,24 @@ TRFloat TRComposedLineGetDistance(TRComposedLineRef line, TRUInteger index)
 void TRComposedLineEnumerateEdges(TRComposedLineRef line, TRRange range, TREdgeFunc func,
     void *userData)
 {
-    TRUInteger visualStart = (range.index > line->codeUnitStart ? range.index : line->codeUnitStart);
     TRUInteger rangeEnd = range.index + range.length;
-    TRUInteger visualEnd = (rangeEnd < line->codeUnitEnd ? rangeEnd : line->codeUnitEnd);
+    TRUInteger visualStart = NumberMax(range.index, line->codeUnitStart);
+    TRUInteger visualEnd = NumberMin(rangeEnd, line->codeUnitEnd);
 
     if (visualStart < visualEnd) {
         TRUInteger runIndex;
 
         for (runIndex = 0; runIndex < line->runCount; runIndex++) {
-            GlyphRunRef glyphRun = line->runs[runIndex];
+            TRGlyphRunRef glyphRun = line->runs[runIndex];
 
             if (glyphRun->codeUnitStart < visualEnd && glyphRun->codeUnitEnd > visualStart) {
-                TRUInteger selectionStart = (visualStart > glyphRun->codeUnitStart
-                                             ? visualStart : glyphRun->codeUnitStart);
-                TRUInteger selectionEnd = (visualEnd < glyphRun->codeUnitEnd
-                                           ? visualEnd : glyphRun->codeUnitEnd);
+                TRUInteger selectionStart = NumberMax(visualStart, glyphRun->codeUnitStart);
+                TRUInteger selectionEnd = NumberMin(visualEnd, glyphRun->codeUnitEnd);
                 TRFloat leadingEdge = TRGlyphRunGetDistance(glyphRun, selectionStart);
                 TRFloat trailingEdge = TRGlyphRunGetDistance(glyphRun, selectionEnd);
                 TRFloat relativeLeft = glyphRun->origin.x;
-                TRFloat left = (leadingEdge < trailingEdge ? leadingEdge : trailingEdge)
-                             + relativeLeft;
-                TRFloat right = (leadingEdge > trailingEdge ? leadingEdge : trailingEdge)
-                              + relativeLeft;
+                TRFloat left = NumberMin(leadingEdge, trailingEdge) + relativeLeft;
+                TRFloat right = NumberMax(leadingEdge, trailingEdge) + relativeLeft;
 
                 func(userData, left, right);
             }
@@ -296,13 +286,13 @@ void TRComposedLineEnumerateEdges(TRComposedLineRef line, TRRange range, TREdgeF
     }
 }
 
-TRUInteger TRComposedLineGetIndexOfCodeUnit(TRComposedLineRef line, TRFloat distance)
+TRUInteger TRComposedLineGetCodeUnitIndex(TRComposedLineRef line, TRFloat distance)
 {
     TRUInteger codeUnitIndex = line->codeUnitStart;
     TRUInteger runIndex = line->runCount;
 
     while (runIndex > 0) {
-        GlyphRunRef glyphRun;
+        TRGlyphRunRef glyphRun;
 
         runIndex -= 1;
         glyphRun = line->runs[runIndex];
@@ -337,7 +327,7 @@ TRRect TRComposedLineGetBoundingBox(TRComposedLineRef line, TRRendererRef render
     TRUInteger runIndex;
 
     for (runIndex = 0; runIndex < line->runCount; runIndex++) {
-        GlyphRunRef glyphRun = line->runs[runIndex];
+        TRGlyphRunRef glyphRun = line->runs[runIndex];
         TRRange glyphRange;
         TRRect runBox;
         TRFloat left, top, right, bottom;
@@ -359,10 +349,10 @@ TRRect TRComposedLineGetBoundingBox(TRComposedLineRef line, TRRendererRef render
                 maxY = bottom;
                 hasBox = TRTrue;
             } else {
-                minX = (left < minX ? left : minX);
-                minY = (top < minY ? top : minY);
-                maxX = (right > maxX ? right : maxX);
-                maxY = (bottom > maxY ? bottom : maxY);
+                minX = NumberMin(left, minX);
+                minY = NumberMin(top, minY);
+                maxX = NumberMax(right, maxX);
+                maxY = NumberMax(bottom, maxY);
             }
         }
     }

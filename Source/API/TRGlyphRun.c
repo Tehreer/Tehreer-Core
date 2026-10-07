@@ -37,21 +37,21 @@
 
 static void FinalizeGlyphRun(ObjectRef object)
 {
-    GlyphRunRef glyphRun = object;
+    TRGlyphRun *glyphRun = object;
 
     TextRunRelease(glyphRun->textRun);
 }
 
-static GlyphRunRef AllocateGlyphRun(TextRunRef textRun, TRUInteger codeUnitStart,
+static TRGlyphRun *AllocateGlyphRun(TextRunRef textRun, TRUInteger codeUnitStart,
     TRUInteger codeUnitEnd, TRUInteger startExtra, TRUInteger endExtra, TRBoolean hasAdvances,
     TRUInteger glyphStart, TRUInteger glyphCount)
 {
     TRUInteger clusterCount = (codeUnitEnd + endExtra) - (codeUnitStart - startExtra);
     TRUInteger sizes[COUNT] = { 0 };
     void *pointers[COUNT] = { NULL };
-    GlyphRunRef glyphRun;
+    TRGlyphRun *glyphRun;
 
-    sizes[RUN] = sizeof(GlyphRun);
+    sizes[RUN] = sizeof(TRGlyphRun);
     sizes[ADVANCES] = (hasAdvances ? sizeof(TRFloat) * glyphCount : 0);
     sizes[CLUSTER_MAP] = sizeof(TRUInteger) * clusterCount;
     sizes[CARET_EDGES] = sizeof(TRFloat) * (clusterCount + 1);
@@ -85,7 +85,7 @@ static GlyphRunRef AllocateGlyphRun(TextRunRef textRun, TRUInteger codeUnitStart
 #undef CARET_EDGES
 #undef COUNT
 
-static void SetPaint(GlyphRunRef glyphRun, const GlyphRunPaint *paint)
+static void SetPaint(TRGlyphRun *glyphRun, const GlyphRunPaint *paint)
 {
     if (paint) {
         glyphRun->hasForegroundColor = paint->hasForegroundColor;
@@ -94,14 +94,14 @@ static void SetPaint(GlyphRunRef glyphRun, const GlyphRunPaint *paint)
     }
 }
 
-TR_INTERNAL GlyphRunRef GlyphRunCreate(TextRunRef textRun, TRUInteger start, TRUInteger end,
+TR_INTERNAL TRGlyphRun *TRGlyphRunCreate(TextRunRef textRun, TRUInteger start, TRUInteger end,
     const GlyphRunPaint *paint)
 {
     TRUInteger startExtra = 0;
     TRUInteger endExtra = 0;
     TRUInteger glyphStart = 0;
     TRUInteger glyphEnd = 1;
-    GlyphRunRef glyphRun;
+    TRGlyphRun *glyphRun;
 
     /* The range MUST NOT be empty, and MUST be within the text run. */
     TRAssert(start < end && start >= textRun->codeUnitStart && end <= textRun->codeUnitEnd);
@@ -140,9 +140,9 @@ TR_INTERNAL GlyphRunRef GlyphRunCreate(TextRunRef textRun, TRUInteger start, TRU
     return glyphRun;
 }
 
-TR_INTERNAL GlyphRunRef GlyphRunCreateCopy(GlyphRunRef source)
+TR_INTERNAL TRGlyphRun *TRGlyphRunCreateCopy(TRGlyphRunRef source)
 {
-    GlyphRunRef glyphRun = AllocateGlyphRun(source->textRun, source->codeUnitStart,
+    TRGlyphRun *glyphRun = AllocateGlyphRun(source->textRun, source->codeUnitStart,
         source->codeUnitEnd, source->startExtra, source->endExtra,
         (source->justifiedAdvances != NULL), source->glyphStart, source->glyphCount);
 
@@ -167,9 +167,9 @@ TR_INTERNAL GlyphRunRef GlyphRunCreateCopy(GlyphRunRef source)
     return glyphRun;
 }
 
-TR_INTERNAL GlyphRunRef GlyphRunCreateJustified(GlyphRunRef source, const TRFloat *advances)
+TR_INTERNAL TRGlyphRun *TRGlyphRunCreateJustified(TRGlyphRunRef source, const TRFloat *advances)
 {
-    GlyphRunRef glyphRun = AllocateGlyphRun(source->textRun, source->codeUnitStart,
+    TRGlyphRun *glyphRun = AllocateGlyphRun(source->textRun, source->codeUnitStart,
         source->codeUnitEnd, source->startExtra, source->endExtra, TRTrue, source->glyphStart,
         source->glyphCount);
 
@@ -177,7 +177,7 @@ TR_INTERNAL GlyphRunRef GlyphRunCreateJustified(GlyphRunRef source, const TRFloa
         TRUInteger clusterCount = (source->codeUnitEnd + source->endExtra)
                                 - (source->codeUnitStart - source->startExtra);
         TRUInteger length = source->codeUnitEnd - source->codeUnitStart;
-        TRBoolean isRTL = GlyphRunIsRTL(source);
+        TRBoolean isRTL = TRGlyphRunIsRTL(source);
         TRFloat boundary;
         TRUInteger index;
 
@@ -202,7 +202,7 @@ TR_INTERNAL GlyphRunRef GlyphRunCreateJustified(GlyphRunRef source, const TRFloa
     return glyphRun;
 }
 
-TR_INTERNAL const TRFloat *GlyphRunGetAdvances(GlyphRunRef glyphRun)
+TR_INTERNAL const TRFloat *TRGlyphRunGetAdvances(TRGlyphRunRef glyphRun)
 {
     const TRFloat *advances = glyphRun->justifiedAdvances;
 
@@ -213,22 +213,22 @@ TR_INTERNAL const TRFloat *GlyphRunGetAdvances(GlyphRunRef glyphRun)
     return advances;
 }
 
-TR_INTERNAL TRBoolean GlyphRunIsRTL(GlyphRunRef glyphRun)
+TR_INTERNAL TRBoolean TRGlyphRunIsRTL(TRGlyphRunRef glyphRun)
 {
     return TextRunIsRTL(glyphRun->textRun);
 }
 
-TR_INTERNAL TRUInteger GlyphRunGetActualStart(GlyphRunRef glyphRun)
+TR_INTERNAL TRUInteger TRGlyphRunGetActualStart(TRGlyphRunRef glyphRun)
 {
     return glyphRun->codeUnitStart - glyphRun->startExtra;
 }
 
-TR_INTERNAL TRFloat GlyphRunGetDistanceInRange(GlyphRunRef glyphRun, TRUInteger start,
+TR_INTERNAL TRFloat TRGlyphRunGetDistanceInRange(TRGlyphRunRef glyphRun, TRUInteger start,
     TRUInteger end)
 {
-    TRUInteger actualStart = GlyphRunGetActualStart(glyphRun);
+    TRUInteger actualStart = TRGlyphRunGetActualStart(glyphRun);
 
-    return CaretUtilsGetDistance(glyphRun->caretEdges, GlyphRunIsRTL(glyphRun),
+    return CaretUtilsGetDistance(glyphRun->caretEdges, TRGlyphRunIsRTL(glyphRun),
         start - actualStart, end - actualStart);
 }
 
@@ -328,7 +328,7 @@ TRPoint TRGlyphRunGetOrigin(TRGlyphRunRef run)
 
 TRFloat TRGlyphRunGetWidth(TRGlyphRunRef run)
 {
-    return GlyphRunGetDistanceInRange((GlyphRunRef)run, run->codeUnitStart, run->codeUnitEnd);
+    return TRGlyphRunGetDistanceInRange(run, run->codeUnitStart, run->codeUnitEnd);
 }
 
 TRFloat TRGlyphRunGetHeight(TRGlyphRunRef run)
@@ -353,7 +353,7 @@ const TRPoint *TRGlyphRunGetGlyphOffsetsPtr(TRGlyphRunRef run)
 
 const TRFloat *TRGlyphRunGetGlyphAdvancesPtr(TRGlyphRunRef run)
 {
-    return GlyphRunGetAdvances((GlyphRunRef)run);
+    return TRGlyphRunGetAdvances(run);
 }
 
 const TRUInteger *TRGlyphRunGetClusterMapPtr(TRGlyphRunRef run)
@@ -403,7 +403,7 @@ TRFloat TRGlyphRunGetDistance(TRGlyphRunRef run, TRUInteger index)
     /* The index MUST be within the run, or its end. */
     TRAssert(index >= run->codeUnitStart && index <= run->codeUnitEnd);
 
-    return run->caretEdges[index - GlyphRunGetActualStart((GlyphRunRef)run)];
+    return run->caretEdges[index - TRGlyphRunGetActualStart(run)];
 }
 
 TRFloat TRGlyphRunGetClusterDistance(TRGlyphRunRef run, TRUInteger index)
@@ -412,17 +412,17 @@ TRFloat TRGlyphRunGetClusterDistance(TRGlyphRunRef run, TRUInteger index)
     TRAssert(index >= run->codeUnitStart - run->startExtra
           && index <= run->codeUnitEnd + run->endExtra);
 
-    return run->caretEdges[index - GlyphRunGetActualStart((GlyphRunRef)run)];
+    return run->caretEdges[index - TRGlyphRunGetActualStart(run)];
 }
 
 TRUInteger TRGlyphRunGetIndexOfCodeUnit(TRGlyphRunRef run, TRFloat distance)
 {
-    TRUInteger actualStart = GlyphRunGetActualStart((GlyphRunRef)run);
+    TRUInteger actualStart = TRGlyphRunGetActualStart(run);
     TRUInteger first = run->codeUnitStart - actualStart;
     TRUInteger last = run->codeUnitEnd - actualStart;
 
     return actualStart + CaretUtilsGetIndexOfEdge(run->caretEdges,
-        GlyphRunIsRTL((GlyphRunRef)run), distance, first, last);
+        TRGlyphRunIsRTL(run), distance, first, last);
 }
 
 TRRect TRGlyphRunGetBoundingBox(TRGlyphRunRef run, TRRange glyphRange, TRRendererRef renderer)
@@ -448,7 +448,7 @@ TRRect TRGlyphRunGetBoundingBox(TRGlyphRunRef run, TRRange glyphRange, TRRendere
         box = TRRendererGetRunBoundingBox(renderer,
             TRGlyphRunGetGlyphIDsPtr(run) + glyphRange.index,
             TRGlyphRunGetGlyphOffsetsPtr(run) + glyphRange.index,
-            GlyphRunGetAdvances((GlyphRunRef)run) + glyphRange.index, glyphRange.length);
+            TRGlyphRunGetAdvances(run) + glyphRange.index, glyphRange.length);
     }
 
     return box;

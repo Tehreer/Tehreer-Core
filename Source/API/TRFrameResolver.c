@@ -32,7 +32,7 @@
 #include <API/TRComposedFrame.h>
 #include <API/TRComposedLine.h>
 #include <API/TRTypesetter.h>
-#include <Core/Allocator.h>
+#include <Core/Array.h>
 #include <Core/Object.h>
 #include <Layout/BreakResolver.h>
 #include <Layout/LineResolver.h>
@@ -65,9 +65,7 @@ typedef struct _FrameContext {
     TRFloat layoutHeight;
     TRUInteger maxLines;
 
-    ComposedLineRef *lines;
-    TRUInteger lineCount;
-    TRUInteger lineCapacity;
+    Array lines;
     TRBoolean isFilled;
     TRBoolean hasFailed;
     TRBoolean isTruncated;
@@ -91,7 +89,7 @@ typedef struct _FrameContext {
 
 static void FinalizeFrameResolver(ObjectRef object)
 {
-    FrameResolverRef resolver = object;
+    TRFrameResolverRef resolver = object;
 
     if (resolver->typesetter) {
         TRTypesetterRelease(resolver->typesetter);
@@ -156,26 +154,44 @@ static TRFloat GetVerticalMultiplier(TRVerticalAlignment alignment)
     return multiplier;
 }
 
-static void AppendLine(FrameContext *context, ComposedLineRef line)
+/* ---------- Context Handling ---------- */
+
+static TRUInteger GetLineCount(const FrameContext *context)
 {
-    if (context->lineCount == context->lineCapacity) {
-        TRUInteger capacity = (context->lineCapacity ? context->lineCapacity * 2 : 8);
-        ComposedLineRef *lines = AllocatorReallocateBlock(context->lines,
-            capacity * sizeof(ComposedLineRef));
+    return ArrayGetCount(&context->lines);
+}
 
-        if (lines) {
-            context->lines = lines;
-            context->lineCapacity = capacity;
-        } else {
-            TRComposedLineRelease((TRComposedLineRef)line);
-            context->hasFailed = TRTrue;
-        }
-    }
+static TRComposedLine *GetLine(const FrameContext *context, TRUInteger index)
+{
+    return *(TRComposedLine **)ArrayGetItem(&context->lines, index);
+}
 
-    if (!context->hasFailed) {
-        context->lines[context->lineCount++] = line;
+static void SetLine(FrameContext *context, TRUInteger index, TRComposedLine *line)
+{
+    *(TRComposedLine **)ArrayGetItem(&context->lines, index) = line;
+}
+
+static void AppendLine(FrameContext *context, TRComposedLine *line)
+{
+    if (!ArrayAppend(&context->lines, &line)) {
+        TRComposedLineRelease(line);
+        context->hasFailed = TRTrue;
     }
 }
+
+static void FinalizeContext(FrameContext *context)
+{
+    TRUInteger count = GetLineCount(context);
+    TRUInteger index;
+
+    for (index = 0; index < count; index++) {
+        TRComposedLineRelease(GetLine(context, index));
+    }
+
+    ArrayFinalize(&context->lines);
+}
+
+/* ---------- Paragraph Handling ---------- */
 
 static void LoadParagraphStyle(FrameContext *context, TRTextRef text, TRUInteger index)
 {
@@ -282,10 +298,10 @@ static void ResolveLineIndents(FrameContext *context, TRUInteger lineIndex)
 }
 
 /* Sets up the paragraph that has the segment, and the properties of its first line. */
-static void SetupParagraph(FrameContext *context, FrameResolverRef resolver,
+static void SetupParagraph(FrameContext *context, TRFrameResolverRef resolver,
     TRUInteger paragraphIndex, TRUInteger segmentStart, TRUInteger segmentEnd)
 {
-    TypesetterRef typesetter = (TypesetterRef)resolver->typesetter;
+    TRTypesetterRef typesetter = resolver->typesetter;
     const ParagraphInfo *paragraph = &typesetter->paragraphs[paragraphIndex];
 
     context->paragraphIndex = paragraphIndex;
@@ -301,7 +317,9 @@ static void SetupParagraph(FrameContext *context, FrameResolverRef resolver,
     ResolveLineIndents(context, 0);
 }
 
-static void ResolveLineStyle(const ParagraphStyle *style, ComposedLineRef line)
+/* ---------- Line Handling ---------- */
+
+static void ResolveLineStyle(const ParagraphStyle *style, TRComposedLine *line)
 {
     TRFloat height;
 
@@ -329,8 +347,8 @@ static void ResolveLineStyle(const ParagraphStyle *style, ComposedLineRef line)
     line->leading += style->lineSpacing;
 }
 
-static void ResolveAttributes(FrameContext *context, FrameResolverRef resolver,
-    ComposedLineRef line)
+static void ResolveAttributes(FrameContext *context, TRFrameResolverRef resolver,
+    TRComposedLine *line)
 {
     ResolveLineStyle(&context->style, line);
 
@@ -352,14 +370,16 @@ static void ResolveAttributes(FrameContext *context, FrameResolverRef resolver,
     }
 
     line->origin.x = context->leftIndent
-        + TRComposedLineGetPenOffset((TRComposedLineRef)line, context->flushFactor,
+        + TRComposedLineGetPenOffset(line, context->flushFactor,
             context->lineExtent);
     line->origin.y = context->occupiedHeight + line->ascent;
     line->intrinsicMargin = context->layoutWidth - context->lineExtent;
     line->flushFactor = context->flushFactor;
 }
 
-static void ComputeOccupiedSize(const FrameContext *context, ComposedLineRef line,
+/* ---------- Layout Handling ---------- */
+
+static void ComputeOccupiedSize(const FrameContext *context, TRComposedLineRef line,
     TRFloat *width, TRFloat *height)
 {
     TRFloat lineWidth = context->lineMargins + line->extent - line->trailingWhitespaceExtent;
@@ -377,8 +397,8 @@ static void ResolveOccupiedSize(FrameContext *context, TRFloat width, TRFloat he
     context->occupiedHeight = height;
 }
 
-static TRBoolean AddResolvedLine(FrameContext *context, FrameResolverRef resolver,
-    ComposedLineRef line)
+static TRBoolean AddResolvedLine(FrameContext *context, TRFrameResolverRef resolver,
+    TRComposedLine *line)
 {
     TRBoolean isStopped = TRFalse;
     TRFloat width, height;
@@ -388,8 +408,8 @@ static TRBoolean AddResolvedLine(FrameContext *context, FrameResolverRef resolve
     /* Make sure that at least one line is added even if frame is smaller in height. */
     ComputeOccupiedSize(context, line, &width, &height);
 
-    if (height > resolver->frameHeight && context->lineCount > 0) {
-        TRComposedLineRelease((TRComposedLineRef)line);
+    if (height > resolver->frameHeight && GetLineCount(context) > 0) {
+        TRComposedLineRelease(line);
         context->isFilled = TRTrue;
         isStopped = TRTrue;
     } else {
@@ -402,7 +422,7 @@ static TRBoolean AddResolvedLine(FrameContext *context, FrameResolverRef resolve
             ResolveOccupiedSize(context, width, height);
 
             /* Stop the filling process if maximum lines have been added. */
-            if (context->lineCount == context->maxLines) {
+            if (GetLineCount(context) == context->maxLines) {
                 context->isFilled = TRTrue;
                 isStopped = TRTrue;
             }
@@ -412,9 +432,11 @@ static TRBoolean AddResolvedLine(FrameContext *context, FrameResolverRef resolve
     return isStopped;
 }
 
-static void ResolveParagraphLines(FrameContext *context, FrameResolverRef resolver)
+/* ---------- Frame Filling ---------- */
+
+static void ResolveParagraphLines(FrameContext *context, TRFrameResolverRef resolver)
 {
-    TypesetterRef typesetter = (TypesetterRef)resolver->typesetter;
+    TRTypesetterRef typesetter = resolver->typesetter;
     const ParagraphInfo *paragraph = &typesetter->paragraphs[context->paragraphIndex];
     TRBoolean isStopped = TRFalse;
     TRUInteger lineIndex = 0;
@@ -428,7 +450,7 @@ static void ResolveParagraphLines(FrameContext *context, FrameResolverRef resolv
     /* Iterate over each line of this paragraph. */
     while (lineStart != context->endIndex) {
         TRUInteger lineEnd;
-        ComposedLineRef line;
+        TRComposedLine *line;
 
         ResolveLineIndents(context, lineIndex);
 
@@ -464,12 +486,12 @@ static void ResolveParagraphLines(FrameContext *context, FrameResolverRef resolv
     }
 }
 
-static void ResolveFrameParagraphs(FrameContext *context, FrameResolverRef resolver,
+static void ResolveFrameParagraphs(FrameContext *context, TRFrameResolverRef resolver,
     TRRange range)
 {
-    TypesetterRef typesetter = (TypesetterRef)resolver->typesetter;
+    TRTypesetterRef typesetter = resolver->typesetter;
     TRUInteger rangeEnd = range.index + range.length;
-    TRUInteger paragraphIndex = TypesetterFindParagraph(typesetter, range.index);
+    TRUInteger paragraphIndex = TRTypesetterFindParagraph(typesetter, range.index);
     TRUInteger segmentStart = range.index;
 
     /* Iterate over all paragraphs in provided range. */
@@ -485,13 +507,16 @@ static void ResolveFrameParagraphs(FrameContext *context, FrameResolverRef resol
     } while (!context->isFilled && !context->hasFailed && segmentStart < rangeEnd);
 }
 
-static void TruncateLastLine(FrameContext *context, FrameResolverRef resolver,
+/* ---------- Truncation Handling ---------- */
+
+static void TruncateLastLine(FrameContext *context, TRFrameResolverRef resolver,
     TRUInteger frameEnd)
 {
-    TypesetterRef typesetter = (TypesetterRef)resolver->typesetter;
-    ComposedLineRef lastLine = context->lines[context->lineCount - 1];
+    TRTypesetterRef typesetter = resolver->typesetter;
+    TRUInteger lineCount = GetLineCount(context);
+    TRComposedLineRef lastLine = GetLine(context, lineCount - 1);
     TRUInteger lastStart = lastLine->codeUnitStart;
-    ComposedLineRef token;
+    TRComposedLineRef token;
     TRUInteger paragraphIndex;
     TRUInteger segmentStart;
     TRUInteger lineIndex;
@@ -499,7 +524,7 @@ static void TruncateLastLine(FrameContext *context, FrameResolverRef resolver,
     TRFloat width, height;
 
     /* The last line might be in a paragraph before the one that the filling stopped in. */
-    paragraphIndex = TypesetterFindParagraph(typesetter, lastStart);
+    paragraphIndex = TRTypesetterFindParagraph(typesetter, lastStart);
     segmentStart = typesetter->paragraphs[paragraphIndex].start;
     if (paragraphIndex == context->paragraphIndex) {
         segmentStart = context->startIndex;
@@ -508,8 +533,8 @@ static void TruncateLastLine(FrameContext *context, FrameResolverRef resolver,
     }
 
     lineIndex = 0;
-    for (index = 0; index + 1 < context->lineCount; index++) {
-        TRUInteger start = context->lines[index]->codeUnitStart;
+    for (index = 0; index + 1 < lineCount; index++) {
+        TRUInteger start = GetLine(context, index)->codeUnitStart;
 
         if (start >= segmentStart && start < lastStart) {
             lineIndex++;
@@ -531,18 +556,18 @@ static void TruncateLastLine(FrameContext *context, FrameResolverRef resolver,
         NULL, 0, TRStringEncodingUTF16);
 
     if (token) {
-        ComposedLineRef line;
+        TRComposedLine *line;
 
         line = LineResolverCreateTruncatedLine(typesetter, lastStart, frameEnd, context->lineExtent,
             resolver->truncationMode, resolver->truncationPlace, token);
-        TRComposedLineRelease((TRComposedLineRef)token);
+        TRComposedLineRelease(token);
 
         if (line) {
             ResolveAttributes(context, resolver, line);
 
             /* Replace the line and update the occupied size. */
-            TRComposedLineRelease((TRComposedLineRef)lastLine);
-            context->lines[context->lineCount - 1] = line;
+            TRComposedLineRelease(lastLine);
+            SetLine(context, lineCount - 1, line);
             context->isTruncated = TRTrue;
 
             ComputeOccupiedSize(context, line, &width, &height);
@@ -555,13 +580,11 @@ static void TruncateLastLine(FrameContext *context, FrameResolverRef resolver,
     }
 }
 
-static void ResolveTruncation(FrameContext *context, FrameResolverRef resolver,
+static void ResolveTruncation(FrameContext *context, TRFrameResolverRef resolver,
     TRUInteger frameEnd)
 {
-    if (resolver->isTruncationEnabled && context->lineCount > 0) {
-        ComposedLineRef lastLine;
-
-        lastLine = context->lines[context->lineCount - 1];
+    if (resolver->isTruncationEnabled) {
+        TRComposedLineRef lastLine = GetLine(context, GetLineCount(context) - 1);
 
         /* No need to truncate if frame range is already covered. */
         if (lastLine->codeUnitEnd != frameEnd) {
@@ -570,8 +593,11 @@ static void ResolveTruncation(FrameContext *context, FrameResolverRef resolver,
     }
 }
 
-static void ResolveAlignments(FrameContext *context, FrameResolverRef resolver)
+/* ---------- Alignment Handling ---------- */
+
+static void ResolveAlignments(FrameContext *context, TRFrameResolverRef resolver)
 {
+    TRUInteger lineCount = GetLineCount(context);
     TRUInteger index;
 
     if (resolver->fitsVertically) {
@@ -583,8 +609,8 @@ static void ResolveAlignments(FrameContext *context, FrameResolverRef resolver)
         TRFloat additionalTop = extraHeight * GetVerticalMultiplier(resolver->verticalAlignment);
 
         /* Readjust the vertical position of each line. */
-        for (index = 0; index < context->lineCount; index++) {
-            context->lines[index]->origin.y += additionalTop;
+        for (index = 0; index < lineCount; index++) {
+            GetLine(context, index)->origin.y += additionalTop;
         }
     }
 
@@ -592,8 +618,8 @@ static void ResolveAlignments(FrameContext *context, FrameResolverRef resolver)
         TRFloat extraWidth = context->layoutWidth - context->occupiedWidth;
 
         /* Readjust the horizontal position of each line. */
-        for (index = 0; index < context->lineCount; index++) {
-            ComposedLineRef line = context->lines[index];
+        for (index = 0; index < lineCount; index++) {
+            TRComposedLine *line = GetLine(context, index);
 
             line->origin.x -= extraWidth * line->flushFactor;
         }
@@ -603,21 +629,25 @@ static void ResolveAlignments(FrameContext *context, FrameResolverRef resolver)
     }
 }
 
-static TRBoolean EndsBeforeBlock(TypesetterRef typesetter, TRUInteger codeUnitEnd)
+/* ---------- Justification Handling ---------- */
+
+static TRBoolean EndsBeforeBlock(TRTypesetterRef typesetter, TRUInteger codeUnitEnd)
 {
     TRBoolean isBeforeBlock = TRFalse;
 
     if (codeUnitEnd < typesetter->buffer.length) {
-        isBeforeBlock = TextRunIsBlock(typesetter->runs[TypesetterFindRun(typesetter, codeUnitEnd)]);
+        TRUInteger runIndex = TRTypesetterFindRun(typesetter, codeUnitEnd);
+
+        isBeforeBlock = TextRunIsBlock(typesetter->runs[runIndex]);
     }
 
     return isBeforeBlock;
 }
 
-static TRBoolean IsLineJustifiable(TypesetterRef typesetter, ComposedLineRef line)
+static TRBoolean IsLineJustifiable(TRTypesetterRef typesetter, TRComposedLine *line)
 {
     TRBoolean isJustifiable = TRFalse;
-    TRUInteger paragraphIndex = TypesetterFindParagraph(typesetter, line->codeUnitEnd - 1);
+    TRUInteger paragraphIndex = TRTypesetterFindParagraph(typesetter, line->codeUnitEnd - 1);
 
     /*
      * The last line of paragraph is skipped if it's smaller in width. The line that shows a token
@@ -634,13 +664,13 @@ static TRBoolean IsLineJustifiable(TypesetterRef typesetter, ComposedLineRef lin
     return isJustifiable;
 }
 
-static void JustifyLine(FrameContext *context, FrameResolverRef resolver, TRUInteger index)
+static void JustifyLine(FrameContext *context, TRFrameResolverRef resolver, TRUInteger index)
 {
-    TypesetterRef typesetter = (TypesetterRef)resolver->typesetter;
-    ComposedLineRef line = context->lines[index];
+    TRTypesetterRef typesetter = resolver->typesetter;
+    TRComposedLine *line = GetLine(context, index);
 
     if (IsLineJustifiable(typesetter, line)) {
-        ComposedLineRef justified;
+        TRComposedLine *justified;
         TRFloat availableWidth;
 
         /* The line is justified to what is left after the margins of its paragraph. */
@@ -654,7 +684,7 @@ static void JustifyLine(FrameContext *context, FrameResolverRef resolver, TRUInt
             TRFloat marginalLeft = 0.0f;
             TRFloat alignedLeft;
 
-            alignedLeft = TRComposedLineGetPenOffset((TRComposedLineRef)justified,
+            alignedLeft = TRComposedLineGetPenOffset(justified,
                 line->flushFactor, availableWidth);
 
             if ((justified->paragraphLevel & 1) == 0) {
@@ -671,39 +701,28 @@ static void JustifyLine(FrameContext *context, FrameResolverRef resolver, TRUInt
             justified->descent = line->descent;
             justified->leading = line->leading;
 
-            TRComposedLineRelease((TRComposedLineRef)line);
-            context->lines[index] = justified;
+            TRComposedLineRelease(line);
+            SetLine(context, index, justified);
         }
     }
 }
 
-static void ResolveJustification(FrameContext *context, FrameResolverRef resolver)
+static void ResolveJustification(FrameContext *context, TRFrameResolverRef resolver)
 {
     if (resolver->isJustificationEnabled) {
         TRUInteger index;
 
-        for (index = 0; index < context->lineCount; index++) {
+        for (index = 0; index < GetLineCount(context); index++) {
             JustifyLine(context, resolver, index);
         }
     }
-}
-
-static void FinalizeContext(FrameContext *context)
-{
-    TRUInteger index;
-
-    for (index = 0; index < context->lineCount; index++) {
-        TRComposedLineRelease((TRComposedLineRef)context->lines[index]);
-    }
-
-    AllocatorDeallocateBlock(context->lines);
 }
 
 TRFrameResolverRef TRFrameResolverCreate(void)
 {
     const TRUInteger size = sizeof(TRFrameResolver);
     void *pointer = NULL;
-    FrameResolverRef resolver = ObjectCreate(&size, 1, &pointer, FinalizeFrameResolver);
+    TRFrameResolverRef resolver = ObjectCreate(&size, 1, &pointer, FinalizeFrameResolver);
 
     if (resolver) {
         resolver->typesetter = NULL;
@@ -807,26 +826,25 @@ void TRFrameResolverSetLineHeightMultiplier(TRFrameResolverRef resolver, TRFloat
 
 TRComposedFrameRef TRFrameResolverCreateFrame(TRFrameResolverRef resolver, TRRange range)
 {
-    TypesetterRef typesetter = (TypesetterRef)resolver->typesetter;
+    TRTypesetterRef typesetter = resolver->typesetter;
     TRComposedFrameRef composedFrame = NULL;
     TRUInteger rangeEnd = range.index + range.length;
     FrameContext context;
 
-    /* The resolver MUST have a typesetter, and the range MUST be within the text. */
-    TRAssert(typesetter != NULL && rangeEnd <= typesetter->buffer.length);
+    /* The resolver MUST have a typesetter, and the range MUST NOT be empty or past the text. */
+    TRAssert(typesetter != NULL && range.length > 0 && rangeEnd <= typesetter->buffer.length);
 
     memset(&context, 0, sizeof(FrameContext));
     context.layoutWidth = Clamp(resolver->frameWidth);
     context.layoutHeight = Clamp(resolver->frameHeight);
     context.maxLines = (resolver->maxLines ? resolver->maxLines : (TRUInteger)(-1));
     context.endIndex = rangeEnd;
+    ArrayInitialize(&context.lines, sizeof(TRComposedLine *));
 
-    if (range.length > 0) {
-        ResolveFrameParagraphs(&context, resolver, range);
+    ResolveFrameParagraphs(&context, resolver, range);
 
-        if (!context.hasFailed) {
-            ResolveTruncation(&context, resolver, rangeEnd);
-        }
+    if (!context.hasFailed) {
+        ResolveTruncation(&context, resolver, rangeEnd);
     }
 
     if (context.hasFailed) {
@@ -838,13 +856,13 @@ TRComposedFrameRef TRFrameResolverCreateFrame(TRFrameResolverRef resolver, TRRan
         ResolveJustification(&context, resolver);
 
         /* The frame ends where its last line does, unless that line is cut out of the range. */
-        frameEnd = (context.isTruncated || context.lineCount == 0
+        frameEnd = (context.isTruncated
                     ? context.endIndex
-                    : context.lines[context.lineCount - 1]->codeUnitEnd);
+                    : GetLine(&context, GetLineCount(&context) - 1)->codeUnitEnd);
 
-        composedFrame = (TRComposedFrameRef)ComposedFrameCreate(range.index, frameEnd,
-            context.lines, context.lineCount, context.layoutWidth, context.layoutHeight);
-        AllocatorDeallocateBlock(context.lines);
+        composedFrame = TRComposedFrameCreate(range.index, frameEnd, ArrayGetItems(&context.lines),
+            GetLineCount(&context), context.layoutWidth, context.layoutHeight);
+        ArrayFinalize(&context.lines);
     }
 
     return composedFrame;
@@ -859,3 +877,4 @@ void TRFrameResolverRelease(TRFrameResolverRef resolver)
 {
     ObjectRelease((ObjectRef)resolver);
 }
+

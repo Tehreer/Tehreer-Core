@@ -29,7 +29,7 @@
  * suggestion never goes past the paragraph that the range starts in. A block replacement ends a
  * line before it, and a line that starts with one has it and the whitespace that follows.
  */
-TR_INTERNAL TRUInteger BreakResolverSuggestForwardBreak(TypesetterRef typesetter, TRFloat extent,
+TR_INTERNAL TRUInteger BreakResolverSuggestForwardBreak(TRTypesetterRef typesetter, TRFloat extent,
     TRUInteger start, TRUInteger end, TRBreakMode breakMode);
 
 /*
@@ -37,7 +37,7 @@ TR_INTERNAL TRUInteger BreakResolverSuggestForwardBreak(TypesetterRef typesetter
  * range MUST NOT be empty and MUST be within the text. At least one character is taken, and the
  * suggestion never goes before the paragraph that the range ends in.
  */
-TR_INTERNAL TRUInteger BreakResolverSuggestBackwardBreak(TypesetterRef typesetter, TRFloat extent,
+TR_INTERNAL TRUInteger BreakResolverSuggestBackwardBreak(TRTypesetterRef typesetter, TRFloat extent,
     TRUInteger start, TRUInteger end, TRBreakMode breakMode);
 
 #endif

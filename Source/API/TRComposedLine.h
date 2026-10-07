@@ -39,13 +39,13 @@ typedef struct _TRComposedLine {
     TRFloat trailingWhitespaceExtent;
     TRBoolean isBlock;
     TRBoolean isTruncated;
-    GlyphRunRef *runs;
+    TRGlyphRun **runs;
     TRUInteger runCount;
 
     /* Set by the frame that the line is in. */
     TRFloat flushFactor;
     TRFloat intrinsicMargin;
-} TRComposedLine, *ComposedLineRef;
+} TRComposedLine;
 
 /*
  * Creates a line from its runs, which are in visual order. The line takes the references of the
@@ -53,10 +53,7 @@ typedef struct _TRComposedLine {
  * the metrics of the line are the greatest of those of its runs. Returns NULL on failure, in which
  * case the runs are released as well.
  */
-TR_INTERNAL ComposedLineRef ComposedLineCreate(const TextBuffer *buffer, TRUInteger start,
-    TRUInteger end, GlyphRunRef *runs, TRUInteger runCount, TRUInt8 paragraphLevel);
-
-TR_INTERNAL TRFloat ComposedLineGetTop(ComposedLineRef line);
-TR_INTERNAL TRFloat ComposedLineGetBottom(ComposedLineRef line);
+TR_INTERNAL TRComposedLine *TRComposedLineCreate(const TextBuffer *buffer, TRUInteger start,
+    TRUInteger end, TRGlyphRun **runs, TRUInteger runCount, TRUInt8 paragraphLevel);
 
 #endif
