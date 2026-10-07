@@ -37,6 +37,13 @@ typedef struct _TextBuffer {
  */
 TR_INTERNAL TRUInt32 TextBufferDecodeNext(const TextBuffer *buffer, TRUInteger *index);
 
+/*
+ * Decodes the code point that ends at `*index` and moves `*index` to its start. The index MUST be
+ * greater than zero and not greater than the length. Malformed sequences give a code point that is
+ * not whitespace.
+ */
+TR_INTERNAL TRUInt32 TextBufferDecodePrevious(const TextBuffer *buffer, TRUInteger *index);
+
 /* Returns the code point at the index, which MUST be less than the length. */
 TR_INTERNAL TRUInt32 TextBufferGetCodePoint(const TextBuffer *buffer, TRUInteger index);
 

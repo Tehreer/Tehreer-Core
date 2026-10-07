@@ -545,7 +545,7 @@ void GlyphCacheTests::testTableGrowth() {
         assert(images[i] != images[i - 1]);
     }
     assert(cache->entryCount >= 300);
-    assert(cache->bucketCount >= 256);
+    assert(ArrayGetCount(&cache->buckets) >= 256);
 
     TRRendererRelease(renderer);
     TRGlyphCacheRelease(cache);

@@ -31,11 +31,11 @@ static void FinalizeReplacement(ObjectRef object)
 }
 
 TRReplacementRef TRReplacementCreate(const TRReplacementCallbacks *callbacks, void *userData,
-    TRFloat leading, TRBoolean isBlock)
+    TRReplacementKind kind)
 {
     TRReplacement *replacement = NULL;
 
-    if (callbacks) {
+    if (callbacks && (kind == TRReplacementKindInline || kind == TRReplacementKindBlock)) {
         const TRUInteger size = sizeof(TRReplacement);
         void *pointer = NULL;
 
@@ -44,27 +44,16 @@ TRReplacementRef TRReplacementCreate(const TRReplacementCallbacks *callbacks, vo
         if (replacement) {
             replacement->callbacks = *callbacks;
             replacement->userData = userData;
-            replacement->leading = leading;
-            replacement->isBlock = (isBlock ? TRTrue : TRFalse);
+            replacement->kind = kind;
         }
     }
 
     return replacement;
 }
 
-void *TRReplacementGetUserData(TRReplacementRef replacement)
+TRReplacementKind TRReplacementGetKind(TRReplacementRef replacement)
 {
-    return replacement->userData;
-}
-
-TRFloat TRReplacementGetLeading(TRReplacementRef replacement)
-{
-    return replacement->leading;
-}
-
-TRBoolean TRReplacementIsBlock(TRReplacementRef replacement)
-{
-    return replacement->isBlock;
+    return replacement->kind;
 }
 
 void TRReplacementComputeRoom(TRReplacementRef replacement, TRFloat layoutWidth,

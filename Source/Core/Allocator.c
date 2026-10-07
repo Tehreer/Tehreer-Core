@@ -29,6 +29,11 @@ TR_INTERNAL void *AllocatorAllocateBlock(TRUInteger size)
     return malloc(size);
 }
 
+TR_INTERNAL void *AllocatorAllocateZeroedBlock(TRUInteger size)
+{
+    return calloc(1, size);
+}
+
 TR_INTERNAL void *AllocatorReallocateBlock(void *pointer, TRUInteger newSize)
 {
     return realloc(pointer, newSize);

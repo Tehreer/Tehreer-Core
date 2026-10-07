@@ -25,32 +25,6 @@
 
 #define InvalidCodePoint    0xFFFFFFFF
 
-/* Gets the index of the code point that ends at the given index, not going before the start. */
-static TRUInteger GetPreviousCodePointStart(const TextBuffer *buffer, TRUInteger start,
-    TRUInteger index)
-{
-    TRUInteger previous = index - 1;
-
-    /* Skip the continuation units of the code point that ends at the index. */
-    if (buffer->encoding == TRStringEncodingUTF8) {
-        while (previous > start && (TextBufferGetCodeUnit(buffer, previous) & 0xC0) == 0x80) {
-            previous -= 1;
-        }
-    } else if (buffer->encoding == TRStringEncodingUTF16) {
-        TRUInt32 unit = TextBufferGetCodeUnit(buffer, previous);
-
-        if (unit >= 0xDC00 && unit <= 0xDFFF && previous > start) {
-            TRUInt32 high = TextBufferGetCodeUnit(buffer, previous - 1);
-
-            if (high >= 0xD800 && high <= 0xDBFF) {
-                previous -= 1;
-            }
-        }
-    }
-
-    return previous;
-}
-
 TR_INTERNAL TRUInt32 TextBufferDecodeNext(const TextBuffer *buffer, TRUInteger *index)
 {
     TRUInt32 codePoint = InvalidCodePoint;
@@ -73,6 +47,34 @@ TR_INTERNAL TRUInt32 TextBufferDecodeNext(const TextBuffer *buffer, TRUInteger *
 
     default:
         (*index)++;
+        break;
+    }
+
+    return codePoint;
+}
+
+TR_INTERNAL TRUInt32 TextBufferDecodePrevious(const TextBuffer *buffer, TRUInteger *index)
+{
+    TRUInt32 codePoint = InvalidCodePoint;
+
+    /* Index MUST be in the range from one to the length. */
+    TRAssert(*index > 0 && *index <= buffer->length);
+
+    switch (buffer->encoding) {
+    case TRStringEncodingUTF8:
+        codePoint = SBCodepointDecodePreviousFromUTF8(buffer->codeUnits, buffer->length, index);
+        break;
+
+    case TRStringEncodingUTF16:
+        codePoint = SBCodepointDecodePreviousFromUTF16(buffer->codeUnits, buffer->length, index);
+        break;
+
+    case TRStringEncodingUTF32:
+        codePoint = ((const TRUInt32 *)buffer->codeUnits)[--(*index)];
+        break;
+
+    default:
+        (*index)--;
         break;
     }
 
@@ -162,11 +164,11 @@ TR_INTERNAL TRUInteger TextBufferGetTrailingWhitespaceStart(const TextBuffer *bu
     TRUInteger whitespaceStart = start;
     TRUInteger index = end;
 
-    /* Scan backward by code points, which are found by going back to the start of each. */
+    /* Scan backward by code points. */
     while (index > start) {
-        TRUInteger previous = GetPreviousCodePointStart(buffer, start, index);
+        TRUInteger previous = index;
 
-        if (TextBufferIsWhitespace(TextBufferGetCodePoint(buffer, previous))) {
+        if (TextBufferIsWhitespace(TextBufferDecodePrevious(buffer, &previous))) {
             index = previous;
         } else {
             whitespaceStart = index;

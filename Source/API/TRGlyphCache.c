@@ -15,7 +15,6 @@
  */
 
 #include <stddef.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include <ft2build.h>
@@ -32,6 +31,8 @@
 #include <API/TRGlyphImage.h>
 #include <API/TRPath.h>
 #include <API/TRTypeface.h>
+#include <Core/Allocator.h>
+#include <Core/Array.h>
 #include <Core/Mutex.h>
 #include <Core/Object.h>
 #include <Core/Once.h>
@@ -74,7 +75,6 @@ typedef struct _GlyphCacheEntry {
     TRUInteger size;
 
     /* The members below are those of a glyph entry; the other entries only have an image. */
-    TRBoolean hasType;
     GlyphType type;
     TRGlyphImageRef image;
     TRPathRef path;
@@ -176,9 +176,14 @@ static void LinkAsFirst(TRGlyphCacheRef cache, GlyphCacheEntry *entry)
     cache->firstEntry = entry;
 }
 
+static GlyphCacheEntry **GetBucket(TRGlyphCacheRef cache, TRUInt32 hash)
+{
+    return ArrayGetItem(&cache->buckets, hash % ArrayGetCount(&cache->buckets));
+}
+
 static void RemoveEntry(TRGlyphCacheRef cache, GlyphCacheEntry *entry)
 {
-    GlyphCacheEntry **link = &cache->buckets[entry->hash % cache->bucketCount];
+    GlyphCacheEntry **link = GetBucket(cache, entry->hash);
 
     while (*link != entry) {
         link = &(*link)->bucketNext;
@@ -198,7 +203,7 @@ static void RemoveEntry(TRGlyphCacheRef cache, GlyphCacheEntry *entry)
     }
     TRTypefaceRelease(entry->key.typeface);
 
-    free(entry);
+    AllocatorDeallocateBlock(entry);
 }
 
 static void TrimCache(TRGlyphCacheRef cache)
@@ -210,29 +215,33 @@ static void TrimCache(TRGlyphCacheRef cache)
 
 static void GrowTable(TRGlyphCacheRef cache)
 {
-    TRUInteger newCount = cache->bucketCount * 2;
-    GlyphCacheEntry **newBuckets = calloc(newCount, sizeof(GlyphCacheEntry *));
+    TRUInteger oldCount = ArrayGetCount(&cache->buckets);
+    Array newBuckets;
+
+    ArrayInitialize(&newBuckets, sizeof(GlyphCacheEntry *));
 
     /* If there is no memory, the table just stays crowded. */
-    if (newBuckets) {
+    if (ArrayResize(&newBuckets, oldCount * 2)) {
         TRUInteger index;
 
-        for (index = 0; index < cache->bucketCount; index++) {
-            GlyphCacheEntry *entry = cache->buckets[index];
+        for (index = 0; index < oldCount; index++) {
+            GlyphCacheEntry *entry = *(GlyphCacheEntry **)ArrayGetItem(&cache->buckets, index);
 
             while (entry) {
                 GlyphCacheEntry *next = entry->bucketNext;
-                TRUInteger slot = entry->hash % newCount;
+                GlyphCacheEntry **bucket = ArrayGetItem(&newBuckets,
+                    entry->hash % ArrayGetCount(&newBuckets));
 
-                entry->bucketNext = newBuckets[slot];
-                newBuckets[slot] = entry;
+                entry->bucketNext = *bucket;
+                *bucket = entry;
                 entry = next;
             }
         }
 
-        free(cache->buckets);
+        ArrayFinalize(&cache->buckets);
         cache->buckets = newBuckets;
-        cache->bucketCount = newCount;
+    } else {
+        ArrayFinalize(&newBuckets);
     }
 }
 
@@ -240,7 +249,7 @@ static void GrowTable(TRGlyphCacheRef cache)
 static GlyphCacheEntry *FindEntry(TRGlyphCacheRef cache, const CacheKey *key, TRUInt32 hash)
 {
     GlyphCacheEntry *foundEntry = NULL;
-    GlyphCacheEntry *entry = cache->buckets[hash % cache->bucketCount];
+    GlyphCacheEntry *entry = *GetBucket(cache, hash);
 
     while (entry) {
         if (entry->hash == hash && EqualKeys(&entry->key, key)) {
@@ -262,12 +271,12 @@ static GlyphCacheEntry *FindEntry(TRGlyphCacheRef cache, const CacheKey *key, TR
 /* The new entry is the most recently used one. */
 static GlyphCacheEntry *CreateEntry(TRGlyphCacheRef cache, const CacheKey *key, TRUInt32 hash)
 {
-    GlyphCacheEntry *entry = calloc(1, sizeof(GlyphCacheEntry));
+    GlyphCacheEntry *entry = AllocatorAllocateZeroedBlock(sizeof(GlyphCacheEntry));
 
     if (entry) {
-        TRUInteger slot;
+        GlyphCacheEntry **bucket;
 
-        if (cache->entryCount >= cache->bucketCount) {
+        if (cache->entryCount >= ArrayGetCount(&cache->buckets)) {
             GrowTable(cache);
         }
 
@@ -276,9 +285,9 @@ static GlyphCacheEntry *CreateEntry(TRGlyphCacheRef cache, const CacheKey *key, 
         entry->size = sizeof(GlyphCacheEntry);
         TRTypefaceRetain(key->typeface);
 
-        slot = hash % cache->bucketCount;
-        entry->bucketNext = cache->buckets[slot];
-        cache->buckets[slot] = entry;
+        bucket = GetBucket(cache, hash);
+        entry->bucketNext = *bucket;
+        *bucket = entry;
         LinkAsFirst(cache, entry);
 
         cache->size += entry->size;
@@ -496,13 +505,13 @@ TR_INTERNAL TRBoolean TRGlyphCacheInitialize(TRGlyphCacheRef cache, TRUInteger c
 {
     TRBoolean isInitialized = TRFalse;
 
-    cache->buckets = calloc(InitialBucketCount, sizeof(GlyphCacheEntry *));
 
-    if (cache->buckets) {
+    ArrayInitialize(&cache->buckets, sizeof(GlyphCacheEntry *));
+
+    if (ArrayResize(&cache->buckets, InitialBucketCount)) {
         MutexInit(&cache->mutex);
         cache->capacity = capacity;
         cache->size = 0;
-        cache->bucketCount = InitialBucketCount;
         cache->entryCount = 0;
         cache->firstEntry = NULL;
         cache->lastEntry = NULL;
@@ -517,7 +526,7 @@ TR_INTERNAL void TRGlyphCacheFinalize(TRGlyphCacheRef cache)
 {
     TRGlyphCacheClear(cache);
 
-    free(cache->buckets);
+    ArrayFinalize(&cache->buckets);
     MutexDestroy(&cache->mutex);
 }
 
@@ -528,8 +537,7 @@ TR_INTERNAL TRGlyphImageRef TRGlyphCacheGetImage(TRGlyphCacheRef cache, const Gl
 
     if (IsRenderable(key)) {
         TRGlyphImageRef image = NULL;
-        TRBoolean hasType = TRFalse;
-        GlyphType type = GlyphTypeMask;
+        GlyphType type = GlyphTypeUnknown;
         CacheKey cacheKey;
         GlyphCacheEntry *entry;
 
@@ -538,8 +546,7 @@ TR_INTERNAL TRGlyphImageRef TRGlyphCacheGetImage(TRGlyphCacheRef cache, const Gl
         MutexLock(&cache->mutex);
 
         entry = GetEntry(cache, &cacheKey);
-        if (entry && entry->hasType) {
-            hasType = TRTrue;
+        if (entry && entry->type != GlyphTypeUnknown) {
             type = entry->type;
 
             if (entry->image) {
@@ -549,7 +556,7 @@ TR_INTERNAL TRGlyphImageRef TRGlyphCacheGetImage(TRGlyphCacheRef cache, const Gl
 
         MutexUnlock(&cache->mutex);
 
-        if (!hasType) {
+        if (type == GlyphTypeUnknown) {
             type = RenderableFaceGetGlyphType(key->typeface->renderableFace, glyphID);
 
             /* The image of a mixed glyph depends on the foreground color, so it is not shared. */
@@ -560,8 +567,7 @@ TR_INTERNAL TRGlyphImageRef TRGlyphCacheGetImage(TRGlyphCacheRef cache, const Gl
             MutexLock(&cache->mutex);
 
             entry = GetEntry(cache, &cacheKey);
-            if (entry && !entry->hasType) {
-                entry->hasType = TRTrue;
+            if (entry && entry->type == GlyphTypeUnknown) {
                 entry->type = type;
 
                 StoreImage(cache, entry, (image ? TRGlyphImageRetain(image) : NULL));

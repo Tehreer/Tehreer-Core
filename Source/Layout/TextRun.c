@@ -220,7 +220,7 @@ TR_INTERNAL TextRunRef TextRunCreateReplacement(TRUInteger codeUnitStart, TRUInt
         textRun->extent = room.extent;
         textRun->ascent = room.ascent;
         textRun->descent = room.descent;
-        textRun->leading = TRReplacementGetLeading(replacement);
+        textRun->leading = 0.0f;
 
         /* The replacement takes the place of a single space. */
         textRun->glyphIDs[0] = TRTypefaceGetGlyphID(typeface, 0x20);
@@ -268,7 +268,7 @@ TR_INTERNAL TextRunRef TextRunCreateForLayoutWidth(TextRunRef textRun, TRFloat l
 TR_INTERNAL TRBoolean TextRunIsBlock(TextRunRef textRun)
 {
     return (textRun->kind == TextRunKindReplacement
-            && TRReplacementIsBlock(textRun->replacement));
+            && TRReplacementGetKind(textRun->replacement) == TRReplacementKindBlock);
 }
 
 TR_INTERNAL TRBoolean TextRunIsRTL(TextRunRef textRun)

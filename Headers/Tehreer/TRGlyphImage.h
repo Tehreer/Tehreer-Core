@@ -35,11 +35,11 @@ typedef TRUInt32 TRGlyphImageFormat;
  * The rendered image of a glyph. The rows of its pixels follow each other without padding, from
  * the top row to the bottom one.
  *
- * An image is immutable, so it can be shared between threads. The only thing that can be attached
- * to it is native data, which lets a wrapper keep the platform object that it made from the
- * pixels.
+ * The pixels of an image never change, so it can be shared between threads. The only thing that
+ * can be attached to it is native data, which lets a wrapper keep the platform object that it made
+ * from the pixels. Attaching it is thread safe.
  */
-typedef const struct _TRGlyphImage *TRGlyphImageRef;
+typedef struct _TRGlyphImage *TRGlyphImageRef;
 
 /**
  * Returns the pixel format of the image.

@@ -22,7 +22,6 @@
 #include <Tehreer/TRGeometry.h>
 
 #include <API/TRBase.h>
-#include <Core/Mutex.h>
 #include <Core/Object.h>
 #include <Graphics/FreeType.h>
 
@@ -33,9 +32,8 @@ static void FinalizePath(ObjectRef object)
     TRPath *path = object;
     FreeTypeRef freetype = FreeTypeGetDefault();
 
-    MutexLock(&freetype->mutex);
+    /* The outline functions only use the memory allocator of the library, so no lock is needed. */
     FT_Outline_Done(freetype->library, &path->outline);
-    MutexUnlock(&freetype->mutex);
 }
 
 typedef struct _Enumeration {
@@ -146,15 +144,12 @@ TR_INTERNAL TRPathRef TRPathCreateFromOutline(const FT_Outline *outline)
         FreeTypeRef freetype = FreeTypeGetDefault();
         FT_Error error;
 
-        MutexLock(&freetype->mutex);
-
+        /* The outline functions only use the memory allocator of the library, so no lock. */
         error = FT_Outline_New(freetype->library, outline->n_points, outline->n_contours,
             &path->outline);
         if (error == FT_Err_Ok) {
             error = FT_Outline_Copy(outline, &path->outline);
         }
-
-        MutexUnlock(&freetype->mutex);
 
         if (error != FT_Err_Ok) {
             ObjectRelease(path);

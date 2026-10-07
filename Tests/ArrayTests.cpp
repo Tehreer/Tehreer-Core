@@ -29,6 +29,7 @@ void ArrayTests::run() {
     testInitialState();
     testAppendAndGet();
     testGrowth();
+    testResize();
     testStructItems();
 }
 
@@ -76,6 +77,27 @@ void ArrayTests::testGrowth() {
     for (int value = 0; value < Count; value++) {
         assert(*static_cast<int *>(ArrayGetItem(&array, value)) == value);
     }
+
+    ArrayFinalize(&array);
+}
+
+void ArrayTests::testResize() {
+    Array array;
+    ArrayInitialize(&array, sizeof(int));
+
+    int value = 7;
+    assert(ArrayAppend(&array, &value));
+
+    /* The items that are added are zero. */
+    assert(ArrayResize(&array, 100));
+    assert(ArrayGetCount(&array) == 100);
+    assert(*static_cast<int *>(ArrayGetItem(&array, 0)) == 7);
+    for (TRUInteger index = 1; index < 100; index++) {
+        assert(*static_cast<int *>(ArrayGetItem(&array, index)) == 0);
+    }
+
+    assert(ArrayResize(&array, 1));
+    assert(ArrayGetCount(&array) == 1);
 
     ArrayFinalize(&array);
 }

@@ -48,6 +48,39 @@ extern "C" {
 using namespace std;
 using namespace Tehreer;
 
+namespace {
+
+struct GlyphPlacement {
+    TRGlyphImageRef image;
+    TRPoint origin;
+};
+
+/* Collects the placements of a run, with a retained image for each glyph that has one. */
+void getPlacements(TRRendererRef renderer, TRGlyphImageKind kind, const TRGlyphID *glyphIDs,
+    const TRPoint *offsets, const TRFloat *advances, TRUInteger count, GlyphPlacement *placements) {
+    for (TRUInteger index = 0; index < count; index++) {
+        placements[index] = { nullptr, { 0.0f, 0.0f } };
+    }
+
+    TRRendererEnumerateGlyphPlacements(renderer, kind, glyphIDs, offsets, advances, count,
+        [](void *userData, TRUInteger index, TRGlyphImageRef image, TRPoint origin) {
+            auto *placements = static_cast<GlyphPlacement *>(userData);
+
+            placements[index] = { TRGlyphImageRetain(image), origin };
+        }, placements);
+}
+
+void releasePlacements(GlyphPlacement *placements, TRUInteger count) {
+    for (TRUInteger index = 0; index < count; index++) {
+        if (placements[index].image) {
+            TRGlyphImageRelease(placements[index].image);
+            placements[index].image = nullptr;
+        }
+    }
+}
+
+}
+
 void RendererTests::run() {
     testDefaults();
     testWithoutTypeface();
@@ -173,8 +206,8 @@ void RendererTests::testWithoutTypeface() {
     box = TRRendererGetRunBoundingBox(renderer, glyphs, offsets, advances, 2);
     assert(box.origin.x == 0.0f && box.size.width == 0.0f && box.size.height == 0.0f);
 
-    TRGlyphPlacement placements[2];
-    TRRendererGetGlyphPlacements(renderer, TRGlyphImageKindFill, glyphs, offsets, advances, 2, placements);
+    GlyphPlacement placements[2];
+    getPlacements(renderer, TRGlyphImageKindFill, glyphs, offsets, advances, 2, placements);
     assert(placements[0].image == nullptr && placements[1].image == nullptr);
 
     size_t calls = 0;
@@ -365,9 +398,9 @@ static const TRPoint NoOffsets[] = { { 0, 0 }, { 0, 0 }, { 0, 0 } };
 
 void RendererTests::testPlacementsLeftToRight() {
     Fixture f;
-    TRGlyphPlacement placements[3];
+    GlyphPlacement placements[3];
 
-    TRRendererGetGlyphPlacements(f.renderer, TRGlyphImageKindFill, Run, NoOffsets, RunAdvances, 3, placements);
+    getPlacements(f.renderer, TRGlyphImageKindFill, Run, NoOffsets, RunAdvances, 3, placements);
 
     /* The pen moves after each glyph, and the image starts at its left and top edges. */
     assertSize(placements[0].image, 1, 17, 15, 17);
@@ -375,80 +408,80 @@ void RendererTests::testPlacementsLeftToRight() {
     assert(placements[1].origin.x == 22.0f && placements[1].origin.y == -24.0f);
     assert(placements[2].origin.x == 43.0f && placements[2].origin.y == -17.0f);
 
-    TRRendererReleaseGlyphPlacements(placements, 3);
+    releasePlacements(placements, 3);
 }
 
 void RendererTests::testPlacementsRightToLeft() {
     Fixture f;
     TRRendererSetWritingDirection(f.renderer, TRWritingDirectionRightToLeft);
-    TRGlyphPlacement placements[3];
+    GlyphPlacement placements[3];
 
-    TRRendererGetGlyphPlacements(f.renderer, TRGlyphImageKindFill, Run, NoOffsets, RunAdvances, 3, placements);
+    getPlacements(f.renderer, TRGlyphImageKindFill, Run, NoOffsets, RunAdvances, 3, placements);
 
     /* The pen moves before each glyph, and goes to the left. */
     assert(placements[0].origin.x == -19.0f && placements[0].origin.y == -17.0f);
     assert(placements[1].origin.x == -40.0f && placements[1].origin.y == -24.0f);
     assert(placements[2].origin.x == -59.0f && placements[2].origin.y == -17.0f);
 
-    TRRendererReleaseGlyphPlacements(placements, 3);
+    releasePlacements(placements, 3);
 }
 
 void RendererTests::testPlacementOffsets() {
     Fixture f;
     const TRPoint offsets[] = { { 3.0f, 4.0f }, { 0.0f, -2.0f }, { -5.0f, 0.0f } };
-    TRGlyphPlacement placements[3];
+    GlyphPlacement placements[3];
 
     /* An offset of the y axis that points up moves the glyph up, which lowers its top. */
-    TRRendererGetGlyphPlacements(f.renderer, TRGlyphImageKindFill, Run, offsets, RunAdvances, 3, placements);
+    getPlacements(f.renderer, TRGlyphImageKindFill, Run, offsets, RunAdvances, 3, placements);
     assert(placements[0].origin.x == 4.0f && placements[0].origin.y == -21.0f);
     assert(placements[1].origin.x == 22.0f && placements[1].origin.y == -22.0f);
     assert(placements[2].origin.x == 38.0f && placements[2].origin.y == -17.0f);
-    TRRendererReleaseGlyphPlacements(placements, 3);
+    releasePlacements(placements, 3);
 
     /* The values of the user space are scaled to pixels, and then rounded half up: -17.5 gives -17. */
     TRRendererSetTypeSize(f.renderer, 16.0f);
     TRRendererSetRenderScale(f.renderer, 2.0f);
     const TRPoint half[] = { { 0.25f, 0.25f }, { 0.0f, 0.0f }, { 0.0f, 0.0f } };
     const TRFloat advances[] = { 10.0f, 11.0f, 9.0f };
-    TRRendererGetGlyphPlacements(f.renderer, TRGlyphImageKindFill, Run, half, advances, 3, placements);
+    getPlacements(f.renderer, TRGlyphImageKindFill, Run, half, advances, 3, placements);
     assert(placements[0].origin.x == 2.0f && placements[0].origin.y == -17.0f);
     assert(placements[1].origin.x == 22.0f && placements[1].origin.y == -24.0f);
-    TRRendererReleaseGlyphPlacements(placements, 3);
+    releasePlacements(placements, 3);
 }
 
 void RendererTests::testStrokePlacements() {
     Fixture f;
-    TRGlyphPlacement fill[1];
-    TRGlyphPlacement stroke[1];
+    GlyphPlacement fill[1];
+    GlyphPlacement stroke[1];
 
-    TRRendererGetGlyphPlacements(f.renderer, TRGlyphImageKindFill, Run, NoOffsets, RunAdvances, 1, fill);
-    TRRendererGetGlyphPlacements(f.renderer, TRGlyphImageKindStroke, Run, NoOffsets, RunAdvances, 1, stroke);
+    getPlacements(f.renderer, TRGlyphImageKindFill, Run, NoOffsets, RunAdvances, 1, fill);
+    getPlacements(f.renderer, TRGlyphImageKindStroke, Run, NoOffsets, RunAdvances, 1, stroke);
 
     assert(fill[0].image != stroke[0].image);
     assertSize(stroke[0].image, 1, 18, 16, 19);
     assert(stroke[0].origin.x == 1.0f && stroke[0].origin.y == -18.0f);
 
-    TRRendererReleaseGlyphPlacements(fill, 1);
-    TRRendererReleaseGlyphPlacements(stroke, 1);
+    releasePlacements(fill, 1);
+    releasePlacements(stroke, 1);
 }
 
 void RendererTests::testReleasePlacements() {
     Fixture f;
-    TRGlyphPlacement placements[3];
+    GlyphPlacement placements[3];
     TRGlyphImageRef image = TRRendererGetGlyphImage(f.renderer, GlyphA);
 
     /* The reference of the placement is the cache's, the caller's, and the one it holds. */
     size_t before = AtomicUIntLoad(&image->_base.retainCount);
-    TRRendererGetGlyphPlacements(f.renderer, TRGlyphImageKindFill, Run, NoOffsets, RunAdvances, 3, placements);
+    getPlacements(f.renderer, TRGlyphImageKindFill, Run, NoOffsets, RunAdvances, 3, placements);
     assert(placements[0].image == image);
     assert(AtomicUIntLoad(&image->_base.retainCount) == before + 1);
 
-    TRRendererReleaseGlyphPlacements(placements, 3);
+    releasePlacements(placements, 3);
     assert(AtomicUIntLoad(&image->_base.retainCount) == before);
     assert(placements[0].image == nullptr && placements[1].image == nullptr);
 
     /* Releasing again is harmless. */
-    TRRendererReleaseGlyphPlacements(placements, 3);
+    releasePlacements(placements, 3);
     assert(AtomicUIntLoad(&image->_base.retainCount) == before);
 
     TRGlyphImageRelease(image);
@@ -496,14 +529,14 @@ void RendererTests::testRunBoundingBoxRightToLeft() {
 
 void RendererTests::testEmptyRuns() {
     Fixture f;
-    TRGlyphPlacement placement;
+    GlyphPlacement placement;
 
     TRRect box = TRRendererGetRunBoundingBox(f.renderer, Run, NoOffsets, RunAdvances, 0);
     assert(box.origin.x == 0.0f && box.origin.y == 0.0f);
     assert(box.size.width == 0.0f && box.size.height == 0.0f);
 
-    TRRendererGetGlyphPlacements(f.renderer, TRGlyphImageKindFill, Run, NoOffsets, RunAdvances, 0, &placement);
-    TRRendererReleaseGlyphPlacements(&placement, 0);
+    getPlacements(f.renderer, TRGlyphImageKindFill, Run, NoOffsets, RunAdvances, 0, &placement);
+    releasePlacements(&placement, 0);
 
     size_t calls = 0;
     TRPathCallbacks callbacks = {};
@@ -677,16 +710,16 @@ void RendererTests::testConcurrentRenderers() {
             TRRendererSetWritingDirection(renderer, t % 2 ? TRWritingDirectionRightToLeft : TRWritingDirectionLeftToRight);
 
             for (size_t i = 0; i < 100; i++) {
-                TRGlyphPlacement placements[3];
-                TRRendererGetGlyphPlacements(renderer, TRGlyphImageKindFill, Run, NoOffsets, RunAdvances, 3, placements);
+                GlyphPlacement placements[3];
+                getPlacements(renderer, TRGlyphImageKindFill, Run, NoOffsets, RunAdvances, 3, placements);
 
-                for (const TRGlyphPlacement &placement : placements) {
+                for (const GlyphPlacement &placement : placements) {
                     if (!placement.image || TRGlyphImageGetWidth(placement.image) == 0) {
                         failures++;
                     }
                 }
 
-                TRRendererReleaseGlyphPlacements(placements, 3);
+                releasePlacements(placements, 3);
 
                 TRRect box = TRRendererGetRunBoundingBox(renderer, Run, NoOffsets, RunAdvances, 3);
                 if (box.size.width <= 0.0f) {

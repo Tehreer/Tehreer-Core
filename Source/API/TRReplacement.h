@@ -26,8 +26,7 @@ typedef struct _TRReplacement {
     ObjectBase _base;
     TRReplacementCallbacks callbacks;
     void *userData;
-    TRFloat leading;
-    TRBoolean isBlock;
+    TRReplacementKind kind;
 } TRReplacement;
 
 #endif

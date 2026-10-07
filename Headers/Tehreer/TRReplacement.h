@@ -50,6 +50,15 @@ typedef struct _TRReplacementCallbacks {
 } TRReplacementCallbacks;
 
 /**
+ * How a replacement is placed in the text.
+ */
+enum {
+    TRReplacementKindInline = 0,    /**< The replacement stays on the line of the text around it. */
+    TRReplacementKindBlock = 1      /**< The replacement has a line of its own. */
+};
+typedef TRUInt32 TRReplacementKind;
+
+/**
  * Content that replaces a range of text, such as an image or a view. The wrapper that creates it
  * draws it, and Core only uses its room to lay out the line.
  */
@@ -62,30 +71,18 @@ typedef const struct _TRReplacement *TRReplacementRef;
  *      The callbacks, which are copied.
  * @param userData
  *      An opaque pointer that is passed to the callbacks.
- * @param leading
- *      The extra space below the replacement.
- * @param isBlock
- *      `TRTrue` if the replacement has a line of its own, instead of being placed inline.
+ * @param kind
+ *      How the replacement is placed in the text.
  * @return
- *      New replacement, or `NULL` on failure.
+ *      New replacement, or `NULL` if the kind is not valid or on failure.
  */
 TR_PUBLIC TRReplacementRef TRReplacementCreate(const TRReplacementCallbacks *callbacks,
-    void *userData, TRFloat leading, TRBoolean isBlock);
+    void *userData, TRReplacementKind kind);
 
 /**
- * Returns the `userData` that the replacement was created with.
+ * Returns how the replacement is placed in the text.
  */
-TR_PUBLIC void *TRReplacementGetUserData(TRReplacementRef replacement);
-
-/**
- * Returns the extra space below the replacement.
- */
-TR_PUBLIC TRFloat TRReplacementGetLeading(TRReplacementRef replacement);
-
-/**
- * Returns whether the replacement has a line of its own.
- */
-TR_PUBLIC TRBoolean TRReplacementIsBlock(TRReplacementRef replacement);
+TR_PUBLIC TRReplacementKind TRReplacementGetKind(TRReplacementRef replacement);
 
 /**
  * Computes the room of the replacement for the given layout width.

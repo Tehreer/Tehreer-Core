@@ -15,7 +15,6 @@
  */
 
 #include <stddef.h>
-#include <stdlib.h>
 
 #include <API/TRBase.h>
 #include <Core/Allocator.h>
@@ -56,7 +55,7 @@ TR_INTERNAL void AdvanceCacheInitialize(AdvanceCacheRef cache, TRUInteger glyphC
     cache->_glyphCount = 0;
 
     if (pageCount > 0) {
-        cache->_pages = calloc(pageCount, sizeof(TRInt32 *));
+        cache->_pages = AllocatorAllocateZeroedBlock(pageCount * sizeof(TRInt32 *));
 
         /* Without the page table, nothing is cached. */
         if (cache->_pages) {
@@ -74,7 +73,7 @@ TR_INTERNAL void AdvanceCacheFinalize(AdvanceCacheRef cache)
         AllocatorDeallocateBlock(cache->_pages[index]);
     }
 
-    free(cache->_pages);
+    AllocatorDeallocateBlock(cache->_pages);
     MutexDestroy(&cache->_mutex);
 }
 

@@ -58,12 +58,20 @@ enum {
 typedef TRUInt32 TRGlyphImageKind;
 
 /**
- * Where to draw the image of a glyph: the position of its top-left corner, in pixels.
+ * Called for the image of a glyph that is to be drawn.
+ *
+ * @param userData
+ *      The pointer that was passed to the enumeration.
+ * @param index
+ *      The index of the glyph in the run.
+ * @param image
+ *      The image of the glyph. It is valid until the function returns, so a caller that needs to
+ *      keep it has to retain it.
+ * @param origin
+ *      The position of the top-left corner of the image, in pixels.
  */
-typedef struct _TRGlyphPlacement {
-    TRGlyphImageRef image;  /**< The image, or `NULL` if the glyph has none. It is retained. */
-    TRPoint origin;
-} TRGlyphPlacement;
+typedef void (*TRGlyphPlacementFunc)(void *userData, TRUInteger index, TRGlyphImageRef image,
+    TRPoint origin);
 
 /**
  * A renderer prepares glyphs for drawing: it finds their images and outlines in a glyph cache for
@@ -214,31 +222,32 @@ TR_PUBLIC TRRect TRRendererGetRunBoundingBox(TRRendererRef renderer, const TRGly
     const TRPoint *offsets, const TRFloat *advances, TRUInteger count);
 
 /**
- * Finds out where to draw the images of a run of glyphs. The positions are in pixels and are
- * rounded to whole ones. The pen starts at the origin: in a right-to-left run it moves to the left
- * before each glyph, so the positions are mostly negative, relative to the right end of the run.
+ * Passes the image of each glyph of a run, along with the position to draw it at, to a function.
+ * The function is called in the order of the glyphs, and skips those that have no image. The
+ * positions are in pixels and are rounded to whole ones. The pen starts at the origin: in a
+ * right-to-left run it moves to the left before each glyph, so the positions are mostly negative,
+ * relative to the right end of the run.
+ *
+ * The images are retained only while the function is being called, so nothing has to be released
+ * by the caller.
  *
  * @param kind
  *      The kind of the images to find.
- * @param placements
- *      Receives one placement for each glyph. The caller has to release their images, which can be
- *      done with `TRRendererReleaseGlyphPlacements()`.
+ * @param func
+ *      The function to call for each image.
+ * @param userData
+ *      An opaque pointer that is passed to the function.
  *
  * The other parameters are those of `TRRendererGetRunBoundingBox()`.
  */
-TR_PUBLIC void TRRendererGetGlyphPlacements(TRRendererRef renderer, TRGlyphImageKind kind,
+TR_PUBLIC void TRRendererEnumerateGlyphPlacements(TRRendererRef renderer, TRGlyphImageKind kind,
     const TRGlyphID *glyphIDs, const TRPoint *offsets, const TRFloat *advances, TRUInteger count,
-    TRGlyphPlacement *placements);
-
-/**
- * Releases the images of placements that were received from `TRRendererGetGlyphPlacements()`.
- */
-TR_PUBLIC void TRRendererReleaseGlyphPlacements(TRGlyphPlacement *placements, TRUInteger count);
+    TRGlyphPlacementFunc func, void *userData);
 
 /**
  * Passes the outlines of a run of glyphs to the callbacks, placed where the glyphs go, in the user
  * space and with the y axis pointing downward. The positions are not rounded, and are relative to
- * the pen in the same way as those of `TRRendererGetGlyphPlacements()`.
+ * the pen in the same way as those of `TRRendererEnumerateGlyphPlacements()`.
  *
  * The other parameters are those of `TRRendererGetRunBoundingBox()`.
  */

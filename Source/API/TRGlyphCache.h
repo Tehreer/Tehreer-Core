@@ -24,6 +24,7 @@
 #include <Tehreer/TRTypeface.h>
 
 #include <API/TRBase.h>
+#include <Core/Array.h>
 #include <Core/Mutex.h>
 #include <Core/Object.h>
 
@@ -38,8 +39,7 @@ typedef struct _TRGlyphCache {
     Mutex mutex;
     TRUInteger capacity;
     TRUInteger size;
-    struct _GlyphCacheEntry **buckets;
-    TRUInteger bucketCount;
+    Array buckets;
     TRUInteger entryCount;
     struct _GlyphCacheEntry *firstEntry;
     struct _GlyphCacheEntry *lastEntry;

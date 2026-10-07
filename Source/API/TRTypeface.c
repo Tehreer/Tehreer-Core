@@ -81,17 +81,11 @@ static TRTypeface *AllocateTypeface(TRUInteger variationAxisCount, TRUInteger pa
 }
 
 #undef TYPEFACE
-
 #undef RAW_COORDINATES
-
 #undef FACE_COORDINATES
-
 #undef RAW_COLORS
-
 #undef FACE_COLORS
-
 #undef FULL_NAME
-
 #undef COUNT
 
 static void InitializeCoordinates(TRTypeface *typeface, FaceMetadataRef metadata,
@@ -229,22 +223,22 @@ static void SetupFontParams(TRTypefaceRef typeface, FontParams *fontParams, TRFl
 }
 
 TR_INTERNAL TRTypefaceRef TRTypefaceCreateDefault(RenderableFaceRef renderableFace,
-    ShapableFaceRef shapableFace, const TRFloat *variationCoordinates)
+    ShapableFaceRef sourceFace, const TRFloat *variationCoordinates)
 {
     TRUInteger axisCount = renderableFace->metadata->variationAxisCount;
     TRTypefaceRef derived = NULL;
-    ShapableFaceRef typefaceFace;
+    ShapableFaceRef shapableFace;
 
     /* The shapable face has to follow the variation coordinates of the typeface. */
     if (variationCoordinates && axisCount > 0) {
-        typefaceFace = ShapableFaceCreateDerived(shapableFace, variationCoordinates, axisCount);
+        shapableFace = ShapableFaceCreateDerived(sourceFace, variationCoordinates, axisCount);
     } else {
-        typefaceFace = ShapableFaceRetain(shapableFace);
+        shapableFace = ShapableFaceRetain(sourceFace);
     }
 
-    if (typefaceFace) {
-        derived = TRTypefaceCreateDerived(renderableFace, typefaceFace, variationCoordinates, NULL);
-        ShapableFaceRelease(typefaceFace);
+    if (shapableFace) {
+        derived = TRTypefaceCreateDerived(renderableFace, shapableFace, variationCoordinates, NULL);
+        ShapableFaceRelease(shapableFace);
     }
 
     return derived;

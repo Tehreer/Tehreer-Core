@@ -579,7 +579,8 @@ void finalizeTestReplacement(void *userData) {
 
 TRReplacementRef createReplacement(ReplacementState *state, bool isBlock = false) {
     TRReplacementCallbacks callbacks = { computeTestRoom, finalizeTestReplacement };
-    return TRReplacementCreate(&callbacks, state, 1.5f, isBlock);
+    return TRReplacementCreate(&callbacks, state,
+        isBlock ? TRReplacementKindBlock : TRReplacementKindInline);
 }
 
 }
@@ -605,7 +606,6 @@ void AttributeListTests::testReplacementAttribute() {
     TRReplacementRoom room;
     TRReplacementComputeRoom(readItem(list, 0).value.replacement, 20.0f, &room);
     assert(room.extent == 25.0f);
-    assert(TRReplacementGetUserData(readItem(list, 0).value.replacement) == &state);
 
     SBAttributeListRelease(list);
 

@@ -52,6 +52,12 @@ TR_INTERNAL void *ArrayGetItem(const Array *array, TRUInteger index);
 TR_INTERNAL void *ArrayGetItems(const Array *array);
 
 /**
+ * Changes the count of the array. The items that are added are zero. Returns `TRFalse` if memory
+ * could not be allocated, in which case the array is left as it was.
+ */
+TR_INTERNAL TRBoolean ArrayResize(ArrayRef array, TRUInteger count);
+
+/**
  * Copies an item to the end of the array. Returns `TRFalse` if memory could not be allocated, in
  * which case the array is left as it was.
  */

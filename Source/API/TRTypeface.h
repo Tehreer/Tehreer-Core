@@ -66,7 +66,7 @@ typedef struct _TRTypeface {
 } TRTypeface;
 
 TR_INTERNAL TRTypefaceRef TRTypefaceCreateDefault(RenderableFaceRef renderableFace,
-    ShapableFaceRef shapableFace, const TRFloat *variationCoordinates);
+    ShapableFaceRef sourceFace, const TRFloat *variationCoordinates);
 
 /*
  * Creates a typeface that uses the given shapable face as it is. The shapable face MUST follow the

@@ -646,9 +646,10 @@ void computeRoom(void *userData, TRFloat layoutWidth, TRReplacementRoom *room) {
     room->extent = *static_cast<TRFloat *>(userData) + (layoutWidth > 0.0f ? layoutWidth : 0.0f);
 }
 
-TRReplacementRef createReplacement(TRFloat *width, bool isBlock, TRFloat leading = 25.0f) {
+TRReplacementRef createReplacement(TRFloat *width, bool isBlock) {
     TRReplacementCallbacks callbacks = { computeRoom, nullptr };
-    return TRReplacementCreate(&callbacks, width, leading, isBlock);
+    return TRReplacementCreate(&callbacks, width,
+        isBlock ? TRReplacementKindBlock : TRReplacementKindInline);
 }
 
 }
@@ -670,20 +671,20 @@ void ComposedLineTests::testReplacementLines() {
     assert(TRGlyphRunGetReplacement(run) == replacement);
     assert(TRGlyphRunGetWidth(run) == 500.0f);
     assert(TRGlyphRunGetAscent(run) == 300.0f && TRGlyphRunGetDescent(run) == 100.0f);
-    assert(TRGlyphRunGetLeading(run) == 25.0f);
+    assert(TRGlyphRunGetLeading(run) == 0.0f);
     assert(TRGlyphRunGetGlyphCount(run) == 1);
     assert(TRGlyphRunGetOrigin(run).x == A);
 
     /* The line is as wide as all of it, and as tall as its tallest run. */
     assert(TRComposedLineGetWidth(line) == A + 500.0f + B);
     assert(TRComposedLineGetAscent(line) == 1900.0f);
-    assert(TRComposedLineGetLeading(line) == 25.0f);
+    assert(TRComposedLineGetLeading(line) == 0.0f);
     assert(TRComposedLineGetCodeUnitDistance(line, 2) == A + 500.0f);
 
     /* Its box is that of its room. */
     TRRendererRef renderer = TRRendererCreate();
     TRRect box = TRGlyphRunGetBoundingBox(run, { 0, 1 }, renderer);
-    assert(box.size.width == 500.0f && box.size.height == 425.0f);
+    assert(box.size.width == 500.0f && box.size.height == 400.0f);
     TRRendererRelease(renderer);
 
     TRComposedLineRelease(line);
@@ -693,7 +694,7 @@ void ComposedLineTests::testReplacementLines() {
 void ComposedLineTests::testBlockLine() {
     Fixture f(u"\uFFFC\n");
     TRFloat width = 0.0f;
-    TRReplacementRef block = createReplacement(&width, true, 0.0f);
+    TRReplacementRef block = createReplacement(&width, true);
 
     TRAttribute attribute = {};
     attribute.type = TRAttributeReplacement;

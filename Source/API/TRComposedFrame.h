@@ -23,6 +23,7 @@
 
 #include <API/TRBase.h>
 #include <API/TRComposedLine.h>
+#include <Core/Array.h>
 #include <Core/Object.h>
 
 typedef struct _TRComposedFrame {
@@ -31,16 +32,16 @@ typedef struct _TRComposedFrame {
     TRUInteger codeUnitEnd;
     TRFloat width;
     TRFloat height;
-    TRComposedLineRef *lines;
-    TRUInteger lineCount;
+    Array lines;
 } TRComposedFrame;
 
 /*
- * Creates a frame from its lines, which are in the order of the text. The frame takes the
- * references of the lines, and the array that holds them is the caller's. The frame MUST have at
- * least one line. Returns NULL on failure, in which case the lines are released as well.
+ * Creates a frame from its lines, which are in the order of the text. The array holds the
+ * `TRComposedLine *` pointers. The frame takes the references of the lines and the memory of the
+ * array, which is left empty. The frame MUST have at least one line. Returns NULL on failure, in
+ * which case the lines are released as well.
  */
-TR_INTERNAL TRComposedFrame *TRComposedFrameCreate(TRUInteger start, TRUInteger end,
-    TRComposedLine **lines, TRUInteger lineCount, TRFloat width, TRFloat height);
+TR_INTERNAL TRComposedFrame *TRComposedFrameCreate(TRUInteger start, TRUInteger end, Array *lines,
+    TRFloat width, TRFloat height);
 
 #endif

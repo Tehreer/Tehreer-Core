@@ -62,6 +62,10 @@ static TRGlyphCacheRef GetCache(const TRRenderer *renderer)
     return (renderer->cache ? renderer->cache : TRGlyphCacheGetDefault());
 }
 
+/*
+ * The key refers to the typeface without retaining it. The renderer keeps the typeface alive during
+ * the lookup, and the cache retains it for each entry that it creates.
+ */
 static void SetupDataKey(const TRRenderer *renderer, GlyphDataKey *key)
 {
     key->typeface = renderer->typeface;
@@ -371,9 +375,9 @@ TRRect TRRendererGetRunBoundingBox(TRRendererRef renderer, const TRGlyphID *glyp
     return box;
 }
 
-void TRRendererGetGlyphPlacements(TRRendererRef renderer, TRGlyphImageKind kind,
+void TRRendererEnumerateGlyphPlacements(TRRendererRef renderer, TRGlyphImageKind kind,
     const TRGlyphID *glyphIDs, const TRPoint *offsets, const TRFloat *advances, TRUInteger count,
-    TRGlyphPlacement *placements)
+    TRGlyphPlacementFunc func, void *userData)
 {
     RunPen pen;
     TRUInteger index;
@@ -390,29 +394,17 @@ void TRRendererGetGlyphPlacements(TRRendererRef renderer, TRGlyphImageKind kind,
                  ? TRRendererGetStrokeImage(renderer, glyphIDs[index])
                  : TRRendererGetGlyphImage(renderer, glyphIDs[index]));
 
-        placements[index].image = image;
-        placements[index].origin.x = 0.0f;
-        placements[index].origin.y = 0.0f;
-
         if (image) {
-            placements[index].origin.x = RoundPixel(pen.penX + offsetX
-                + (TRFloat)TRGlyphImageGetLeft(image));
-            placements[index].origin.y = RoundPixel(-offsetY - (TRFloat)TRGlyphImageGetTop(image));
+            TRPoint origin;
+
+            origin.x = RoundPixel(pen.penX + offsetX + (TRFloat)TRGlyphImageGetLeft(image));
+            origin.y = RoundPixel(-offsetY - (TRFloat)TRGlyphImageGetTop(image));
+
+            func(userData, index, image, origin);
+            TRGlyphImageRelease(image);
         }
 
         EndGlyph(&pen, advance);
-    }
-}
-
-void TRRendererReleaseGlyphPlacements(TRGlyphPlacement *placements, TRUInteger count)
-{
-    TRUInteger index;
-
-    for (index = 0; index < count; index++) {
-        if (placements[index].image) {
-            TRGlyphImageRelease(placements[index].image);
-            placements[index].image = NULL;
-        }
     }
 }
 

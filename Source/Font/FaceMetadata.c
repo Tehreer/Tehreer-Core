@@ -150,6 +150,22 @@ static RawMetadata *AllocateRawMetadata(MemoryRef memory, TRUInteger variationAx
 #undef COLORS
 #undef COUNT
 
+/* The `fvar` table starts with a header whose instance count is a big endian 16-bit number. */
+#define FvarHeaderSize              16
+#define FvarInstanceCountOffset     12
+
+#define ReadUInt16BE(bytes_, offset_)   \
+    (((TRUInteger)(bytes_)[offset_] << 8) | (bytes_)[(offset_) + 1])
+
+/* Loads the header of the `fvar` table, and returns whether it was loaded completely. */
+static TRBoolean LoadFvarHeader(FT_Face ftFace, FT_Byte *header)
+{
+    FT_ULong length = FvarHeaderSize;
+    FT_Error error = FT_Load_Sfnt_Table(ftFace, FT_MAKE_TAG('f', 'v', 'a', 'r'), 0, header,
+        &length);
+
+    return (error == 0 && length == FvarHeaderSize);
+}
 
 /*
  * FreeType adds the default instance as the last named style if the font has no record for it,
@@ -159,22 +175,20 @@ static RawMetadata *AllocateRawMetadata(MemoryRef memory, TRUInteger variationAx
 static TRBoolean HasAppendedDefaultStyle(FT_Face ftFace, TRUInteger namedStyleCount)
 {
     TRBoolean hasAppended = TRFalse;
-    FT_Byte header[16];
-    FT_ULong length;
+    FT_Byte header[FvarHeaderSize];
 
-    length = sizeof(header);
+    if (namedStyleCount > 0 && LoadFvarHeader(ftFace, header)) {
+        TRUInteger instanceCount = ReadUInt16BE(header, FvarInstanceCountOffset);
 
-    if (namedStyleCount > 0
-            && FT_Load_Sfnt_Table(ftFace, FT_MAKE_TAG('f', 'v', 'a', 'r'), 0, header, &length) == 0
-            && length == sizeof(header)) {
-        TRUInteger instanceCount;
-
-        instanceCount = ((TRUInteger)header[12] << 8) | header[13];
         hasAppended = (namedStyleCount == instanceCount + 1);
     }
 
     return hasAppended;
 }
+
+#undef FvarHeaderSize
+#undef FvarInstanceCountOffset
+#undef ReadUInt16BE
 
 /* Counts a name that has to be written, along with the code units that it takes. */
 static void TallyName(const NameString *name, TRUInteger *nameCount, TRUInteger *nameBytes)

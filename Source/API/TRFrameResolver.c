@@ -860,8 +860,8 @@ TRComposedFrameRef TRFrameResolverCreateFrame(TRFrameResolverRef resolver, TRRan
                     ? context.endIndex
                     : GetLine(&context, GetLineCount(&context) - 1)->codeUnitEnd);
 
-        composedFrame = TRComposedFrameCreate(range.index, frameEnd, ArrayGetItems(&context.lines),
-            GetLineCount(&context), context.layoutWidth, context.layoutHeight);
+        composedFrame = TRComposedFrameCreate(range.index, frameEnd, &context.lines,
+            context.layoutWidth, context.layoutHeight);
         ArrayFinalize(&context.lines);
     }
 

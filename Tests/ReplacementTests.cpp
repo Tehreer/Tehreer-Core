@@ -71,33 +71,31 @@ void ReplacementTests::testCreate() {
     State state;
     TRReplacementCallbacks callbacks = { computeRoom, finalize };
 
-    TRReplacementRef inlineOne = TRReplacementCreate(&callbacks, &state, 2.5f, TRFalse);
+    TRReplacementRef inlineOne = TRReplacementCreate(&callbacks, &state, TRReplacementKindInline);
     assert(inlineOne != nullptr);
-    assert(TRReplacementGetUserData(inlineOne) == &state);
-    assert(TRReplacementGetLeading(inlineOne) == 2.5f);
-    assert(!TRReplacementIsBlock(inlineOne));
+    assert(TRReplacementGetKind(inlineOne) == TRReplacementKindInline);
 
-    TRReplacementRef block = TRReplacementCreate(&callbacks, &state, 0.0f, TRTrue);
-    assert(TRReplacementIsBlock(block));
-    assert(TRReplacementGetLeading(block) == 0.0f);
+    TRReplacementRef block = TRReplacementCreate(&callbacks, &state, TRReplacementKindBlock);
+    assert(block != nullptr);
+    assert(TRReplacementGetKind(block) == TRReplacementKindBlock);
 
-    /* Any non-zero value of the flag means a block. */
-    TRReplacementRef sloppy = TRReplacementCreate(&callbacks, &state, 0.0f, 7);
-    assert(TRReplacementIsBlock(sloppy) == TRTrue);
-
-    TRReplacementRelease(sloppy);
     TRReplacementRelease(block);
     TRReplacementRelease(inlineOne);
 }
 
 void ReplacementTests::testInvalidCreate() {
-    assert(TRReplacementCreate(nullptr, nullptr, 0.0f, TRFalse) == nullptr);
+    TRReplacementCallbacks none = {};
+
+    assert(TRReplacementCreate(nullptr, nullptr, TRReplacementKindInline) == nullptr);
+
+    /* A kind that is not known is refused. */
+    assert(TRReplacementCreate(&none, nullptr, 7) == nullptr);
 }
 
 void ReplacementTests::testComputeRoom() {
     State state;
     TRReplacementCallbacks callbacks = { computeRoom, finalize };
-    TRReplacementRef replacement = TRReplacementCreate(&callbacks, &state, 0.0f, TRFalse);
+    TRReplacementRef replacement = TRReplacementCreate(&callbacks, &state, TRReplacementKindInline);
 
     TRReplacementRoom room = {};
     TRReplacementComputeRoom(replacement, 0.0f, &room);
@@ -117,12 +115,11 @@ void ReplacementTests::testComputeRoom() {
 void ReplacementTests::testMissingCallbacks() {
     /* Without a callback to compute the room, it is zero and nothing is called on release. */
     TRReplacementCallbacks none = {};
-    TRReplacementRef replacement = TRReplacementCreate(&none, nullptr, 1.0f, TRFalse);
+    TRReplacementRef replacement = TRReplacementCreate(&none, nullptr, TRReplacementKindInline);
 
     TRReplacementRoom room = { 1.0f, 2.0f, 3.0f };
     TRReplacementComputeRoom(replacement, 100.0f, &room);
     assert(room.ascent == 0.0f && room.descent == 0.0f && room.extent == 0.0f);
-    assert(TRReplacementGetUserData(replacement) == nullptr);
 
     TRReplacementRelease(replacement);
 }
@@ -130,7 +127,7 @@ void ReplacementTests::testMissingCallbacks() {
 void ReplacementTests::testRetainRelease() {
     State state;
     TRReplacementCallbacks callbacks = { computeRoom, finalize };
-    TRReplacementRef replacement = TRReplacementCreate(&callbacks, &state, 0.0f, TRFalse);
+    TRReplacementRef replacement = TRReplacementCreate(&callbacks, &state, TRReplacementKindInline);
 
     assert(TRReplacementRetain(replacement) == replacement);
     assert(AtomicUIntLoad(&replacement->_base.retainCount) == 2);
@@ -145,7 +142,7 @@ void ReplacementTests::testRetainRelease() {
 void ReplacementTests::testFinalizeOnce() {
     State state;
     TRReplacementCallbacks callbacks = { computeRoom, finalize };
-    TRReplacementRef replacement = TRReplacementCreate(&callbacks, &state, 0.0f, TRFalse);
+    TRReplacementRef replacement = TRReplacementCreate(&callbacks, &state, TRReplacementKindInline);
 
     /* The callbacks are copied, so the caller does not have to keep them alive. */
     callbacks.computeRoom = nullptr;
@@ -162,7 +159,7 @@ void ReplacementTests::testFinalizeOnce() {
 void ReplacementTests::testConcurrentRoom() {
     State state;
     TRReplacementCallbacks callbacks = { computeRoom, finalize };
-    TRReplacementRef replacement = TRReplacementCreate(&callbacks, &state, 0.0f, TRFalse);
+    TRReplacementRef replacement = TRReplacementCreate(&callbacks, &state, TRReplacementKindInline);
 
     /* A replacement is shared between the threads that lay out text. */
     vector<thread> threads;

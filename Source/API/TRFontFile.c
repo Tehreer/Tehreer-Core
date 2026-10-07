@@ -15,7 +15,6 @@
  */
 
 #include <stddef.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include <ft2build.h>
@@ -23,6 +22,7 @@
 
 #include <API/TRBase.h>
 #include <API/TRTypeface.h>
+#include <Core/Allocator.h>
 #include <Core/Mutex.h>
 #include <Core/Object.h>
 #include <Font/FaceMetadata.h>
@@ -59,10 +59,10 @@ static void FinalizeFontFile(ObjectRef object)
     void *pathname = arguments->pathname;
 
     if (buffer) {
-        free(buffer);
+        AllocatorDeallocateBlock(buffer);
     }
     if (pathname) {
-        free(pathname);
+        AllocatorDeallocateBlock(pathname);
     }
 }
 
@@ -83,8 +83,8 @@ static TRFontFileRef CreateFontFileWithArguments(const FT_Open_Args *arguments)
             fontFile = NULL;
         }
     } else {
-        free((void *)arguments->memory_base);
-        free(arguments->pathname);
+        AllocatorDeallocateBlock((void *)arguments->memory_base);
+        AllocatorDeallocateBlock(arguments->pathname);
     }
 
     return fontFile;
@@ -139,7 +139,7 @@ TR_PUBLIC TRFontFileRef TRFontFileCreateFromPath(const char *path)
         char *pathCopy;
 
         length = strlen(path) + 1;
-        pathCopy = malloc(length);
+        pathCopy = AllocatorAllocateBlock(length);
 
         if (pathCopy) {
             FT_Open_Args arguments;
@@ -166,7 +166,7 @@ TR_PUBLIC TRFontFileRef TRFontFileCreateFromMemory(const void *memory, TRUIntege
     if (memory && size > 0) {
         void *memoryCopy;
 
-        memoryCopy = malloc(size);
+        memoryCopy = AllocatorAllocateBlock(size);
 
         if (memoryCopy) {
             FT_Open_Args arguments;

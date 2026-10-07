@@ -103,21 +103,20 @@ TRUInteger TRGlyphImageGetByteCount(TRGlyphImageRef image)
 
 void *TRGlyphImageGetNativeData(TRGlyphImageRef image)
 {
-    return AtomicPtrLoad((AtomicPtr *)&image->_nativeData);
+    return AtomicPtrLoad(&image->_nativeData);
 }
 
 TRBoolean TRGlyphImageSetNativeData(TRGlyphImageRef image, void *data, void (*destroy)(void *data))
 {
     TRBoolean isSet = TRFalse;
-    TRGlyphImage *mutableImage = (TRGlyphImage *)image;
     void *expected = NULL;
 
     /*
      * The destroy function is only read when the image is destroyed. That cannot happen while the
      * caller holds the image, so it is safe to store it after the exchange.
      */
-    if (data && AtomicPtrCompareAndSet(&mutableImage->_nativeData, &expected, data)) {
-        mutableImage->_destroyNativeData = destroy;
+    if (data && AtomicPtrCompareAndSet(&image->_nativeData, &expected, data)) {
+        image->_destroyNativeData = destroy;
         isSet = TRTrue;
     }
 

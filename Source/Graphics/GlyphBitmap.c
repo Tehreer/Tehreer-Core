@@ -15,7 +15,6 @@
  */
 
 #include <stddef.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include <ft2build.h>
@@ -194,7 +193,7 @@ static GlyphBitmapRef RenderStrokedOutline(FreeTypeRef freetype, FT_Outline *str
         bitmap.num_grays = 256;
         bitmap.palette_mode = 0;
         bitmap.palette = NULL;
-        bitmap.buffer = calloc(width * height, 1);
+        bitmap.buffer = AllocatorAllocateZeroedBlock(width * height);
 
         if (bitmap.buffer) {
             FT_Outline_Translate(stroked, -box.xMin, -box.yMin);
@@ -204,7 +203,7 @@ static GlyphBitmapRef RenderStrokedOutline(FreeTypeRef freetype, FT_Outline *str
                     (TRInt32)(box.yMax >> 6));
             }
 
-            free(bitmap.buffer);
+            AllocatorDeallocateBlock(bitmap.buffer);
         }
     }
 

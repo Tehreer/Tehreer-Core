@@ -61,9 +61,11 @@ typedef struct _RenderableFace {
 
 /*
  * How the image of a glyph depends on the foreground color. A mask glyph is painted only with the
- * foreground color, a color glyph never uses it, and a mixed one has layers of both kinds.
+ * foreground color, a color glyph never uses it, and a mixed one has layers of both kinds. The
+ * type is unknown until it is looked up.
  */
 enum {
+    GlyphTypeUnknown,
     GlyphTypeMask,
     GlyphTypeColor,
     GlyphTypeMixed

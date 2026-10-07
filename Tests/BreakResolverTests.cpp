@@ -248,7 +248,7 @@ void computeRoom(void *, TRFloat layoutWidth, TRReplacementRoom *room) {
 
 TRReplacementRef createBlock() {
     TRReplacementCallbacks callbacks = { computeRoom, nullptr };
-    return TRReplacementCreate(&callbacks, nullptr, 0.0f, TRTrue);
+    return TRReplacementCreate(&callbacks, nullptr, TRReplacementKindBlock);
 }
 
 void setReplacement(TRMutableTextRef text, size_t index, TRReplacementRef replacement) {

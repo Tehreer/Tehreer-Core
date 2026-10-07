@@ -20,6 +20,10 @@
 #include <API/TRBase.h>
 
 TR_INTERNAL void *AllocatorAllocateBlock(TRUInteger size);
+
+/* Allocates a block whose bytes are all zero. */
+TR_INTERNAL void *AllocatorAllocateZeroedBlock(TRUInteger size);
+
 TR_INTERNAL void *AllocatorReallocateBlock(void *pointer, TRUInteger newSize);
 TR_INTERNAL void AllocatorDeallocateBlock(void *pointer);
 

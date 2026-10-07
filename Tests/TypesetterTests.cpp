@@ -406,9 +406,10 @@ void computeRoom(void *userData, TRFloat layoutWidth, TRReplacementRoom *room) {
     room->extent = state->width;
 }
 
-TRReplacementRef createReplacement(ReplacementState *state, bool isBlock, TRFloat leading = 0.0f) {
+TRReplacementRef createReplacement(ReplacementState *state, bool isBlock) {
     TRReplacementCallbacks callbacks = { computeRoom, nullptr };
-    return TRReplacementCreate(&callbacks, state, leading, isBlock);
+    return TRReplacementCreate(&callbacks, state,
+        isBlock ? TRReplacementKindBlock : TRReplacementKindInline);
 }
 
 }
@@ -417,7 +418,7 @@ void TypesetterTests::testReplacementRuns() {
     TRTypefaceRef typeface = createTestTypeface("Roboto-Regular.abc.ttf");
     ReplacementState state;
     state.width = 50.0f;
-    TRReplacementRef replacement = createReplacement(&state, false, 4.0f);
+    TRReplacementRef replacement = createReplacement(&state, false);
 
     TRMutableTextRef text = makeTestText(u"a\uFFFCb", typeface, EmSize);
     TRAttribute attribute = {};
@@ -436,7 +437,7 @@ void TypesetterTests::testReplacementRuns() {
 
     /* The room is asked for when the text is typeset, without any layout width. */
     assert(state.roomCalls == 1 && state.lastLayoutWidth == 0.0f);
-    assert(run->ascent == 30.0f && run->descent == 6.0f && run->leading == 4.0f);
+    assert(run->ascent == 30.0f && run->descent == 6.0f && run->leading == 0.0f);
     assert(run->extent == 50.0f && TextRunGetWidth(run) == 50.0f);
 
     /* It has a single glyph, which is a space as wide as the replacement. */

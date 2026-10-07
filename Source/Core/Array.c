@@ -60,6 +60,33 @@ TR_INTERNAL void *ArrayGetItems(const Array *array)
     return array->_items;
 }
 
+TR_INTERNAL TRBoolean ArrayResize(ArrayRef array, TRUInteger count)
+{
+    TRBoolean isResized = TRTrue;
+
+    if (count > array->_capacity) {
+        void *items = AllocatorReallocateBlock(array->_items, count * array->_itemSize);
+
+        if (items) {
+            array->_items = items;
+            array->_capacity = count;
+        } else {
+            isResized = TRFalse;
+        }
+    }
+
+    if (isResized) {
+        if (count > array->_count) {
+            memset((TRUInt8 *)array->_items + (array->_count * array->_itemSize), 0,
+                (count - array->_count) * array->_itemSize);
+        }
+
+        array->_count = count;
+    }
+
+    return isResized;
+}
+
 TR_INTERNAL TRBoolean ArrayAppend(ArrayRef array, const void *item)
 {
     TRBoolean isAppended = TRFalse;
