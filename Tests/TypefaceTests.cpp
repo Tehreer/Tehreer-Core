@@ -63,6 +63,7 @@ void TypefaceTests::run() {
     testDerivedOutlivesSource();
     testNamesAndMetrics();
     testTableData();
+    testGlyphName();
     testGlyphIDs();
     testGlyphAdvance();
     testGlyphPath();
@@ -490,6 +491,39 @@ void TypefaceTests::testTableData() {
     assert(small[1] == 1 && small[4] == 0xEE && small[5] == 0xEE);
 
     assert(TRTypefaceGetTableData(typeface, TRTagMake('Z', 'Z', 'Z', 'Z'), buffer, sizeof(buffer)) == 0);
+
+    TRTypefaceRelease(typeface);
+}
+
+void TypefaceTests::testGlyphName() {
+    TRTypefaceRef typeface = createTypeface("Roboto-Regular.names.ttf");
+    char buffer[32];
+
+    /* The names come from the post table of the font. */
+    assert(TRTypefaceGetGlyphName(typeface, 1, buffer, sizeof(buffer)) == 1);
+    assert(string(buffer) == "a");
+    assert(TRTypefaceGetGlyphName(typeface, 3, buffer, sizeof(buffer)) == 1);
+    assert(string(buffer) == "c");
+    assert(TRTypefaceGetGlyphName(typeface, 0, buffer, sizeof(buffer)) == 7);
+    assert(string(buffer) == ".notdef");
+
+    /* A name that does not fit is cut short, and still ends with the terminator. */
+    assert(TRTypefaceGetGlyphName(typeface, 0, buffer, 4) == 3);
+    assert(string(buffer) == ".no");
+
+    /* A glyph that the font does not have gets no name. */
+    buffer[0] = 'x';
+    assert(TRTypefaceGetGlyphName(typeface, 100, buffer, sizeof(buffer)) == 0);
+    assert(buffer[0] == '\0');
+    assert(TRTypefaceGetGlyphName(typeface, 1, buffer, 0) == 0);
+
+    TRTypefaceRelease(typeface);
+
+    /* The post table of the other fonts has no names. */
+    typeface = createTypeface("Roboto-Regular.abc.ttf");
+    buffer[0] = 'x';
+    assert(TRTypefaceGetGlyphName(typeface, 1, buffer, sizeof(buffer)) == 0);
+    assert(buffer[0] == '\0');
 
     TRTypefaceRelease(typeface);
 }

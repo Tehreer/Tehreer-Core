@@ -281,6 +281,26 @@ TR_PUBLIC TRPathRef TRTypefaceCreateGlyphPath(TRTypefaceRef typeface, TRGlyphID 
 TR_PUBLIC TRUInteger TRTypefaceGetTableData(TRTypefaceRef typeface, TRTag tag, void *buffer,
     TRUInteger capacity);
 
+/**
+ * Copies the name of a glyph, as the font gives it in its post table, or its charset if it is a CFF
+ * font.
+ *
+ * @param typeface
+ *      The typeface.
+ * @param glyphID
+ *      The ID of the glyph.
+ * @param buffer
+ *      Receives the name as a null-terminated string of ASCII characters. A name that does not fit
+ *      is cut short.
+ * @param capacity
+ *      The number of bytes that `buffer` can hold, including the terminator.
+ * @return
+ *      The length of the name copied to `buffer`, not counting the terminator. It is zero if the
+ *      font has no name for the glyph, or `capacity` is zero.
+ */
+TR_PUBLIC TRUInteger TRTypefaceGetGlyphName(TRTypefaceRef typeface, TRGlyphID glyphID,
+    char *buffer, TRUInteger capacity);
+
 TR_PUBLIC TRTypefaceRef TRTypefaceRetain(TRTypefaceRef typeface);
 
 TR_PUBLIC void TRTypefaceRelease(TRTypefaceRef typeface);

@@ -34,6 +34,7 @@ private:
     void testHeightLimit();
     void testMaxLines();
     void testTruncation();
+    void testTruncationAcrossParagraphs();
     void testAlignments();
     void testIndents();
     void testParagraphSpacing();

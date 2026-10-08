@@ -45,6 +45,7 @@ void FrameTests::run() {
     testHeightLimit();
     testMaxLines();
     testTruncation();
+    testTruncationAcrossParagraphs();
     testAlignments();
     testIndents();
     testParagraphSpacing();
@@ -272,6 +273,27 @@ void FrameTests::testTruncation() {
     TRFrameResolverSetFrameSize(f.resolver, 6000.0f, Height);
     frame = f.frame();
     assert(TRComposedFrameGetCodeUnitRange(frame).length == 4);
+    TRComposedFrameRelease(frame);
+}
+
+void FrameTests::testTruncationAcrossParagraphs() {
+    Fixture f(u"abc abc\nabc abc");
+    TRFrameResolverSetFrameSize(f.resolver, 6000.0f, Height);
+    TRFrameResolverSetTruncationMode(f.resolver, TRBreakModeCharacter);
+    TRFrameResolverSetTruncationPlace(f.resolver, TRTruncationPlaceEnd);
+
+    /* The frame fills up in the first paragraph, but it still covers the whole range. */
+    TRComposedFrameRef frame = f.frame();
+    assert(TRComposedFrameGetLineCount(frame) == 1);
+    assert(TRComposedLineIsTruncated(TRComposedFrameGetLine(frame, 0)));
+    assert(TRComposedFrameGetCodeUnitRange(frame).index == 0);
+    assert(TRComposedFrameGetCodeUnitRange(frame).length == 15);
+    TRComposedFrameRelease(frame);
+
+    /* A range in the middle of the text ends where it is asked to. */
+    frame = f.frame(2, 12);
+    assert(TRComposedFrameGetCodeUnitRange(frame).index == 2);
+    assert(TRComposedFrameGetCodeUnitRange(frame).length == 10);
     TRComposedFrameRelease(frame);
 }
 

@@ -7,6 +7,7 @@ fetched dependency.
 | File | Used for |
 |------|----------|
 | `Roboto-Regular.abc.ttf` | Static font subset (glyphs `a`, `b`, `c`) |
+| `Roboto-Regular.names.ttf` | `Roboto-Regular.abc.ttf` with a `post` table of format 2.0 that names the glyphs `.notdef`, `a`, `b` and `c` (made for these tests) |
 | `Roboto-Variable.abc.ttf` | Variable font with `wght` and `wdth` axes and 18 named styles |
 | `Roboto-Variable.hidden.ttf` | `Roboto-Variable.abc.ttf` with the hidden flag set on the `wght` axis (made for these tests) |
 | `RocherColorGX.abc.ttf` | Variable color font with 11 palettes of 4 entries |

@@ -340,6 +340,32 @@ TR_INTERNAL void RenderableFaceCopyTable(RenderableFaceRef renderableFace, TRTag
     YieldUsableFace(renderableFace, &usableFace);
 }
 
+TR_INTERNAL TRUInteger RenderableFaceCopyGlyphName(RenderableFaceRef renderableFace,
+    TRGlyphID glyphID, char *buffer, TRUInteger capacity)
+{
+    TRUInteger nameLength = 0;
+
+    if (capacity > 0) {
+        UsableFace usableFace;
+        FT_Error error;
+
+        GetUsableFace(renderableFace, &usableFace);
+
+        error = FT_Get_Glyph_Name(usableFace.ftFace, glyphID, buffer, (FT_UInt)capacity);
+
+        YieldUsableFace(renderableFace, &usableFace);
+
+        /* FreeType null-terminates the name, and leaves it empty if the font has none. */
+        if (error == FT_Err_Ok) {
+            nameLength = (TRUInteger)strlen(buffer);
+        } else {
+            buffer[0] = '\0';
+        }
+    }
+
+    return nameLength;
+}
+
 TR_INTERNAL TRBoolean RenderableFaceSearchEnglishName(RenderableFaceRef renderableFace,
     TRUInt16 nameID, NameString *nameString)
 {

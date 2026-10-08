@@ -108,6 +108,9 @@ TR_INTERNAL RenderableFaceRef RenderableFaceCreate(TRFontFileRef fontFile, TRUIn
 TR_INTERNAL void RenderableFaceCopyTable(RenderableFaceRef renderableFace, TRTag tag,
     void **buffer, TRUInteger *size);
 
+TR_INTERNAL TRUInteger RenderableFaceCopyGlyphName(RenderableFaceRef renderableFace,
+    TRGlyphID glyphID, char *buffer, TRUInteger capacity);
+
 TR_INTERNAL TRBoolean RenderableFaceSearchEnglishName(RenderableFaceRef renderableFace,
     TRUInt16 nameID, NameString *nameString);
 

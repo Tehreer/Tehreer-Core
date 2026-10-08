@@ -857,7 +857,7 @@ TRComposedFrameRef TRFrameResolverCreateFrame(TRFrameResolverRef resolver, TRRan
 
         /* The frame ends where its last line does, unless that line is cut out of the range. */
         frameEnd = (context.isTruncated
-                    ? context.endIndex
+                    ? rangeEnd
                     : GetLine(&context, GetLineCount(&context) - 1)->codeUnitEnd);
 
         composedFrame = TRComposedFrameCreate(range.index, frameEnd, &context.lines,

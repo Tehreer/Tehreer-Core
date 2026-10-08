@@ -44,6 +44,7 @@ private:
     void testDerivedOutlivesSource();
     void testNamesAndMetrics();
     void testTableData();
+    void testGlyphName();
     void testGlyphIDs();
     void testGlyphAdvance();
     void testGlyphPath();

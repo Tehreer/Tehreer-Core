@@ -583,6 +583,12 @@ TRUInteger TRTypefaceGetTableData(TRTypefaceRef typeface, TRTag tag, void *buffe
     return size;
 }
 
+TRUInteger TRTypefaceGetGlyphName(TRTypefaceRef typeface, TRGlyphID glyphID, char *buffer,
+    TRUInteger capacity)
+{
+    return RenderableFaceCopyGlyphName(typeface->renderableFace, glyphID, buffer, capacity);
+}
+
 TRTypefaceRef TRTypefaceRetain(TRTypefaceRef typeface)
 {
     return ObjectRetain((ObjectRef)typeface);
