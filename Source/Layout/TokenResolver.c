@@ -121,12 +121,11 @@ TR_INTERNAL TRComposedLine *TokenResolverCreateTokenLine(TRTypesetterRef typeset
         TextRunRef suitableRun;
         TRTextRef tokenText;
         TRAttribute attributes[2];
+        TRUInt8 defaultToken[3 * sizeof(TRUInt32)];
 
         suitableRun = typesetter->runs[runIndex];
 
         if (!tokenString || tokenLength == 0) {
-            TRUInt8 defaultToken[3 * sizeof(TRUInt32)];
-
             /* The ellipsis character is used if the typeface has it, and three dots if not. */
             tokenEncoding = typesetter->buffer.encoding;
             tokenString = defaultToken;
