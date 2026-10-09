@@ -69,8 +69,8 @@ typedef struct _TextRun {
 /*
  * Creates a run for the text that a shaping engine shaped. The horizontal offsets, the advances and
  * the caret edges are scaled horizontally, and the vertical offsets vertically, and the baseline
- * offset is added to the vertical offsets. The ascent,
- * descent and leading are those of the typeface at the size, scaled vertically as well.
+ * offset is added to the vertical offsets. The ascent, descent and leading are those of the
+ * typeface at the size, scaled vertically as well.
  */
 TR_INTERNAL TextRunRef TextRunCreateIntrinsic(TRUInteger codeUnitStart, TRUInteger codeUnitEnd,
     TRUInt8 bidiLevel, TRTypefaceRef typeface, TRFloat typeSize, TRFloat scaleX, TRFloat scaleY,

@@ -81,7 +81,7 @@ static TRRendererRef createRenderer(TRTypefaceRef typeface, TRGlyphCacheRef cach
 
 /* Looks an image up and lets go of it again, which tells whether it comes from the cache. */
 static TRGlyphImageRef peek(TRRendererRef renderer, TRGlyphID glyphID) {
-    TRGlyphImageRef image = TRRendererGetGlyphImage(renderer, glyphID);
+    TRGlyphImageRef image = TRRendererCopyGlyphImage(renderer, glyphID);
     if (image) {
         TRGlyphImageRelease(image);
     }
@@ -121,9 +121,9 @@ void GlyphCacheTests::testDefaultCache() {
     TRRendererSetTypeface(renderer, typeface);
     TRRendererSetTypeSize(renderer, 41.0f);
 
-    TRGlyphImageRef image = TRRendererGetGlyphImage(renderer, GlyphA);
+    TRGlyphImageRef image = TRRendererCopyGlyphImage(renderer, GlyphA);
     assert(image != nullptr);
-    assert(TRRendererGetGlyphImage(renderer, GlyphA) == image);
+    assert(TRRendererCopyGlyphImage(renderer, GlyphA) == image);
     assert(TRGlyphCacheGetSize(cache) > 0);
 
     TRGlyphImageRelease(image);
@@ -138,9 +138,9 @@ void GlyphCacheTests::testImageIsCached() {
     TRTypefaceRef typeface = createTestTypeface("Roboto-Regular.abc.ttf");
     TRRendererRef renderer = createRenderer(typeface, cache);
 
-    TRGlyphImageRef first = TRRendererGetGlyphImage(renderer, GlyphA);
+    TRGlyphImageRef first = TRRendererCopyGlyphImage(renderer, GlyphA);
     size_t sizeAfterFirst = TRGlyphCacheGetSize(cache);
-    TRGlyphImageRef second = TRRendererGetGlyphImage(renderer, GlyphA);
+    TRGlyphImageRef second = TRRendererCopyGlyphImage(renderer, GlyphA);
 
     /* The same image comes back, and the cache does not grow. */
     assert(first != nullptr);
@@ -148,7 +148,7 @@ void GlyphCacheTests::testImageIsCached() {
     assert(TRGlyphCacheGetSize(cache) == sizeAfterFirst);
     assert(sizeAfterFirst >= TRGlyphImageGetByteCount(first));
 
-    TRGlyphImageRef other = TRRendererGetGlyphImage(renderer, GlyphB);
+    TRGlyphImageRef other = TRRendererCopyGlyphImage(renderer, GlyphB);
     assert(other != nullptr && other != first);
     assert(TRGlyphCacheGetSize(cache) > sizeAfterFirst);
 
@@ -237,17 +237,17 @@ void GlyphCacheTests::testPathIsCached() {
     TRTypefaceRef typeface = createTestTypeface("Roboto-Regular.abc.ttf");
     TRRendererRef renderer = createRenderer(typeface, cache);
 
-    TRPathRef first = TRRendererGetGlyphPath(renderer, GlyphA);
-    TRPathRef second = TRRendererGetGlyphPath(renderer, GlyphA);
-    TRPathRef other = TRRendererGetGlyphPath(renderer, GlyphB);
+    TRPathRef first = TRRendererCopyGlyphPath(renderer, GlyphA);
+    TRPathRef second = TRRendererCopyGlyphPath(renderer, GlyphA);
+    TRPathRef other = TRRendererCopyGlyphPath(renderer, GlyphB);
     assert(first != nullptr);
     assert(second == first);
     assert(other != nullptr && other != first);
 
     /* The path and the image of a glyph share an entry, but are independent. */
-    TRGlyphImageRef image = TRRendererGetGlyphImage(renderer, GlyphA);
-    TRPathRef third = TRRendererGetGlyphPath(renderer, GlyphA);
-    TRGlyphImageRef sameImage = TRRendererGetGlyphImage(renderer, GlyphA);
+    TRGlyphImageRef image = TRRendererCopyGlyphImage(renderer, GlyphA);
+    TRPathRef third = TRRendererCopyGlyphPath(renderer, GlyphA);
+    TRGlyphImageRef sameImage = TRRendererCopyGlyphImage(renderer, GlyphA);
     assert(third == first);
     assert(sameImage == image);
 
@@ -264,7 +264,7 @@ void GlyphCacheTests::testPathIsCached() {
 }
 
 static TRGlyphImageRef peekStroke(TRRendererRef renderer, TRGlyphID glyphID) {
-    TRGlyphImageRef image = TRRendererGetStrokeImage(renderer, glyphID);
+    TRGlyphImageRef image = TRRendererCopyStrokeImage(renderer, glyphID);
     if (image) {
         TRGlyphImageRelease(image);
     }
@@ -285,11 +285,11 @@ void GlyphCacheTests::testStrokeImages() {
     assert(peek(renderer, GlyphA) != base);
 
     /* Each stroke setting has an entry of its own. */
-    TRRendererSetStrokeWidth(renderer, 3.0f);
+    TRRendererSetStrokeRadius(renderer, 1.5f);
     TRGlyphImageRef wide = peekStroke(renderer, GlyphA);
     assert(wide != nullptr && wide != base);
     assert(TRGlyphImageGetWidth(wide) > TRGlyphImageGetWidth(base));
-    TRRendererSetStrokeWidth(renderer, 1.0f);
+    TRRendererSetStrokeRadius(renderer, 0.5f);
     assert(peekStroke(renderer, GlyphA) == base);
 
     TRRendererSetStrokeCap(renderer, TRStrokeCapSquare);
@@ -325,18 +325,18 @@ void GlyphCacheTests::testMissingGlyphs() {
     TRRendererRef renderer = createRenderer(typeface, cache);
 
     /* The notdef glyph of the font is empty, and a glyph out of range has nothing at all. */
-    assert(TRRendererGetGlyphImage(renderer, 0) == nullptr);
-    assert(TRRendererGetStrokeImage(renderer, 0) == nullptr);
-    assert(TRRendererGetGlyphImage(renderer, 500) == nullptr);
-    assert(TRRendererGetGlyphPath(renderer, 500) == nullptr);
+    assert(TRRendererCopyGlyphImage(renderer, 0) == nullptr);
+    assert(TRRendererCopyStrokeImage(renderer, 0) == nullptr);
+    assert(TRRendererCopyGlyphImage(renderer, 500) == nullptr);
+    assert(TRRendererCopyGlyphPath(renderer, 500) == nullptr);
 
     /* A size that is too small to render gives nothing either. */
     TRRendererSetTypeSize(renderer, 0.0f);
-    assert(TRRendererGetGlyphImage(renderer, GlyphA) == nullptr);
+    assert(TRRendererCopyGlyphImage(renderer, GlyphA) == nullptr);
 
     /* The misses are not cached as images, so the glyphs still work afterwards. */
     TRRendererSetTypeSize(renderer, 32.0f);
-    TRGlyphImageRef image = TRRendererGetGlyphImage(renderer, GlyphA);
+    TRGlyphImageRef image = TRRendererCopyGlyphImage(renderer, GlyphA);
     assert(image != nullptr);
     TRGlyphImageRelease(image);
 
@@ -380,23 +380,23 @@ void GlyphCacheTests::testLeastRecentlyUsedGoesFirst() {
     TRTypefaceRef typeface = createTestTypeface("Roboto-Regular.abc.ttf");
     TRRendererRef renderer = createRenderer(typeface, cache);
 
-    TRGlyphImageRef a = TRRendererGetGlyphImage(renderer, GlyphA);
-    TRGlyphImageRef b = TRRendererGetGlyphImage(renderer, GlyphB);
-    TRGlyphImageRef c = TRRendererGetGlyphImage(renderer, GlyphC);
+    TRGlyphImageRef a = TRRendererCopyGlyphImage(renderer, GlyphA);
+    TRGlyphImageRef b = TRRendererCopyGlyphImage(renderer, GlyphB);
+    TRGlyphImageRef c = TRRendererCopyGlyphImage(renderer, GlyphC);
 
     /* The capacity is just what the three of them take, and a is used again, so b is the oldest. */
     TRGlyphCacheSetCapacity(cache, TRGlyphCacheGetSize(cache));
-    TRGlyphImageRef usedAgain = TRRendererGetGlyphImage(renderer, GlyphA);
+    TRGlyphImageRef usedAgain = TRRendererCopyGlyphImage(renderer, GlyphA);
     assert(usedAgain == a);
 
     TRRendererSetTypeSize(renderer, 31.0f);
-    TRGlyphImageRef d = TRRendererGetGlyphImage(renderer, GlyphA);
+    TRGlyphImageRef d = TRRendererCopyGlyphImage(renderer, GlyphA);
     assert(d != nullptr && d != a);
     assert(TRGlyphCacheGetSize(cache) <= TRGlyphCacheGetCapacity(cache));
 
     TRRendererSetTypeSize(renderer, 32.0f);
-    TRGlyphImageRef afterA = TRRendererGetGlyphImage(renderer, GlyphA);
-    TRGlyphImageRef afterB = TRRendererGetGlyphImage(renderer, GlyphB);
+    TRGlyphImageRef afterA = TRRendererCopyGlyphImage(renderer, GlyphA);
+    TRGlyphImageRef afterB = TRRendererCopyGlyphImage(renderer, GlyphB);
 
     /* The one that was used last survived, and the one that was not used was dropped. */
     assert(afterA == a);
@@ -417,9 +417,9 @@ void GlyphCacheTests::testEvictedImagesStayValid() {
     TRTypefaceRef typeface = createTestTypeface("Roboto-Regular.abc.ttf");
     TRRendererRef renderer = createRenderer(typeface, cache);
 
-    TRGlyphImageRef image = TRRendererGetGlyphImage(renderer, GlyphA);
-    TRPathRef path = TRRendererGetGlyphPath(renderer, GlyphA);
-    TRGlyphImageRef stroke = TRRendererGetStrokeImage(renderer, GlyphA);
+    TRGlyphImageRef image = TRRendererCopyGlyphImage(renderer, GlyphA);
+    TRPathRef path = TRRendererCopyGlyphPath(renderer, GlyphA);
+    TRGlyphImageRef stroke = TRRendererCopyStrokeImage(renderer, GlyphA);
     uint32_t width = TRGlyphImageGetWidth(image);
     uint32_t height = TRGlyphImageGetHeight(image);
 
@@ -434,7 +434,7 @@ void GlyphCacheTests::testEvictedImagesStayValid() {
 
     size_t points = 0;
     TRPathCallbacks callbacks = {};
-    callbacks.moveTo = [](void *data, TRFloat, TRFloat) { (*static_cast<size_t *>(data))++; };
+    callbacks.moveTo = [](void *data, TRFloat, TRFloat, TRBoolean *) { (*static_cast<size_t *>(data))++; };
     TRPathEnumerate(path, nullptr, &callbacks, &points);
     assert(points > 0);
 
@@ -516,7 +516,7 @@ void GlyphCacheTests::testClearAndCapacity() {
     TRGlyphCacheClear(cache);
     TRGlyphCacheSetCapacity(cache, 10);
     assert(TRGlyphCacheGetCapacity(cache) == 10);
-    assert(TRRendererGetGlyphImage(renderer, GlyphA) != nullptr);
+    assert(TRRendererCopyGlyphImage(renderer, GlyphA) != nullptr);
     assert(TRGlyphCacheGetSize(cache) <= 10);
 
     TRRendererRelease(renderer);
@@ -563,11 +563,11 @@ void GlyphCacheTests::testNativeDataFollowsImage() {
     nativeDestroyCount = 0;
 
     /* A wrapper keeps its object on the cached image, so that it is made only once. */
-    TRGlyphImageRef image = TRRendererGetGlyphImage(renderer, GlyphA);
+    TRGlyphImageRef image = TRRendererCopyGlyphImage(renderer, GlyphA);
     assert(TRGlyphImageSetNativeData(image, &marker, [](void *) { nativeDestroyCount++; }));
     TRGlyphImageRelease(image);
 
-    image = TRRendererGetGlyphImage(renderer, GlyphA);
+    image = TRRendererCopyGlyphImage(renderer, GlyphA);
     assert(TRGlyphImageGetNativeData(image) == &marker);
 
     /* It goes away together with the image that holds it, which the caller still does here. */
@@ -577,7 +577,7 @@ void GlyphCacheTests::testNativeDataFollowsImage() {
     assert(nativeDestroyCount == 1);
 
     /* The image that is rendered next has none. */
-    image = TRRendererGetGlyphImage(renderer, GlyphA);
+    image = TRRendererCopyGlyphImage(renderer, GlyphA);
     assert(TRGlyphImageGetNativeData(image) == nullptr);
     TRGlyphImageRelease(image);
 
@@ -598,7 +598,7 @@ void GlyphCacheTests::testConcurrentLookups() {
 
     /* What each lookup has to give, found without any contention. */
     TRRendererRef reference = createRenderer(typeface, TRGlyphCacheCreate(Megabyte), 32.0f);
-    TRGlyphImageRef expected = TRRendererGetGlyphImage(reference, GlyphB);
+    TRGlyphImageRef expected = TRRendererCopyGlyphImage(reference, GlyphB);
     uint32_t width = TRGlyphImageGetWidth(expected);
     uint32_t height = TRGlyphImageGetHeight(expected);
 
@@ -612,9 +612,9 @@ void GlyphCacheTests::testConcurrentLookups() {
             for (size_t i = 0; i < Iterations; i++) {
                 TRRendererSetTypeSize(renderer, 32.0f + static_cast<TRFloat>(i % 5));
 
-                TRGlyphImageRef image = TRRendererGetGlyphImage(renderer, GlyphB);
-                TRGlyphImageRef stroke = TRRendererGetStrokeImage(renderer, GlyphB);
-                TRPathRef path = TRRendererGetGlyphPath(renderer, GlyphB);
+                TRGlyphImageRef image = TRRendererCopyGlyphImage(renderer, GlyphB);
+                TRGlyphImageRef stroke = TRRendererCopyStrokeImage(renderer, GlyphB);
+                TRPathRef path = TRRendererCopyGlyphPath(renderer, GlyphB);
 
                 if (!image || !stroke || !path || TRGlyphImageGetByteCount(image) == 0) {
                     failures++;

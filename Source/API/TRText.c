@@ -18,6 +18,9 @@
 
 #include <SheenBidi/SBText.h>
 
+#include <Tehreer/TRSheenBidi.h>
+
+#include <API/TRAttributeList.h>
 #include <API/TRBase.h>
 #include <Core/Object.h>
 #include <Text/AttributeRegistry.h>
@@ -58,7 +61,7 @@ TRTextRef TRTextCreate(const void *string, TRUInteger length, TRStringEncoding e
     SBTextConfigRef config = AttributeRegistryGetDefaultConfig();
     SBTextRef sbText = NULL;
 
-    if (config) {
+    if (config && (string || length == 0)) {
         sbText = SBTextCreate(string, length, encoding, config);
     }
 
@@ -85,19 +88,36 @@ TRUInteger TRTextGetLength(TRTextRef text)
     return SBTextGetLength(text->_sbText);
 }
 
-void TRTextGetCodeUnits(TRTextRef text, TRUInteger index, TRUInteger length, void *buffer)
+TRBoolean TRTextGetCodeUnits(TRTextRef text, TRUInteger index, TRUInteger length, void *buffer)
 {
-    SBTextGetCodeUnits(text->_sbText, index, length, buffer);
+    TRUInteger textLength = SBTextGetLength(text->_sbText);
+    TRBoolean isCopied = TRFalse;
+
+    if (buffer && RangeIsValid(index, length, textLength)) {
+        if (length > 0) {
+            SBTextGetCodeUnits(text->_sbText, index, length, buffer);
+        }
+
+        isCopied = TRTrue;
+    }
+
+    return isCopied;
 }
 
-SBTextRef TRTextGetSheenBidiText(TRTextRef text)
+TRAttributeListRef TRTextCopyAttributes(TRTextRef text, TRUInteger index, TRUInteger *outLength)
 {
-    return text->_sbText;
-}
+    SBAttributeListRef sbList = NULL;
+    TRUInteger length = 0;
 
-TRAttributeListRef TRTextGetAttributes(TRTextRef text, TRUInteger index, TRUInteger *outLength)
-{
-    return SBTextGetAttributes(text->_sbText, SBAttributeFilterMakeAny(), index, outLength);
+    if (IndexIsValid(index, SBTextGetLength(text->_sbText))) {
+        sbList = SBTextGetAttributes(text->_sbText, SBAttributeFilterMakeAny(), index, &length);
+    }
+
+    if (outLength) {
+        *outLength = length;
+    }
+
+    return TRAttributeListMake(sbList);
 }
 
 TRTextRef TRTextRetain(TRTextRef text)
@@ -139,51 +159,123 @@ void TRTextEndEditing(TRMutableTextRef text)
     text->isEditing = TRFalse;
 }
 
-void TRTextAppendCodeUnits(TRMutableTextRef text, const void *codeUnitBuffer,
+TRBoolean TRTextAppendCodeUnits(TRMutableTextRef text, const void *codeUnitBuffer,
     TRUInteger codeUnitCount)
 {
-    SBTextAppendCodeUnits(text->_sbText, codeUnitBuffer, codeUnitCount);
+    TRBoolean isAppended = (codeUnitBuffer != NULL);
+
+    if (isAppended && codeUnitCount > 0) {
+        SBTextAppendCodeUnits(text->_sbText, codeUnitBuffer, codeUnitCount);
+    }
+
+    return isAppended;
 }
 
-void TRTextInsertCodeUnits(TRMutableTextRef text, TRUInteger index, const void *codeUnitBuffer,
+TRBoolean TRTextInsertCodeUnits(TRMutableTextRef text, TRUInteger index,
+    const void *codeUnitBuffer, TRUInteger codeUnitCount)
+{
+    TRBoolean isInserted = TRFalse;
+
+    if (codeUnitBuffer && index <= SBTextGetLength(text->_sbText)) {
+        if (codeUnitCount > 0) {
+            SBTextInsertCodeUnits(text->_sbText, index, codeUnitBuffer, codeUnitCount);
+        }
+
+        isInserted = TRTrue;
+    }
+
+    return isInserted;
+}
+
+TRBoolean TRTextDeleteCodeUnits(TRMutableTextRef text, TRUInteger index, TRUInteger length)
+{
+    TRUInteger textLength = SBTextGetLength(text->_sbText);
+    TRBoolean isDeleted = RangeIsValid(index, length, textLength);
+
+    if (isDeleted && length > 0) {
+        SBTextDeleteCodeUnits(text->_sbText, index, length);
+    }
+
+    return isDeleted;
+}
+
+TRBoolean TRTextSetCodeUnits(TRMutableTextRef text, const void *codeUnitBuffer,
     TRUInteger codeUnitCount)
 {
-    SBTextInsertCodeUnits(text->_sbText, index, codeUnitBuffer, codeUnitCount);
+    TRBoolean isSet = (codeUnitBuffer || codeUnitCount == 0);
+
+    if (isSet) {
+        SBTextSetCodeUnits(text->_sbText, codeUnitBuffer, codeUnitCount);
+    }
+
+    return isSet;
 }
 
-void TRTextDeleteCodeUnits(TRMutableTextRef text, TRUInteger index, TRUInteger length)
-{
-    SBTextDeleteCodeUnits(text->_sbText, index, length);
-}
-
-void TRTextSetCodeUnits(TRMutableTextRef text,
+TRBoolean TRTextReplaceCodeUnits(TRMutableTextRef text, TRUInteger index, TRUInteger length,
     const void *codeUnitBuffer, TRUInteger codeUnitCount)
 {
-    SBTextSetCodeUnits(text->_sbText, codeUnitBuffer, codeUnitCount);
+    TRUInteger textLength = SBTextGetLength(text->_sbText);
+    TRBoolean isReplaced = (RangeIsValid(index, length, textLength)
+                            && (codeUnitBuffer || codeUnitCount == 0));
+
+    if (isReplaced) {
+        if (codeUnitCount == 0) {
+            if (length > 0) {
+                SBTextDeleteCodeUnits(text->_sbText, index, length);
+            }
+        } else {
+            SBTextReplaceCodeUnits(text->_sbText, index, length, codeUnitBuffer, codeUnitCount);
+        }
+    }
+
+    return isReplaced;
 }
 
-void TRTextReplaceCodeUnits(TRMutableTextRef text, TRUInteger index, TRUInteger length,
-    const void *codeUnitBuffer, TRUInteger codeUnitCount)
-{
-    SBTextReplaceCodeUnits(text->_sbText, index, length, codeUnitBuffer, codeUnitCount);
-}
-
-void TRTextSetAttribute(TRMutableTextRef text, TRUInteger index, TRUInteger length,
+TRBoolean TRTextSetAttribute(TRMutableTextRef text, TRUInteger index, TRUInteger length,
     const TRAttribute *attribute)
 {
-    SBAttributeID attributeID = AttributeRegistryGetAttributeID(attribute->type);
+    TRUInteger textLength = SBTextGetLength(text->_sbText);
+    SBAttributeID attributeID = SBAttributeIDNone;
+    TRBoolean isSet = TRFalse;
 
-    if (attributeID != SBAttributeIDNone) {
-        SBTextSetAttribute(text->_sbText, index, length, attributeID, attribute);
+    if (attribute) {
+        attributeID = AttributeRegistryGetAttributeID(attribute->type);
     }
+
+    if (attributeID != SBAttributeIDNone && RangeIsValid(index, length, textLength)) {
+        if (length > 0) {
+            SBTextSetAttribute(text->_sbText, index, length, attributeID, attribute);
+        }
+
+        isSet = TRTrue;
+    }
+
+    return isSet;
 }
 
-void TRTextRemoveAttribute(TRMutableTextRef text, TRUInteger index, TRUInteger length,
+TRBoolean TRTextRemoveAttribute(TRMutableTextRef text, TRUInteger index, TRUInteger length,
     TRAttributeType attributeType)
 {
+    TRUInteger textLength = SBTextGetLength(text->_sbText);
     SBAttributeID attributeID = AttributeRegistryGetAttributeID(attributeType);
+    TRBoolean isRemoved = TRFalse;
 
-    if (attributeID != SBAttributeIDNone) {
-        SBTextRemoveAttribute(text->_sbText, index, length, attributeID);
+    if (attributeID != SBAttributeIDNone && RangeIsValid(index, length, textLength)) {
+        if (length > 0) {
+            SBTextRemoveAttribute(text->_sbText, index, length, attributeID);
+        }
+
+        isRemoved = TRTrue;
     }
+
+    return isRemoved;
+}
+
+/* ----------------------------------
+ * SheenBidi
+ * ---------------------------------- */
+
+SBTextRef TRTextGetSheenBidiText(TRTextRef text)
+{
+    return text->_sbText;
 }

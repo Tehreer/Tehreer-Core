@@ -35,6 +35,10 @@ typedef TRUInt32 TRGlyphImageFormat;
  * The rendered image of a glyph. The rows of its pixels follow each other without padding, from
  * the top row to the bottom one.
  *
+ * The image of an outline is rendered at the size that was asked for. The image of a glyph of a
+ * bitmap font is the one of its nearest strike, which is not scaled; the placement of the glyph
+ * tells how much to scale it to match the size that was asked for.
+ *
  * The pixels of an image never change, so it can be shared between threads. The only thing that
  * can be attached to it is native data, which lets a wrapper keep the platform object that it made
  * from the pixels. Attaching it is thread safe.

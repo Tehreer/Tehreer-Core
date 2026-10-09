@@ -44,24 +44,6 @@ TR_INTERNAL void RunListFinalize(RunList *list);
  */
 TR_INTERNAL void RunListInsert(RunList *list, TRUInteger index, TRGlyphRun *glyphRun);
 
-/* A part of a line in the order that it is shown, with the bidirectional level of its text. */
-typedef struct _VisualRun {
-    TRUInteger start;
-    TRUInteger end;
-    TRUInt8 level;
-} VisualRun;
-
-typedef void (*VisualRunFunc)(void *context, const VisualRun *visualRun);
-
-/*
- * Calls the function for the runs of the range in the order that they are shown, which is not the
- * order of the text where it has mixed directions. The range MUST NOT be empty. A line that spans
- * paragraphs shows them one after another in the direction of the first of them. Returns TRFalse
- * if the runs could not be found.
- */
-TR_INTERNAL TRBoolean LineResolverForEachVisualRun(TRTypesetterRef typesetter, TRUInteger start,
-    TRUInteger end, VisualRunFunc func, void *context);
-
 /*
  * Adds the glyph runs of a range that is within a visual run. The runs of a right-to-left text are
  * added before those that precede them, which keeps the order in which they are shown. The room of

@@ -365,7 +365,7 @@ static void SetupGlyphFontParams(const GlyphDataKey *key, FontParams *fontParams
     fontParams->transform.yy = 0x10000;
 }
 
-static TRGlyphImageRef RenderImage(const GlyphDataKey *key, TRGlyphID glyphID,
+static TRGlyphImageRef CreateGlyphImage(const GlyphDataKey *key, TRGlyphID glyphID,
     TRColor foregroundColor)
 {
     GlyphBitmapRef bitmap;
@@ -384,7 +384,7 @@ static TRGlyphImageRef RenderImage(const GlyphDataKey *key, TRGlyphID glyphID,
     return (bitmap ? TRGlyphImageCreate(bitmap) : NULL);
 }
 
-static TRPathRef RenderPath(const GlyphDataKey *key, TRGlyphID glyphID)
+static TRPathRef CreateGlyphPath(const GlyphDataKey *key, TRGlyphID glyphID)
 {
     FontParams fontParams;
 
@@ -394,7 +394,7 @@ static TRPathRef RenderPath(const GlyphDataKey *key, TRGlyphID glyphID)
 }
 
 /* Looks for the image of a color or a stroke entry, which has nothing else in it. */
-static TRGlyphImageRef FindImage(TRGlyphCacheRef cache, const CacheKey *cacheKey)
+static TRGlyphImageRef CopyCachedImage(TRGlyphCacheRef cache, const CacheKey *cacheKey)
 {
     TRGlyphImageRef image = NULL;
     GlyphCacheEntry *entry;
@@ -442,11 +442,11 @@ static void SaveImage(TRGlyphCacheRef cache, const CacheKey *cacheKey, TRGlyphIm
 }
 
 /* The stroke is made out of the outline of the glyph, which is taken from the cache. */
-static TRGlyphImageRef RenderStrokeImage(TRGlyphCacheRef cache, const GlyphDataKey *key,
+static TRGlyphImageRef CreateStrokeImage(TRGlyphCacheRef cache, const GlyphDataKey *key,
     const GlyphStrokeKey *strokeKey, TRGlyphID glyphID)
 {
     TRGlyphImageRef image = NULL;
-    TRPathRef path = TRGlyphCacheGetPath(cache, key, glyphID);
+    TRPathRef path = TRGlyphCacheCopyPath(cache, key, glyphID);
 
     if (path) {
         GlyphBitmapRef bitmap;
@@ -465,7 +465,7 @@ static TRGlyphImageRef RenderStrokeImage(TRGlyphCacheRef cache, const GlyphDataK
     return image;
 }
 
-static TRGlyphImageRef GetColorImage(TRGlyphCacheRef cache, const GlyphDataKey *key,
+static TRGlyphImageRef CopyColorImage(TRGlyphCacheRef cache, const GlyphDataKey *key,
     TRGlyphID glyphID, TRColor foregroundColor)
 {
     CacheKey cacheKey;
@@ -474,10 +474,10 @@ static TRGlyphImageRef GetColorImage(TRGlyphCacheRef cache, const GlyphDataKey *
     SetupKey(&cacheKey, EntryKindColor, key, glyphID);
     cacheKey.foregroundColor = foregroundColor;
 
-    image = FindImage(cache, &cacheKey);
+    image = CopyCachedImage(cache, &cacheKey);
 
     if (!image) {
-        image = RenderImage(key, glyphID, foregroundColor);
+        image = CreateGlyphImage(key, glyphID, foregroundColor);
 
         if (image) {
             SaveImage(cache, &cacheKey, image);
@@ -530,7 +530,7 @@ TR_INTERNAL void TRGlyphCacheFinalize(TRGlyphCacheRef cache)
     MutexDestroy(&cache->mutex);
 }
 
-TR_INTERNAL TRGlyphImageRef TRGlyphCacheGetImage(TRGlyphCacheRef cache, const GlyphDataKey *key,
+TR_INTERNAL TRGlyphImageRef TRGlyphCacheCopyImage(TRGlyphCacheRef cache, const GlyphDataKey *key,
     TRGlyphID glyphID, TRColor foregroundColor)
 {
     TRGlyphImageRef glyphImage = NULL;
@@ -561,7 +561,7 @@ TR_INTERNAL TRGlyphImageRef TRGlyphCacheGetImage(TRGlyphCacheRef cache, const Gl
 
             /* The image of a mixed glyph depends on the foreground color, so it is not shared. */
             if (type != GlyphTypeMixed) {
-                image = RenderImage(key, glyphID, foregroundColor);
+                image = CreateGlyphImage(key, glyphID, foregroundColor);
             }
 
             MutexLock(&cache->mutex);
@@ -578,7 +578,7 @@ TR_INTERNAL TRGlyphImageRef TRGlyphCacheGetImage(TRGlyphCacheRef cache, const Gl
         }
 
         if (type == GlyphTypeMixed) {
-            glyphImage = GetColorImage(cache, key, glyphID, foregroundColor);
+            glyphImage = CopyColorImage(cache, key, glyphID, foregroundColor);
         } else {
             glyphImage = image;
         }
@@ -587,7 +587,7 @@ TR_INTERNAL TRGlyphImageRef TRGlyphCacheGetImage(TRGlyphCacheRef cache, const Gl
     return glyphImage;
 }
 
-TR_INTERNAL TRGlyphImageRef TRGlyphCacheGetStrokeImage(TRGlyphCacheRef cache,
+TR_INTERNAL TRGlyphImageRef TRGlyphCacheCopyStrokeImage(TRGlyphCacheRef cache,
     const GlyphDataKey *key, const GlyphStrokeKey *strokeKey, TRGlyphID glyphID)
 {
     TRGlyphImageRef strokeImage = NULL;
@@ -598,10 +598,10 @@ TR_INTERNAL TRGlyphImageRef TRGlyphCacheGetStrokeImage(TRGlyphCacheRef cache,
         SetupKey(&cacheKey, EntryKindStroke, key, glyphID);
         cacheKey.stroke = *strokeKey;
 
-        strokeImage = FindImage(cache, &cacheKey);
+        strokeImage = CopyCachedImage(cache, &cacheKey);
 
         if (!strokeImage) {
-            strokeImage = RenderStrokeImage(cache, key, strokeKey, glyphID);
+            strokeImage = CreateStrokeImage(cache, key, strokeKey, glyphID);
 
             if (strokeImage) {
                 SaveImage(cache, &cacheKey, strokeImage);
@@ -612,7 +612,7 @@ TR_INTERNAL TRGlyphImageRef TRGlyphCacheGetStrokeImage(TRGlyphCacheRef cache,
     return strokeImage;
 }
 
-TR_INTERNAL TRPathRef TRGlyphCacheGetPath(TRGlyphCacheRef cache, const GlyphDataKey *key,
+TR_INTERNAL TRPathRef TRGlyphCacheCopyPath(TRGlyphCacheRef cache, const GlyphDataKey *key,
     TRGlyphID glyphID)
 {
     TRPathRef path = NULL;
@@ -631,7 +631,7 @@ TR_INTERNAL TRPathRef TRGlyphCacheGetPath(TRGlyphCacheRef cache, const GlyphData
         MutexUnlock(&cache->mutex);
 
         if (!path) {
-            path = RenderPath(key, glyphID);
+            path = CreateGlyphPath(key, glyphID);
 
             if (path) {
                 SavePath(cache, &cacheKey, path);

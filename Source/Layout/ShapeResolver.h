@@ -24,11 +24,11 @@
 #include <API/TRTypesetter.h>
 
 /*
- * Finds the paragraphs and the runs of the text of a typesetter, whose text and buffer MUST be set.
- * Each paragraph is split into runs that have a single bidirectional level, script, typeface, size
+ * Finds the runs of the text of a typesetter, whose text and buffer MUST be set. Each paragraph of
+ * the text is split into runs that have a single bidirectional level, script, typeface, size
  * and the other properties that decide the shape. The runs are then shaped.
  *
- * The typesetter receives the paragraphs and the runs, which it has to free if this fails. Returns
+ * The typesetter receives the runs, which it has to free if this fails. Returns
  * `TRFalse` if some text has no typeface, or on failure.
  */
 TR_INTERNAL TRBoolean ShapeResolverResolve(TRTypesetter *typesetter,

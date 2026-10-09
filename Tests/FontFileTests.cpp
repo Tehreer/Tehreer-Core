@@ -29,10 +29,13 @@
 #include FT_FREETYPE_H
 
 #include <Tehreer/TRFontFile.h>
+#include <Tehreer/TRString.h>
+#include <Tehreer/TRTypeface.h>
 
 extern "C" {
 #include <API/TRFontFile.h>
 #include <Core/Mutex.h>
+#include <Font/FontData.h>
 #include <Graphics/FreeType.h>
 }
 
@@ -47,15 +50,22 @@ constexpr size_t NumThreads = 8;
 constexpr size_t Iterations = 50;
 
 void FontFileTests::run() {
-    testCreateFromPath();
+    testDataFromPath();
     testPathIsCopied();
-    testCreateFromMemory();
+    testDataFromMemory();
     testMemoryIsCopied();
-    testInvalidInput();
-    testFaceCount();
+    testInvalidDataInput();
     testCreateFTFace();
-    testRetainRelease();
+    testDataRetainRelease();
     testConcurrentFaceCreation();
+    testCreateFromPath();
+    testCreateFromMemory();
+    testInvalidInput();
+    testDefaultTypefaces();
+    testNamedStyleTypefaces();
+    testBitmapFontFile();
+    testTypefaceOutlivesFontFile();
+    testRetainRelease();
 }
 
 static vector<uint8_t> readFont(const char *fontName) {
@@ -73,60 +83,184 @@ static void destroyFace(FT_Face face) {
     MutexUnlock(&freetype->mutex);
 }
 
-void FontFileTests::testCreateFromPath() {
+static string toString(const TRStringView *view) {
+    assert(view != nullptr && view->encoding == TRStringEncodingUTF16);
+
+    const auto *units = static_cast<const char16_t *>(view->buffer);
+    string result;
+    for (size_t i = 0; i < view->length; i++) {
+        result.push_back(static_cast<char>(units[i]));
+    }
+
+    return result;
+}
+
+/* The data of a font file is what the faces are opened from. */
+
+void FontFileTests::testDataFromPath() {
     string path = testFontPath("Roboto-Regular.abc.ttf");
-    TRFontFileRef fontFile = TRFontFileCreateFromPath(path.c_str());
+    FontDataRef fontData = FontDataCreateFromPath(path.c_str());
 
-    assert(fontFile != nullptr);
-    assert(fontFile->numFaces == 1);
+    assert(fontData != nullptr);
+    assert(fontData->faceCount == 1);
 
-    TRFontFileRelease(fontFile);
+    FontDataRelease(fontData);
 }
 
 void FontFileTests::testPathIsCopied() {
     string path = testFontPath("Roboto-Regular.abc.ttf");
-    TRFontFileRef fontFile = TRFontFileCreateFromPath(path.c_str());
+    FontDataRef fontData = FontDataCreateFromPath(path.c_str());
 
     path.assign(path.size(), 'X');
     path.clear();
     path.shrink_to_fit();
 
-    FT_Face face = TRFontFileCreateFTFace(fontFile, 0);
+    FT_Face face = FontDataCreateFTFace(fontData, 0);
     assert(face != nullptr);
     assert(face->num_glyphs == 4);
 
     destroyFace(face);
+    FontDataRelease(fontData);
+}
+
+void FontFileTests::testDataFromMemory() {
+    vector<uint8_t> data = readFont("Roboto-Variable.abc.ttf");
+    FontDataRef fontData = FontDataCreateFromMemory(data.data(), data.size());
+
+    assert(fontData != nullptr);
+    assert(fontData->faceCount == 1);
+
+    FT_Face face = FontDataCreateFTFace(fontData, 0);
+    assert(face != nullptr);
+    assert(FT_HAS_MULTIPLE_MASTERS(face));
+
+    destroyFace(face);
+    FontDataRelease(fontData);
+}
+
+void FontFileTests::testMemoryIsCopied() {
+    vector<uint8_t> data = readFont("Roboto-Regular.abc.ttf");
+    FontDataRef fontData = FontDataCreateFromMemory(data.data(), data.size());
+
+    fill(data.begin(), data.end(), 0);
+    data.clear();
+    data.shrink_to_fit();
+
+    FT_Face face = FontDataCreateFTFace(fontData, 0);
+    assert(face != nullptr);
+    assert(face->num_glyphs == 4);
+
+    destroyFace(face);
+    FontDataRelease(fontData);
+}
+
+void FontFileTests::testInvalidDataInput() {
+    vector<uint8_t> garbage(256, 0x7F);
+    vector<uint8_t> data = readFont("Roboto-Regular.abc.ttf");
+
+    assert(FontDataCreateFromPath(nullptr) == nullptr);
+    assert(FontDataCreateFromPath("/nonexistent/font.ttf") == nullptr);
+    assert(FontDataCreateFromPath(TEST_FONTS_DIR) == nullptr);
+    assert(FontDataCreateFromMemory(nullptr, 16) == nullptr);
+    assert(FontDataCreateFromMemory(data.data(), 0) == nullptr);
+    assert(FontDataCreateFromMemory(garbage.data(), garbage.size()) == nullptr);
+    assert(FontDataCreateFromMemory(data.data(), 12) == nullptr);
+}
+
+void FontFileTests::testCreateFTFace() {
+    string path = testFontPath("Roboto-Regular.abc.ttf");
+    FontDataRef fontData = FontDataCreateFromPath(path.c_str());
+
+    FT_Face first = FontDataCreateFTFace(fontData, 0);
+    FT_Face second = FontDataCreateFTFace(fontData, 0);
+
+    assert(first != nullptr);
+    assert(second != nullptr);
+    assert(first != second);
+
+    assert(FontDataCreateFTFace(fontData, 1) == nullptr);
+    assert(FontDataCreateFTFace(fontData, 100) == nullptr);
+
+    destroyFace(first);
+    destroyFace(second);
+    FontDataRelease(fontData);
+}
+
+void FontFileTests::testDataRetainRelease() {
+    string path = testFontPath("Roboto-Regular.abc.ttf");
+    FontDataRef fontData = FontDataCreateFromPath(path.c_str());
+
+    assert(FontDataRetain(fontData) == fontData);
+    FontDataRelease(fontData);
+
+    FT_Face face = FontDataCreateFTFace(fontData, 0);
+    assert(face != nullptr);
+
+    destroyFace(face);
+    FontDataRelease(fontData);
+}
+
+void FontFileTests::testConcurrentFaceCreation() {
+    string path = testFontPath("Roboto-Regular.abc.ttf");
+    FontDataRef fontData = FontDataCreateFromPath(path.c_str());
+    vector<thread> threads;
+
+    for (size_t i = 0; i < NumThreads; i++) {
+        threads.emplace_back([fontData]() {
+            for (size_t j = 0; j < Iterations; j++) {
+                FT_Face face = FontDataCreateFTFace(fontData, 0);
+                assert(face != nullptr);
+                assert(face->num_glyphs == 4);
+
+                destroyFace(face);
+            }
+        });
+    }
+
+    for (auto &t : threads) {
+        t.join();
+    }
+
+    FontDataRelease(fontData);
+}
+
+/* The font file has the default typefaces that were made from the data when it was created. */
+
+void FontFileTests::testCreateFromPath() {
+    TRFontFileRef fontFile = TRFontFileCreateFromPath(testFontPath("Roboto-Regular.abc.ttf").c_str());
+
+    assert(fontFile != nullptr);
+    assert(TRFontFileGetTypefaceCount(fontFile) == 1);
+
+    TRTypefaceRef typeface = TRFontFileGetTypeface(fontFile, 0);
+    assert(typeface != nullptr);
+    assert(toString(TRTypefaceGetFamilyName(typeface)) == "Roboto");
+
+    /* The path is copied, so the font file does not depend on the string. */
+    string path = testFontPath("Roboto-Regular.abc.ttf");
+    TRFontFileRef copied = TRFontFileCreateFromPath(path.c_str());
+    path.assign(path.size(), 'X');
+    assert(TRTypefaceGetGlyphID(TRFontFileGetTypeface(copied, 0), 'a') == 1);
+
+    TRFontFileRelease(copied);
     TRFontFileRelease(fontFile);
 }
 
 void FontFileTests::testCreateFromMemory() {
     vector<uint8_t> data = readFont("Roboto-Variable.abc.ttf");
     TRFontFileRef fontFile = TRFontFileCreateFromMemory(data.data(), data.size());
-
     assert(fontFile != nullptr);
-    assert(fontFile->numFaces == 1);
 
-    FT_Face face = TRFontFileCreateFTFace(fontFile, 0);
-    assert(face != nullptr);
-    assert(FT_HAS_MULTIPLE_MASTERS(face));
-
-    destroyFace(face);
-    TRFontFileRelease(fontFile);
-}
-
-void FontFileTests::testMemoryIsCopied() {
-    vector<uint8_t> data = readFont("Roboto-Regular.abc.ttf");
-    TRFontFileRef fontFile = TRFontFileCreateFromMemory(data.data(), data.size());
-
+    /* The data is copied, so the buffer can go away. */
     fill(data.begin(), data.end(), 0);
     data.clear();
     data.shrink_to_fit();
 
-    FT_Face face = TRFontFileCreateFTFace(fontFile, 0);
-    assert(face != nullptr);
-    assert(face->num_glyphs == 4);
+    TRTypefaceRef typeface = TRFontFileGetTypeface(fontFile, 0);
+    assert(typeface != nullptr);
+    assert(TRTypefaceGetVariationAxisCount(typeface) == 2);
+    assert(TRTypefaceGetGlyphID(typeface, 'a') != 0);
 
-    destroyFace(face);
     TRFontFileRelease(fontFile);
 }
 
@@ -143,68 +277,86 @@ void FontFileTests::testInvalidInput() {
     assert(TRFontFileCreateFromMemory(data.data(), 12) == nullptr);
 }
 
-void FontFileTests::testCreateFTFace() {
-    string path = testFontPath("Roboto-Regular.abc.ttf");
-    TRFontFileRef fontFile = TRFontFileCreateFromPath(path.c_str());
+void FontFileTests::testDefaultTypefaces() {
+    /* A static face has a single default typeface, which has its default style. */
+    TRFontFileRef staticFile = TRFontFileCreateFromPath(testFontPath("Roboto-Regular.abc.ttf").c_str());
+    assert(TRFontFileGetTypefaceCount(staticFile) == 1);
 
-    FT_Face first = TRFontFileCreateFTFace(fontFile, 0);
-    FT_Face second = TRFontFileCreateFTFace(fontFile, 0);
+    TRTypefaceRef typeface = TRFontFileGetTypeface(staticFile, 0);
+    assert(typeface != nullptr);
+    assert(TRTypefaceGetVariationAxisCount(typeface) == 0);
 
-    assert(first != nullptr);
-    assert(second != nullptr);
-    assert(first != second);
+    /* The typefaces are the same objects whenever they are asked for. */
+    assert(TRFontFileGetTypeface(staticFile, 0) == typeface);
 
-    assert(TRFontFileCreateFTFace(fontFile, 1) == nullptr);
-    assert(TRFontFileCreateFTFace(fontFile, 100) == nullptr);
+    assert(TRFontFileGetTypeface(staticFile, 1) == nullptr);
+    assert(TRFontFileGetTypeface(staticFile, TRInvalidIndex) == nullptr);
+    TRFontFileRelease(staticFile);
+}
 
-    destroyFace(first);
-    destroyFace(second);
+void FontFileTests::testNamedStyleTypefaces() {
+    /* A variable font has a default typeface for each of its named styles. */
+    TRFontFileRef variableFile = TRFontFileCreateFromPath(testFontPath("Roboto-Variable.abc.ttf").c_str());
+    TRUInteger count = TRFontFileGetTypefaceCount(variableFile);
+    assert(count == 18);
+
+    TRTypefaceRef first = TRFontFileGetTypeface(variableFile, 0);
+    const TRNamedStyle *styles = TRTypefaceGetNamedStylesPtr(first);
+    assert(TRTypefaceGetNamedStyleCount(first) == count);
+
+    for (TRUInteger index = 0; index < count; index++) {
+        TRTypefaceRef styled = TRFontFileGetTypeface(variableFile, index);
+        assert(styled != nullptr);
+
+        /* The typeface takes the coordinates and the name of its style. */
+        const TRFloat *coordinates = TRTypefaceGetVariationCoordinatesPtr(styled);
+        assert(TRTypefaceGetVariationAxisCount(styled) == styles[index].coordinateCount);
+        for (TRUInteger axis = 0; axis < styles[index].coordinateCount; axis++) {
+            assert(coordinates[axis] == styles[index].coordinatesPtr[axis]);
+        }
+
+        const TRStringView *name = TRTypefaceGetSubfamilyName(styled);
+        assert(name != nullptr);
+        assert(toString(name) == toString(styles[index].subfamilyName));
+    }
+
+    assert(TRFontFileGetTypeface(variableFile, count) == nullptr);
+    TRFontFileRelease(variableFile);
+}
+
+void FontFileTests::testBitmapFontFile() {
+    /* A font that only has bitmaps is usable, as its face has strikes instead of outlines. */
+    TRFontFileRef fontFile = TRFontFileCreateFromPath(testFontPath("NotoColorEmoji-CBDT.flags.ttf").c_str());
+    assert(fontFile != nullptr);
+    assert(TRFontFileGetTypefaceCount(fontFile) == 1);
+
+    TRTypefaceRef typeface = TRFontFileGetTypeface(fontFile, 0);
+    assert(typeface != nullptr);
+    assert(!TRTypefaceIsScalable(typeface));
+
     TRFontFileRelease(fontFile);
 }
 
+void FontFileTests::testTypefaceOutlivesFontFile() {
+    TRFontFileRef fontFile = TRFontFileCreateFromPath(testFontPath("Roboto-Variable.abc.ttf").c_str());
+    TRTypefaceRef typeface = TRTypefaceRetain(TRFontFileGetTypeface(fontFile, 3));
+
+    /* The font file keeps its typefaces, and they do not keep it, so it is destroyed here. */
+    TRFontFileRelease(fontFile);
+
+    assert(TRTypefaceGetGlyphID(typeface, 'a') != 0);
+    assert(TRTypefaceGetGlyphAdvance(typeface, TRTypefaceGetGlyphID(typeface, 'a'), 2048.0f, TRFalse) > 0.0f);
+
+    TRTypefaceRelease(typeface);
+}
+
 void FontFileTests::testRetainRelease() {
-    string path = testFontPath("Roboto-Regular.abc.ttf");
-    TRFontFileRef fontFile = TRFontFileCreateFromPath(path.c_str());
+    TRFontFileRef fontFile = TRFontFileCreateFromPath(testFontPath("Roboto-Regular.abc.ttf").c_str());
 
     assert(TRFontFileRetain(fontFile) == fontFile);
     TRFontFileRelease(fontFile);
 
-    FT_Face face = TRFontFileCreateFTFace(fontFile, 0);
-    assert(face != nullptr);
-
-    destroyFace(face);
-    TRFontFileRelease(fontFile);
-}
-
-void FontFileTests::testConcurrentFaceCreation() {
-    string path = testFontPath("Roboto-Regular.abc.ttf");
-    TRFontFileRef fontFile = TRFontFileCreateFromPath(path.c_str());
-    vector<thread> threads;
-
-    for (size_t i = 0; i < NumThreads; i++) {
-        threads.emplace_back([fontFile]() {
-            for (size_t j = 0; j < Iterations; j++) {
-                FT_Face face = TRFontFileCreateFTFace(fontFile, 0);
-                assert(face != nullptr);
-                assert(face->num_glyphs == 4);
-
-                destroyFace(face);
-            }
-        });
-    }
-
-    for (auto &t : threads) {
-        t.join();
-    }
-
-    TRFontFileRelease(fontFile);
-}
-
-void FontFileTests::testFaceCount() {
-    TRFontFileRef fontFile = TRFontFileCreateFromPath(testFontPath("Roboto-Regular.abc.ttf").c_str());
-
-    assert(TRFontFileGetFaceCount(fontFile) == 1);
-    assert(TRFontFileGetFaceCount(fontFile) == fontFile->numFaces);
+    assert(TRFontFileGetTypefaceCount(fontFile) == 1);
 
     TRFontFileRelease(fontFile);
 }

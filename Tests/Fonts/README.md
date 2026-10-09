@@ -14,7 +14,9 @@ fetched dependency.
 | `COLRv0.extents.ttf` | Color font without names, 2 palettes, color glyph 13 |
 | `nameID.dup.expected.ttf` | Font with Macintosh-only English names (Mac Roman) |
 | `varc-6868.ttf` | Font without an OS/2 table |
+| `NotoColorEmoji-CBDT.flags.ttf` | Bitmap-only color font (`CBDT`/`CBLC`, one strike of 109 pixels, no outlines) with 18 glyphs, among them the flags of the United States and the United Kingdom |
 
-The Roboto subsets derive from Roboto (Apache License 2.0), and `RocherColorGX` is licensed under
-the SIL Open Font License; the remaining fonts are HarfBuzz test data. Check the upstream license
+The Roboto subsets derive from Roboto (Apache License 2.0), and `RocherColorGX` and the Noto Color
+Emoji subset (https://github.com/googlefonts/noto-emoji, subset with the HarfBuzz subsetter) are
+licensed under the SIL Open Font License; the remaining fonts are HarfBuzz test data. Check the upstream license
 terms before redistributing these files outside the repository's tests.

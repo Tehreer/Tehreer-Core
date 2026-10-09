@@ -17,18 +17,15 @@
 #ifndef _TEHREER_ATTRIBUTE_LIST_H
 #define _TEHREER_ATTRIBUTE_LIST_H
 
-#include <SheenBidi/SBAttributeList.h>
-
 #include <Tehreer/TRAttribute.h>
 #include <Tehreer/TRBase.h>
 
 TR_EXTERN_C_BEGIN
 
 /**
- * Opaque reference to an attribute list, retained/released via `SBAttributeListRetain` and
- * `SBAttributeListRelease`.
+ * Opaque reference to an immutable list of attributes, as the ones that a text has at an index.
  */
-typedef SBAttributeListRef TRAttributeListRef;
+typedef const struct _TRAttributeList *TRAttributeListRef;
 
 /**
  * Returns a pointer to the attribute located at the given index in the list.
@@ -36,10 +33,11 @@ typedef SBAttributeListRef TRAttributeListRef;
  * @param list
  *      The attribute list to retrieve from.
  * @param index
- *      The zero-based index of the attribute to retrieve. Must be less than the count returned by
- *      `TRAttributeListGetCount`.
+ *      The zero-based index of the attribute to retrieve, which should be less than the count
+ *      returned by `TRAttributeListGetCount`.
  * @return
- *      A pointer to the attribute at the specified index.
+ *      A pointer to the attribute at the specified index, or `NULL` if the index is not less than
+ *      the count.
  */
 TR_PUBLIC const TRAttribute *TRAttributeListGetItem(TRAttributeListRef list, TRUInteger index);
 
@@ -52,6 +50,25 @@ TR_PUBLIC const TRAttribute *TRAttributeListGetItem(TRAttributeListRef list, TRU
  *      The total count of attributes currently stored in the list.
  */
 TR_PUBLIC TRUInteger TRAttributeListGetCount(TRAttributeListRef list);
+
+/**
+ * Increments the reference count of an attribute list.
+ *
+ * @param list
+ *      The attribute list whose reference count will be incremented.
+ * @return
+ *      The same attribute list passed in as the parameter.
+ */
+TR_PUBLIC TRAttributeListRef TRAttributeListRetain(TRAttributeListRef list);
+
+/**
+ * Decrements the reference count of an attribute list. The list will be deallocated when its
+ * reference count reaches zero.
+ *
+ * @param list
+ *      The attribute list whose reference count will be decremented.
+ */
+TR_PUBLIC void TRAttributeListRelease(TRAttributeListRef list);
 
 TR_EXTERN_C_END
 

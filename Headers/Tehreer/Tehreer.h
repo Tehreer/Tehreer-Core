@@ -22,6 +22,7 @@
 #include <Tehreer/TRBase.h>
 #include <Tehreer/TRComposedFrame.h>
 #include <Tehreer/TRComposedLine.h>
+#include <Tehreer/TRFontFeatures.h>
 #include <Tehreer/TRFontFile.h>
 #include <Tehreer/TRFrameResolver.h>
 #include <Tehreer/TRGeometry.h>

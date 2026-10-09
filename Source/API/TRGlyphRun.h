@@ -77,6 +77,12 @@ TR_INTERNAL TRBoolean TRGlyphRunIsRTL(TRGlyphRunRef glyphRun);
 /* The first code unit of the clusters, which can be before the run. */
 TR_INTERNAL TRUInteger TRGlyphRunGetActualStart(TRGlyphRunRef glyphRun);
 
+/*
+ * The distance of the boundary before a code unit, which MUST be within the run and its clusters,
+ * from the start of the run.
+ */
+TR_INTERNAL TRFloat TRGlyphRunGetCaretEdge(TRGlyphRunRef glyphRun, TRUInteger codeUnitIndex);
+
 /* The extent of a range of code units of the run, which MAY be empty. */
 TR_INTERNAL TRFloat TRGlyphRunGetDistanceInRange(TRGlyphRunRef glyphRun, TRUInteger start,
     TRUInteger end);

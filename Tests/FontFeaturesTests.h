@@ -14,24 +14,25 @@
  * limitations under the License.
  */
 
-#ifndef _TEHREER_API_FONT_FILE_H
-#define _TEHREER_API_FONT_FILE_H
+#ifndef _TEHREER__FONT_FEATURES_TESTS_H
+#define _TEHREER__FONT_FEATURES_TESTS_H
 
-#include <Tehreer/TRFontFile.h>
+namespace Tehreer {
 
-#include <API/TRBase.h>
-#include <Core/Array.h>
-#include <Core/Object.h>
-#include <Font/FontData.h>
+class FontFeaturesTests {
+public:
+    FontFeaturesTests() = default;
 
-/*
- * A font file keeps the default typefaces that it made when it was created. The typefaces share the
- * data of the file, and not the file itself, so they and the file do not hold each other alive.
- */
-typedef struct _TRFontFile {
-    ObjectBase _base;
-    FontDataRef _data;
-    Array _typefaces;
-} TRFontFile;
+    void run();
+
+private:
+    void testCreate();
+    void testInvalidCreate();
+    void testEquality();
+    void testRetainRelease();
+    void testLanguageTags();
+};
+
+}
 
 #endif

@@ -44,6 +44,8 @@ private:
     void testRunQueries();
     void testEncodings();
     void testUnknownScriptsAndNotdef();
+    void testLanguageAndFeatureAttributes();
+    void testRangesAreChecked();
 };
 
 }

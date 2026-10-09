@@ -157,6 +157,25 @@ TRWritingDirection TRShapingEngineGetScriptDefaultDirection(TRTag scriptTag)
     return writingDirection;
 }
 
+TRTag TRShapingEngineGetLanguageTag(const char *languageName)
+{
+    TRTag languageTag = TRTagMake('d', 'f', 'l', 't');
+
+    if (languageName) {
+        hb_language_t language = hb_language_from_string(languageName, -1);
+        hb_tag_t tags[HB_OT_MAX_TAGS_PER_LANGUAGE];
+        unsigned int count = HB_OT_MAX_TAGS_PER_LANGUAGE;
+
+        hb_ot_tags_from_script_and_language(HB_SCRIPT_INVALID, language, NULL, NULL, &count, tags);
+
+        if (count > 0) {
+            languageTag = tags[0];
+        }
+    }
+
+    return languageTag;
+}
+
 TRShapingEngineRef TRShapingEngineCreate(void)
 {
     const TRUInteger size = sizeof(TRShapingEngine);
@@ -247,7 +266,7 @@ TRBoolean TRShapingEngineSetOpenTypeFeatures(TRShapingEngineRef engine,
     return isSet;
 }
 
-TRShapingResultRef TRShapingEngineShape(TRShapingEngineRef engine, const void *codeUnits,
+TRShapingResultRef TRShapingEngineCreateShapingResult(TRShapingEngineRef engine, const void *codeUnits,
     TRUInteger length, TRStringEncoding encoding)
 {
     TRShapingResultRef shapingResult = NULL;

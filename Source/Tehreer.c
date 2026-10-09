@@ -21,6 +21,7 @@
 #include <API/TRAttributeList.c>
 #include <API/TRComposedFrame.c>
 #include <API/TRComposedLine.c>
+#include <API/TRFontFeatures.c>
 #include <API/TRFontFile.c>
 #include <API/TRFrameResolver.c>
 #include <API/TRGlyphCache.c>
@@ -41,6 +42,7 @@
 #include <Core/Object.c>
 #include <Core/Once.c>
 #include <Font/FaceMetadata.c>
+#include <Font/FontData.c>
 #include <Graphics/AdvanceCache.c>
 #include <Graphics/FreeType.c>
 #include <Graphics/GlyphBitmap.c>

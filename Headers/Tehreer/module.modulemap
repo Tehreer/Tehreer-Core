@@ -1,4 +1,9 @@
 module Tehreer [system] {
     umbrella header "Tehreer.h"
     export *
+
+    explicit module SheenBidi {
+        header "TRSheenBidi.h"
+        export *
+    }
 }

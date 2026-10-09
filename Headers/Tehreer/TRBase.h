@@ -84,14 +84,6 @@ typedef intptr_t                    TRInteger;
 typedef uintptr_t                   TRUInteger;
 
 /**
- * A range of code units, which starts at `index` and has `length` code units.
- */
-typedef struct _TRRange {
-    TRUInteger index;
-    TRUInteger length;
-} TRRange;
-
-/**
  * A type to represent a single-precision floating-point number.
  * Conforms to IEEE 754 standard.
  */

@@ -18,6 +18,7 @@
 #define _TEHREER_SHAPING_ENGINE_H
 
 #include <Tehreer/TRBase.h>
+#include <Tehreer/TRFontFeatures.h>
 #include <Tehreer/TRShapingResult.h>
 #include <Tehreer/TRString.h>
 #include <Tehreer/TRTypeface.h>
@@ -43,14 +44,6 @@ enum {
 typedef TRUInt32 TRShapingOrder;
 
 /**
- * An OpenType feature setting, such as `liga` with value 0 to turn ligatures off.
- */
-typedef struct _TROpenTypeFeature {
-    TRTag tag;
-    TRUInt32 value;
-} TROpenTypeFeature;
-
-/**
  * A shaping engine converts runs of text into glyphs by using the properties that were set on it.
  * An engine can shape any number of runs, but it must not be used from multiple threads at once.
  */
@@ -63,6 +56,17 @@ typedef struct _TRShapingEngine *TRShapingEngineRef;
  *      The OpenType tag of the script, e.g. `TRTagMake('a', 'r', 'a', 'b')`.
  */
 TR_PUBLIC TRWritingDirection TRShapingEngineGetScriptDefaultDirection(TRTag scriptTag);
+
+/**
+ * Returns the OpenType tag of a language that is given by its name.
+ *
+ * @param languageName
+ *      The null-terminated name of the language in the form of BCP 47, e.g. `"ur-PK"`.
+ * @return
+ *      The tag of the language, e.g. `TRTagMake('U', 'R', 'D', ' ')`, or `TRTagMake('d', 'f', 'l',
+ *      't')`, which is the default language, if the name is `NULL` or has no tag.
+ */
+TR_PUBLIC TRTag TRShapingEngineGetLanguageTag(const char *languageName);
 
 /**
  * Creates a shaping engine with a type size of 16, the `DFLT` script, the `dflt` language, left to
@@ -136,7 +140,7 @@ TR_PUBLIC TRBoolean TRShapingEngineSetOpenTypeFeatures(TRShapingEngineRef engine
  *      New shaping result, or `NULL` if no typeface was set, the arguments are invalid or on
  *      failure.
  */
-TR_PUBLIC TRShapingResultRef TRShapingEngineShape(TRShapingEngineRef engine,
+TR_PUBLIC TRShapingResultRef TRShapingEngineCreateShapingResult(TRShapingEngineRef engine,
     const void *codeUnits, TRUInteger length, TRStringEncoding encoding);
 
 /**

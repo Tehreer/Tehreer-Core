@@ -17,8 +17,6 @@
 #ifndef _TEHREER_TEXT_H
 #define _TEHREER_TEXT_H
 
-#include <SheenBidi/SBText.h>
-
 #include <Tehreer/TRAttribute.h>
 #include <Tehreer/TRAttributeList.h>
 #include <Tehreer/TRBase.h>
@@ -108,33 +106,33 @@ TR_PUBLIC TRUInteger TRTextGetLength(TRTextRef text);
  *      Number of code units to copy.
  * @param buffer
  *      Output buffer (must be large enough for `length` code units).
- *
- * @warning
- *      Behavior is undefined if buffer is too small or range is invalid.
+ * @return
+ *      `TRTrue` if the code units were copied, `TRFalse` if the range is not within the text or the
+ *      buffer is `NULL`.
  */
-TR_PUBLIC void TRTextGetCodeUnits(TRTextRef text, TRUInteger index, TRUInteger length,
+TR_PUBLIC TRBoolean TRTextGetCodeUnits(TRTextRef text, TRUInteger index, TRUInteger length,
     void *buffer);
 
-TR_PUBLIC SBTextRef TRTextGetSheenBidiText(TRTextRef text);
-
 /**
- * Retrieves the attributes active at `index`, and the length of the run over which they apply
- * (the extent, starting at `index`, over which the attribute set stays the same).
+ * Copies the attributes active at `index`, and the length of the run over which they apply (the
+ * extent, starting at `index`, over which the attribute set stays the same).
  *
  * For more complex queries (filtering by a specific attribute, or by group/scope), use
- * `TRTextGetSheenBidiText` to access the underlying `SBTextRef` directly.
+ * `TRTextGetSheenBidiText()` of `Tehreer/TRSheenBidi.h` to access the underlying `SBTextRef`.
  *
  * @param text
  *      Text object.
  * @param index
- *      Code-unit index to query. Must be less than the text's length.
+ *      Code-unit index to query.
  * @param outLength
- *      Receives the run length in code units.
+ *      Receives the run length in code units, which is zero if there is no list. It may be `NULL`
+ *      if it is not needed.
  * @return
- *      A new, retained attribute list; the caller must release it via `SBAttributeListRelease`
- *      when done.
+ *      A new attribute list that the caller owns, and has to release via
+ *      `TRAttributeListRelease()`. It is `NULL` if the index is not less than the length of the
+ *      text, or on failure.
  */
-TR_PUBLIC TRAttributeListRef TRTextGetAttributes(TRTextRef text, TRUInteger index,
+TR_PUBLIC TRAttributeListRef TRTextCopyAttributes(TRTextRef text, TRUInteger index,
     TRUInteger *outLength);
 
 /**
@@ -201,8 +199,10 @@ TR_PUBLIC void TRTextEndEditing(TRMutableTextRef text);
  *      Pointer to code units in the text's encoding.
  * @param codeUnitCount
  *      Number of code units to append.
+ * @return
+ *      `TRTrue` if the code units were appended, `TRFalse` if the buffer is `NULL`.
  */
-TR_PUBLIC void TRTextAppendCodeUnits(TRMutableTextRef text, const void *codeUnitBuffer,
+TR_PUBLIC TRBoolean TRTextAppendCodeUnits(TRMutableTextRef text, const void *codeUnitBuffer,
     TRUInteger codeUnitCount);
 
 /**
@@ -213,17 +213,19 @@ TR_PUBLIC void TRTextAppendCodeUnits(TRMutableTextRef text, const void *codeUnit
  * @param text
  *      Mutable text object.
  * @param index
- *      Insertion index (in code units).
+ *      Insertion index (in code units), which can be the length of the text to insert at its end.
  * @param codeUnitBuffer
  *      Pointer to code units in the text's encoding.
  * @param codeUnitCount
  *      Number of code units to insert.
+ * @return
+ *      `TRTrue` if the code units were inserted, `TRFalse` if the index is past the end of the text
+ *      or the buffer is `NULL`.
  *
  * @warning
- *      The index must be within the range [0, current length].
  *      The buffer must contain valid code units in the text's encoding format.
  */
-TR_PUBLIC void TRTextInsertCodeUnits(TRMutableTextRef text, TRUInteger index,
+TR_PUBLIC TRBoolean TRTextInsertCodeUnits(TRMutableTextRef text, TRUInteger index,
     const void *codeUnitBuffer, TRUInteger codeUnitCount);
 
 /**
@@ -236,11 +238,11 @@ TR_PUBLIC void TRTextInsertCodeUnits(TRMutableTextRef text, TRUInteger index,
  *      Start index of the range to delete (in code units).
  * @param length
  *      Number of code units to delete.
- *
- * @warning
- *      The deletion range [index, index+length) must be within the current text bounds.
+ * @return
+ *      `TRTrue` if the code units were deleted, `TRFalse` if the range is not within the text.
  */
-TR_PUBLIC void TRTextDeleteCodeUnits(TRMutableTextRef text, TRUInteger index, TRUInteger length);
+TR_PUBLIC TRBoolean TRTextDeleteCodeUnits(TRMutableTextRef text, TRUInteger index,
+    TRUInteger length);
 
 /**
  * Completely replaces the current text content with the new code units. This is equivalent to
@@ -252,12 +254,15 @@ TR_PUBLIC void TRTextDeleteCodeUnits(TRMutableTextRef text, TRUInteger index, TR
  *      Pointer to code units in the text's encoding.
  * @param codeUnitCount
  *      Number of code units in codeUnitBuffer.
+ * @return
+ *      `TRTrue` if the content was replaced, `TRFalse` if the buffer is `NULL` for a count that is
+ *      not zero.
  *
  * @warning
  *      All existing content and attributes are removed.
  *      The buffer must contain valid code units in the text's encoding format.
  */
-TR_PUBLIC void TRTextSetCodeUnits(TRMutableTextRef text, const void *codeUnitBuffer,
+TR_PUBLIC TRBoolean TRTextSetCodeUnits(TRMutableTextRef text, const void *codeUnitBuffer,
     TRUInteger codeUnitCount);
 
 /**
@@ -271,16 +276,19 @@ TR_PUBLIC void TRTextSetCodeUnits(TRMutableTextRef text, const void *codeUnitBuf
  * @param length
  *      Length of the range to replace (in code units).
  * @param codeUnitBuffer
- *      Pointer to replacement code units in the text's encoding.
+ *      Pointer to replacement code units in the text's encoding. It may be `NULL` if the count is
+ *      zero, which only deletes the range.
  * @param codeUnitCount
  *      Number of replacement code units.
+ * @return
+ *      `TRTrue` if the range was replaced, `TRFalse` if the range is not within the text or the
+ *      buffer is `NULL` for a count that is not zero.
  *
  * @warning
- *      The replacement range [index, index+length) must be within the current text bounds.
  *      The buffer must contain valid code units in the text's encoding format.
  */
-TR_PUBLIC void TRTextReplaceCodeUnits(TRMutableTextRef text, TRUInteger index, TRUInteger length,
-    const void *codeUnitBuffer, TRUInteger codeUnitCount);
+TR_PUBLIC TRBoolean TRTextReplaceCodeUnits(TRMutableTextRef text, TRUInteger index,
+    TRUInteger length, const void *codeUnitBuffer, TRUInteger codeUnitCount);
 
 /**
  * Applies the specified attribute with the given value to the range of code units. If the attribute
@@ -295,12 +303,10 @@ TR_PUBLIC void TRTextReplaceCodeUnits(TRMutableTextRef text, TRUInteger index, T
  * @param attribute
  *      Pointer to the attribute to set.
  * @return
- *      `TRTrue` on success, `TRFalse` on failure.
- *
- * @warning
- *      The range must be within the current text bounds.
+ *      `TRTrue` if the attribute was set, `TRFalse` if the range is not within the text, the
+ *      attribute is `NULL` or its type is unknown.
  */
-TR_PUBLIC void TRTextSetAttribute(TRMutableTextRef text, TRUInteger index, TRUInteger length,
+TR_PUBLIC TRBoolean TRTextSetAttribute(TRMutableTextRef text, TRUInteger index, TRUInteger length,
     const TRAttribute *attribute);
 
 /**
@@ -315,12 +321,12 @@ TR_PUBLIC void TRTextSetAttribute(TRMutableTextRef text, TRUInteger index, TRUIn
  *      Length of the range (in code units).
  * @param attributeType
  *      Type of the attribute to remove.
- *
- * @warning
- *      The range must be within the current text bounds.
+ * @return
+ *      `TRTrue` if the attribute was removed, `TRFalse` if the range is not within the text or the
+ *      type is unknown.
  */
-TR_PUBLIC void TRTextRemoveAttribute(TRMutableTextRef text, TRUInteger index, TRUInteger length,
-    TRAttributeType attributeType);
+TR_PUBLIC TRBoolean TRTextRemoveAttribute(TRMutableTextRef text, TRUInteger index,
+    TRUInteger length, TRAttributeType attributeType);
 
 TR_EXTERN_C_END
 

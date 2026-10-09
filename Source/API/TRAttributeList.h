@@ -14,24 +14,19 @@
  * limitations under the License.
  */
 
-#ifndef _TEHREER_API_FONT_FILE_H
-#define _TEHREER_API_FONT_FILE_H
+#ifndef _TEHREER_API_ATTRIBUTE_LIST_H
+#define _TEHREER_API_ATTRIBUTE_LIST_H
 
-#include <Tehreer/TRFontFile.h>
+#include <SheenBidi/SBAttributeList.h>
+
+#include <Tehreer/TRAttributeList.h>
 
 #include <API/TRBase.h>
-#include <Core/Array.h>
-#include <Core/Object.h>
-#include <Font/FontData.h>
 
 /*
- * A font file keeps the default typefaces that it made when it was created. The typefaces share the
- * data of the file, and not the file itself, so they and the file do not hold each other alive.
+ * An attribute list is a list of SheenBidi whose items hold attributes of Core, so a list of
+ * SheenBidi is a list of Core and the other way round. The reference is only converted.
  */
-typedef struct _TRFontFile {
-    ObjectBase _base;
-    FontDataRef _data;
-    Array _typefaces;
-} TRFontFile;
+TR_INTERNAL TRAttributeListRef TRAttributeListMake(SBAttributeListRef sbList);
 
 #endif

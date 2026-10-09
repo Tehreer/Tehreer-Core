@@ -45,6 +45,7 @@ void PathTests::run() {
     testEmptyOutline();
     testTransform();
     testMissingCallbacks();
+    testEnumerationCanStop();
     testOutlineIsCopied();
     testRetainRelease();
 }
@@ -265,9 +266,64 @@ void PathTests::testMissingCallbacks() {
 
     size_t closeCount = 0;
     TRPathCallbacks onlyClose = {};
-    onlyClose.close = [](void *data) { (*static_cast<size_t *>(data))++; };
+    onlyClose.close = [](void *data, TRBoolean *) { (*static_cast<size_t *>(data))++; };
     TRPathEnumerate(path, nullptr, &onlyClose, &closeCount);
     assert(closeCount == 1);
+
+    TRPathRelease(path);
+}
+
+void PathTests::testEnumerationCanStop() {
+    TestOutline outline;
+    outline.add(0, 0, On);
+    outline.add(10, 0, On);
+    outline.add(10, 20, On);
+    outline.endContour();
+
+    TRPathRef path = outline.createPath();
+
+    /* The enumeration ends after the function that stops it, and the contour is not closed. */
+    struct Counts {
+        size_t moves = 0;
+        size_t lines = 0;
+        size_t closes = 0;
+    } counts;
+
+    TRPathCallbacks callbacks = {};
+    callbacks.moveTo = [](void *data, TRFloat, TRFloat, TRBoolean *) {
+        static_cast<Counts *>(data)->moves++;
+    };
+    callbacks.lineTo = [](void *data, TRFloat, TRFloat, TRBoolean *stop) {
+        auto *counts = static_cast<Counts *>(data);
+
+        counts->lines++;
+        if (counts->lines == 2) {
+            *stop = TRTrue;
+        }
+    };
+    callbacks.close = [](void *data, TRBoolean *) {
+        static_cast<Counts *>(data)->closes++;
+    };
+
+    assert(!TRPathEnumerate(path, nullptr, &callbacks, &counts));
+    assert(counts.moves == 1 && counts.lines == 2 && counts.closes == 0);
+
+    /* A path that is not stopped is enumerated to its end. */
+    Counts all;
+    callbacks.lineTo = [](void *data, TRFloat, TRFloat, TRBoolean *) {
+        static_cast<Counts *>(data)->lines++;
+    };
+    assert(TRPathEnumerate(path, nullptr, &callbacks, &all));
+    assert(all.moves == 1 && all.lines == 3 && all.closes == 1);
+
+    /* The close function can stop it too, which has nothing left to skip. */
+    Counts closing;
+    callbacks.close = [](void *data, TRBoolean *stop) {
+        static_cast<Counts *>(data)->closes++;
+        *stop = TRTrue;
+    };
+    assert(!TRPathEnumerate(path, nullptr, &callbacks, &closing));
+    assert(closing.closes == 1);
 
     TRPathRelease(path);
 }

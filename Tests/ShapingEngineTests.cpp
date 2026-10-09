@@ -75,7 +75,7 @@ static TRShapingEngineRef createEngine(TRTypefaceRef typeface, TRFloat typeSize 
 }
 
 static TRShapingResultRef shape16(TRShapingEngineRef engine, const char16_t *text, size_t length) {
-    return TRShapingEngineShape(engine, text, length, TRStringEncodingUTF16);
+    return TRShapingEngineCreateShapingResult(engine, text, length, TRStringEncodingUTF16);
 }
 
 static vector<TRGlyphID> glyphIDs(TRShapingResultRef result) {
@@ -144,10 +144,10 @@ void ShapingEngineTests::testInvalidArguments() {
     /* There is nothing to shape with. */
     assert(shape16(noTypeface, u"abc", 3) == nullptr);
 
-    assert(TRShapingEngineShape(engine, nullptr, 3, TRStringEncodingUTF16) == nullptr);
-    assert(TRShapingEngineShape(engine, u"abc", 3, 3) == nullptr);
-    assert(TRShapingEngineShape(engine, u"abc", 3, 0xFFFF) == nullptr);
-    assert(TRShapingEngineShape(engine, u"abc", static_cast<TRUInteger>(INT32_MAX) + 1,
+    assert(TRShapingEngineCreateShapingResult(engine, nullptr, 3, TRStringEncodingUTF16) == nullptr);
+    assert(TRShapingEngineCreateShapingResult(engine, u"abc", 3, 3) == nullptr);
+    assert(TRShapingEngineCreateShapingResult(engine, u"abc", 3, 0xFFFF) == nullptr);
+    assert(TRShapingEngineCreateShapingResult(engine, u"abc", static_cast<TRUInteger>(INT32_MAX) + 1,
         TRStringEncodingUTF16) == nullptr);
 
     /* The typeface can be removed again. */
@@ -163,7 +163,7 @@ void ShapingEngineTests::testEmptyText() {
     TRTypefaceRef typeface = createTestTypeface("Roboto-Regular.abc.ttf");
     TRShapingEngineRef engine = createEngine(typeface);
 
-    TRShapingResultRef result = TRShapingEngineShape(engine, nullptr, 0, TRStringEncodingUTF16);
+    TRShapingResultRef result = TRShapingEngineCreateShapingResult(engine, nullptr, 0, TRStringEncodingUTF16);
     assert(result != nullptr);
     assert(TRShapingResultGetCodeUnitCount(result) == 0);
     assert(TRShapingResultGetGlyphCount(result) == 0);
@@ -206,9 +206,9 @@ void ShapingEngineTests::testEncodings() {
     TRTypefaceRef typeface = createTestTypeface("Roboto-Regular.abc.ttf");
     TRShapingEngineRef engine = createEngine(typeface);
 
-    TRShapingResultRef utf8 = TRShapingEngineShape(engine, "cab", 3, TRStringEncodingUTF8);
+    TRShapingResultRef utf8 = TRShapingEngineCreateShapingResult(engine, "cab", 3, TRStringEncodingUTF8);
     TRShapingResultRef utf16 = shape16(engine, u"cab", 3);
-    TRShapingResultRef utf32 = TRShapingEngineShape(engine, U"cab", 3, TRStringEncodingUTF32);
+    TRShapingResultRef utf32 = TRShapingEngineCreateShapingResult(engine, U"cab", 3, TRStringEncodingUTF32);
 
     assert((glyphIDs(utf8) == vector<TRGlyphID>{ 3, 1, 2 }));
     assert(glyphIDs(utf16) == glyphIDs(utf8));
@@ -219,7 +219,7 @@ void ShapingEngineTests::testEncodings() {
     assert(clusterMap(utf32) == clusterMap(utf8));
 
     /* The code unit count follows the encoding: two bytes for one character in UTF-8. */
-    TRShapingResultRef multibyte = TRShapingEngineShape(engine, "a\xC3\xA9" "b", 4, TRStringEncodingUTF8);
+    TRShapingResultRef multibyte = TRShapingEngineCreateShapingResult(engine, "a\xC3\xA9" "b", 4, TRStringEncodingUTF8);
     assert(TRShapingResultGetCodeUnitCount(multibyte) == 4);
     assert((glyphIDs(multibyte) == vector<TRGlyphID>{ 1, 0, 2 }));
     assert((clusterMap(multibyte) == vector<TRUInteger>{ 0, 1, 1, 2 }));

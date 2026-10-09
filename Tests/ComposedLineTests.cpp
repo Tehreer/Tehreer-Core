@@ -34,6 +34,7 @@
 extern "C" {
 #include <API/TRComposedLine.h>
 #include <API/TRGlyphRun.h>
+#include <API/TRRenderer.h>
 #include <API/TRTypesetter.h>
 #include <Core/AtomicUInt.h>
 #include <Layout/LineResolver.h>
@@ -55,6 +56,9 @@ void ComposedLineTests::run() {
     testDistances();
     testIndexOfCodeUnit();
     testEnumerateEdges();
+    testIndicesAreChecked();
+    testInkBoxRestoresRenderer();
+    testEnumerationCanStop();
     testPenOffset();
     testPaintAttributesSplitRuns();
     testMixedDirections();
@@ -111,7 +115,7 @@ struct Fixture {
             make();
         }
 
-        TRComposedLineRef result = TRTypesetterCreateSimpleLine(typesetter, { start, end - start });
+        TRComposedLineRef result = TRTypesetterCreateSimpleLine(typesetter, start, end - start);
         assert(result != nullptr);
 
         return result;
@@ -130,6 +134,23 @@ static vector<TRFloat> floats(const TRFloat *pointer, size_t count) {
     return vector<TRFloat>(pointer, pointer + count);
 }
 
+/* The distances are given through a pointer, which is what the tests need only for a valid index. */
+static TRFloat runDistance(TRGlyphRunRef run, TRUInteger codeUnitIndex) {
+    TRFloat distance = -12345.0f;
+    bool isFound = TRGlyphRunGetCodeUnitDistance(run, codeUnitIndex, &distance);
+    assert(isFound);
+
+    return distance;
+}
+
+static TRFloat lineDistance(TRComposedLineRef line, TRUInteger codeUnitIndex) {
+    TRFloat distance = -12345.0f;
+    bool isFound = TRComposedLineGetCodeUnitDistance(line, codeUnitIndex, &distance);
+    assert(isFound);
+
+    return distance;
+}
+
 static vector<TRUInteger> sizes(const TRUInteger *pointer, size_t count) {
     return vector<TRUInteger>(pointer, pointer + count);
 }
@@ -138,7 +159,7 @@ void ComposedLineTests::testSimpleLine() {
     Fixture f(u"abc");
     TRComposedLineRef line = f.line(0, 3);
 
-    TRRange range = TRComposedLineGetCodeUnitRange(line);
+    TRRange range = { TRComposedLineGetCodeUnitStart(line), TRComposedLineGetCodeUnitEnd(line) - TRComposedLineGetCodeUnitStart(line) };
     assert(range.index == 0 && range.length == 3);
     assert(TRComposedLineGetParagraphLevel(line) == 0);
     assert(TRComposedLineGetOrigin(line).x == 0.0f && TRComposedLineGetOrigin(line).y == 0.0f);
@@ -167,7 +188,7 @@ void ComposedLineTests::testGlyphRun() {
     TRComposedLineRef line = f.line(0, 3);
     TRGlyphRunRef run = TRComposedLineGetGlyphRun(line, 0);
 
-    TRRange range = TRGlyphRunGetCodeUnitRange(run);
+    TRRange range = { TRGlyphRunGetCodeUnitStart(run), TRGlyphRunGetCodeUnitEnd(run) - TRGlyphRunGetCodeUnitStart(run) };
     assert(range.index == 0 && range.length == 3);
     assert(TRGlyphRunGetStartExtraLength(run) == 0 && TRGlyphRunGetEndExtraLength(run) == 0);
     assert(TRGlyphRunGetBidiLevel(run) == 0);
@@ -199,8 +220,6 @@ void ComposedLineTests::testGlyphRun() {
     for (TRUInteger i = 0; i < 3; i++) {
         assert(TRGlyphRunGetClusterStart(run, i) == i);
         assert(TRGlyphRunGetClusterEnd(run, i) == i + 1);
-        assert(TRGlyphRunGetLeadingGlyphIndex(run, i) == i);
-        assert(TRGlyphRunGetTrailingGlyphIndex(run, i) == i);
     }
 
     TRColor color;
@@ -214,22 +233,20 @@ void ComposedLineTests::testLineOfSubrange() {
     Fixture f(u"abc");
     TRComposedLineRef line = f.line(1, 3);
 
-    assert(TRComposedLineGetCodeUnitRange(line).index == 1);
+    assert(TRComposedLineGetCodeUnitStart(line) == 1);
     assert(TRComposedLineGetWidth(line) == B + C);
     assert(TRComposedLineGetGlyphRunCount(line) == 1);
 
     /* The run has the glyphs of its range only, and its distances start at zero. */
     TRGlyphRunRef run = TRComposedLineGetGlyphRun(line, 0);
-    assert(TRGlyphRunGetCodeUnitRange(run).index == 1 && TRGlyphRunGetCodeUnitRange(run).length == 2);
+    assert(TRGlyphRunGetCodeUnitStart(run) == 1 && (TRGlyphRunGetCodeUnitEnd(run) - TRGlyphRunGetCodeUnitStart(run)) == 2);
     assert(TRGlyphRunGetGlyphCount(run) == 2);
     assert(TRGlyphRunGetGlyphIDsPtr(run)[0] == 2 && TRGlyphRunGetGlyphIDsPtr(run)[1] == 3);
     assert((floats(TRGlyphRunGetGlyphAdvancesPtr(run), 2) == vector<TRFloat>{ B, C }));
     assert((sizes(TRGlyphRunGetClusterMapPtr(run), 2) == vector<TRUInteger>{ 0, 1 }));
-    assert(TRGlyphRunGetDistance(run, 1) == 0.0f);
-    assert(TRGlyphRunGetDistance(run, 2) == B);
-    assert(TRGlyphRunGetDistance(run, 3) == B + C);
-    assert(TRGlyphRunGetLeadingGlyphIndex(run, 1) == 0);
-    assert(TRGlyphRunGetLeadingGlyphIndex(run, 2) == 1);
+    assert(runDistance(run, 1) == 0.0f);
+    assert(runDistance(run, 2) == B);
+    assert(runDistance(run, 3) == B + C);
 
     TRComposedLineRelease(line);
 
@@ -269,11 +286,11 @@ void ComposedLineTests::testDistances() {
     Fixture f(u"abc");
     TRComposedLineRef line = f.line(0, 3);
 
-    assert(TRComposedLineGetCodeUnitDistance(line, 0) == 0.0f);
-    assert(TRComposedLineGetCodeUnitDistance(line, 1) == A);
-    assert(TRComposedLineGetCodeUnitDistance(line, 2) == A + B);
+    assert(lineDistance(line, 0) == 0.0f);
+    assert(lineDistance(line, 1) == A);
+    assert(lineDistance(line, 2) == A + B);
     /* The end of the line is the whole width. */
-    assert(TRComposedLineGetCodeUnitDistance(line, 3) == A + B + C);
+    assert(lineDistance(line, 3) == A + B + C);
 
     TRComposedLineRelease(line);
 }
@@ -301,7 +318,7 @@ struct Edges {
     vector<pair<TRFloat, TRFloat>> parts;
 };
 
-void collectEdge(void *userData, TRFloat left, TRFloat right) {
+void collectEdge(void *userData, TRFloat left, TRFloat right, TRBoolean *) {
     static_cast<Edges *>(userData)->parts.push_back({ left, right });
 }
 
@@ -312,20 +329,161 @@ void ComposedLineTests::testEnumerateEdges() {
     TRComposedLineRef line = f.line(0, 3);
 
     Edges edges;
-    TRComposedLineEnumerateEdges(line, { 1, 2 }, collectEdge, &edges);
+    assert(TRComposedLineEnumerateEdges(line, 1, 2, collectEdge, &edges));
     assert(edges.parts.size() == 1);
     assert(edges.parts[0].first == A && edges.parts[0].second == A + B + C);
 
-    /* The range is clamped to the line, and an empty one has nothing. */
+    /* The whole line is a range, and an empty one has nothing. */
     edges.parts.clear();
-    TRComposedLineEnumerateEdges(line, { 0, 100 }, collectEdge, &edges);
+    assert(TRComposedLineEnumerateEdges(line, 0, 3, collectEdge, &edges));
     assert(edges.parts.size() == 1);
     assert(edges.parts[0].first == 0.0f && edges.parts[0].second == A + B + C);
 
     edges.parts.clear();
-    TRComposedLineEnumerateEdges(line, { 1, 0 }, collectEdge, &edges);
-    TRComposedLineEnumerateEdges(line, { 5, 3 }, collectEdge, &edges);
+    assert(TRComposedLineEnumerateEdges(line, 1, 0, collectEdge, &edges));
     assert(edges.parts.empty());
+
+    /* A range that is not within the line has nothing, and the function says so. */
+    assert(!TRComposedLineEnumerateEdges(line, 0, 100, collectEdge, &edges));
+    assert(!TRComposedLineEnumerateEdges(line, 5, 3, collectEdge, &edges));
+    assert(edges.parts.empty());
+
+    TRComposedLineRelease(line);
+}
+
+void ComposedLineTests::testIndicesAreChecked() {
+    const TRUInteger max = TRInvalidIndex;
+    Fixture f(u"abcabc");
+    TRComposedLineRef line = f.line(2, 5);
+
+    /* There is a run only for an index that is less than their count. */
+    assert(TRComposedLineGetGlyphRun(line, 0) != nullptr);
+    assert(TRComposedLineGetGlyphRun(line, TRComposedLineGetGlyphRunCount(line)) == nullptr);
+    assert(TRComposedLineGetGlyphRun(line, max) == nullptr);
+
+    /* A code unit that is out of the line has no distance. */
+    TRFloat distance = -1.0f;
+    assert(TRComposedLineGetCodeUnitDistance(line, 2, &distance));
+    TRFloat start = distance;
+    assert(TRComposedLineGetCodeUnitDistance(line, 5, &distance));
+    TRFloat end = distance;
+    distance = -1.0f;
+    assert(!TRComposedLineGetCodeUnitDistance(line, 0, &distance));
+    assert(!TRComposedLineGetCodeUnitDistance(line, 1, &distance));
+    assert(!TRComposedLineGetCodeUnitDistance(line, 6, &distance));
+    assert(!TRComposedLineGetCodeUnitDistance(line, max, &distance));
+    assert(distance == -1.0f);
+
+    /* Only a range that is within the line has parts, and nothing is passed for another one. */
+    struct Collected {
+        vector<pair<TRFloat, TRFloat>> parts;
+    } collected;
+    auto collect = [](void *userData, TRFloat left, TRFloat right, TRBoolean *) {
+        static_cast<Collected *>(userData)->parts.push_back({ left, right });
+    };
+
+    assert(TRComposedLineEnumerateEdges(line, 2, 3, collect, &collected));
+    assert(collected.parts.size() == 1);
+    assert(collected.parts[0].first == 0.0f && collected.parts[0].second == end - start);
+
+    collected.parts.clear();
+    assert(!TRComposedLineEnumerateEdges(line, 0, max, collect, &collected));
+    assert(!TRComposedLineEnumerateEdges(line, 0, 4, collect, &collected));
+    assert(!TRComposedLineEnumerateEdges(line, 2, 4, collect, &collected));
+    assert(!TRComposedLineEnumerateEdges(line, 5, 4, collect, &collected));
+    assert(!TRComposedLineEnumerateEdges(line, max, max, collect, &collected));
+    assert(!TRComposedLineEnumerateEdges(line, 1, 2, collect, &collected));
+    assert(collected.parts.empty());
+
+    /* An empty range is within the line, and has no parts. */
+    assert(TRComposedLineEnumerateEdges(line, 3, 0, collect, &collected));
+    assert(collected.parts.empty());
+
+    /* The queries of a run need a code unit of the run. */
+    TRGlyphRunRef run = TRComposedLineGetGlyphRun(line, 0);
+    TRUInteger runStart = TRGlyphRunGetCodeUnitStart(run);
+    TRUInteger runEnd = TRGlyphRunGetCodeUnitEnd(run);
+
+    assert(TRGlyphRunGetClusterStart(run, runStart) == runStart);
+    assert(TRGlyphRunGetClusterEnd(run, runEnd - 1) == runEnd);
+    assert(TRGlyphRunGetClusterStart(run, runStart - 1) == TRInvalidIndex);
+    assert(TRGlyphRunGetClusterStart(run, runEnd) == TRInvalidIndex);
+    assert(TRGlyphRunGetClusterEnd(run, max) == TRInvalidIndex);
+
+    /* The distance is for the boundaries of the run, and the clusters that it splits. */
+    assert(TRGlyphRunGetCodeUnitDistance(run, runStart, &distance));
+    assert(TRGlyphRunGetCodeUnitDistance(run, runEnd, &distance));
+    assert(!TRGlyphRunGetCodeUnitDistance(run, runStart - TRGlyphRunGetStartExtraLength(run) - 1,
+        &distance));
+    assert(!TRGlyphRunGetCodeUnitDistance(run, runEnd + TRGlyphRunGetEndExtraLength(run) + 1,
+        &distance));
+    assert(!TRGlyphRunGetCodeUnitDistance(run, max, &distance));
+
+    TRComposedLineRelease(line);
+}
+
+void ComposedLineTests::testInkBoxRestoresRenderer() {
+    Fixture f(u"abc");
+    TRComposedLineRef line = f.line(0, 3);
+    TRGlyphRunRef run = TRComposedLineGetGlyphRun(line, 0);
+
+    TRTypefaceRef other = createTestTypeface("Roboto-Variable.abc.ttf");
+    TRRendererRef renderer = TRRendererCreate();
+    TRRendererSetTypeface(renderer, other);
+    TRRendererSetTypeSize(renderer, 7.0f);
+    TRRendererSetScaleX(renderer, 3.0f);
+    TRRendererSetScaleY(renderer, 4.0f);
+    TRRendererSetWritingDirection(renderer, TRWritingDirectionRightToLeft);
+    TRTypefaceRelease(other);
+
+    TRRect box = TRGlyphRunGetInkBox(run, renderer);
+    assert(box.size.width > 0.0f && box.size.height > 0.0f);
+    TRRect lineBox = TRComposedLineGetInkBox(line, renderer);
+    assert(lineBox.size.width > 0.0f);
+
+    /* The renderer was set up for the run to measure it, and it is as it was after that. */
+    assert(renderer->typeface != f.typeface);
+    assert(renderer->typeSize == 7.0f);
+    assert(renderer->scaleX == 3.0f && renderer->scaleY == 4.0f);
+    assert(renderer->writingDirection == TRWritingDirectionRightToLeft);
+
+    /* A renderer without a typeface has none after it either. */
+    TRRendererRef bare = TRRendererCreate();
+    TRGlyphRunGetInkBox(run, bare);
+    assert(renderer != bare && bare->typeface == nullptr);
+
+    TRRendererRelease(bare);
+    TRRendererRelease(renderer);
+    TRComposedLineRelease(line);
+}
+
+namespace {
+
+void stopAfterFirst(void *userData, TRFloat, TRFloat, TRBoolean *stop) {
+    auto *count = static_cast<size_t *>(userData);
+
+    (*count)++;
+    *stop = TRTrue;
+}
+
+}
+
+void ComposedLineTests::testEnumerationCanStop() {
+    /* A line of two runs: the right-to-left text is a run of its own. */
+    Fixture f(u"ab\u0627\u0628c");
+    TRComposedLineRef line = f.line(0, 5);
+    assert(TRComposedLineGetGlyphRunCount(line) >= 2);
+
+    size_t all = 0;
+    auto count = [](void *userData, TRFloat, TRFloat, TRBoolean *) {
+        (*static_cast<size_t *>(userData))++;
+    };
+    assert(TRComposedLineEnumerateEdges(line, 0, 5, count, &all));
+    assert(all >= 2);
+
+    size_t stopped = 0;
+    assert(TRComposedLineEnumerateEdges(line, 0, 5, stopAfterFirst, &stopped));
+    assert(stopped == 1);
 
     TRComposedLineRelease(line);
 }
@@ -381,9 +539,9 @@ void ComposedLineTests::testPaintAttributesSplitRuns() {
     TRGlyphRunRef colored = TRComposedLineGetGlyphRun(line, 1);
     TRGlyphRunRef last = TRComposedLineGetGlyphRun(line, 2);
 
-    assert(TRGlyphRunGetCodeUnitRange(plain).index == 0 && TRGlyphRunGetCodeUnitRange(plain).length == 1);
-    assert(TRGlyphRunGetCodeUnitRange(colored).index == 1);
-    assert(TRGlyphRunGetCodeUnitRange(last).index == 2);
+    assert(TRGlyphRunGetCodeUnitStart(plain) == 0 && (TRGlyphRunGetCodeUnitEnd(plain) - TRGlyphRunGetCodeUnitStart(plain)) == 1);
+    assert(TRGlyphRunGetCodeUnitStart(colored) == 1);
+    assert(TRGlyphRunGetCodeUnitStart(last) == 2);
 
     TRColor value = 0;
     assert(!TRGlyphRunGetForegroundColor(plain, &value));
@@ -409,7 +567,7 @@ void ComposedLineTests::testPaintAttributesSplitRuns() {
     /* A line that covers a part of the paint spans only has the parts of them. */
     line = f.line(1, 3);
     assert(TRComposedLineGetGlyphRunCount(line) == 2);
-    assert(TRGlyphRunGetCodeUnitRange(TRComposedLineGetGlyphRun(line, 0)).index == 1);
+    assert(TRGlyphRunGetCodeUnitStart(TRComposedLineGetGlyphRun(line, 0)) == 1);
     TRComposedLineRelease(line);
 }
 
@@ -428,7 +586,7 @@ void ComposedLineTests::testMixedDirections() {
 
     for (size_t i = 0; i < count; i++) {
         TRGlyphRunRef run = TRComposedLineGetGlyphRun(line, i);
-        TRRange range = TRGlyphRunGetCodeUnitRange(run);
+        TRRange range = { TRGlyphRunGetCodeUnitStart(run), TRGlyphRunGetCodeUnitEnd(run) - TRGlyphRunGetCodeUnitStart(run) };
 
         assert(range.index == starts[i] && range.index + range.length == ends[i]);
         assert(TRGlyphRunGetOrigin(run).x == origin);
@@ -441,9 +599,9 @@ void ComposedLineTests::testMixedDirections() {
 
     /* Distances inside of the right-to-left word grow from its right edge to the left. */
     TRGlyphRunRef hebrew = TRComposedLineGetGlyphRun(line, 1);
-    assert(TRGlyphRunGetDistance(hebrew, 3) == 4 * Notdef);
-    assert(TRGlyphRunGetDistance(hebrew, 4) == 3 * Notdef);
-    assert(TRGlyphRunGetDistance(hebrew, 7) == 0.0f);
+    assert(runDistance(hebrew, 3) == 4 * Notdef);
+    assert(runDistance(hebrew, 4) == 3 * Notdef);
+    assert(runDistance(hebrew, 7) == 0.0f);
 
     /*
      * The line positions follow the visual order. A boundary between two runs is that of the run
@@ -451,9 +609,9 @@ void ComposedLineTests::testMixedDirections() {
      * it, which is on the far side of the word from where the word starts.
      */
     TRFloat latinWidth = A + B + Notdef;
-    assert(TRComposedLineGetCodeUnitDistance(line, 3) == latinWidth + 4 * Notdef);
-    assert(TRComposedLineGetCodeUnitDistance(line, 5) == latinWidth + 2 * Notdef);
-    assert(TRComposedLineGetCodeUnitDistance(line, 7) == latinWidth + 4 * Notdef);
+    assert(lineDistance(line, 3) == latinWidth + 4 * Notdef);
+    assert(lineDistance(line, 5) == latinWidth + 2 * Notdef);
+    assert(lineDistance(line, 7) == latinWidth + 4 * Notdef);
 
     TRComposedLineRelease(line);
 }
@@ -472,9 +630,9 @@ void ComposedLineTests::testRightToLeftParagraph() {
     TRGlyphRunRef latin = TRComposedLineGetGlyphRun(line, 0);
     TRGlyphRunRef hebrew = TRComposedLineGetGlyphRun(line, 1);
 
-    assert(TRGlyphRunGetCodeUnitRange(latin).index == 3 && TRGlyphRunGetCodeUnitRange(latin).length == 2);
+    assert(TRGlyphRunGetCodeUnitStart(latin) == 3 && (TRGlyphRunGetCodeUnitEnd(latin) - TRGlyphRunGetCodeUnitStart(latin)) == 2);
     assert(TRGlyphRunGetBidiLevel(latin) == 2);
-    assert(TRGlyphRunGetCodeUnitRange(hebrew).index == 0 && TRGlyphRunGetCodeUnitRange(hebrew).length == 3);
+    assert(TRGlyphRunGetCodeUnitStart(hebrew) == 0 && (TRGlyphRunGetCodeUnitEnd(hebrew) - TRGlyphRunGetCodeUnitStart(hebrew)) == 3);
     assert(TRGlyphRunGetBidiLevel(hebrew) == 1);
 
     assert(TRGlyphRunGetOrigin(latin).x == 0.0f);
@@ -482,11 +640,11 @@ void ComposedLineTests::testRightToLeftParagraph() {
     assert(TRComposedLineGetWidth(line) == A + B + 3 * Notdef);
 
     /* The start of the text is at the right end of the line. */
-    assert(TRComposedLineGetCodeUnitDistance(line, 0) == TRComposedLineGetWidth(line));
-    assert(TRComposedLineGetCodeUnitDistance(line, 1) == A + B + 2 * Notdef);
-    assert(TRComposedLineGetCodeUnitDistance(line, 2) == A + B + Notdef);
-    assert(TRComposedLineGetCodeUnitDistance(line, 3) == 0.0f);
-    assert(TRComposedLineGetCodeUnitDistance(line, 4) == A);
+    assert(lineDistance(line, 0) == TRComposedLineGetWidth(line));
+    assert(lineDistance(line, 1) == A + B + 2 * Notdef);
+    assert(lineDistance(line, 2) == A + B + Notdef);
+    assert(lineDistance(line, 3) == 0.0f);
+    assert(lineDistance(line, 4) == A);
 
     /*
      * A position past the ends of a run gives the last or the first index of the run in the order
@@ -528,7 +686,7 @@ void ComposedLineTests::testClusterCutByLine() {
     TRComposedLineRef line = f.line(2, 4);
     TRGlyphRunRef run = TRComposedLineGetGlyphRun(line, 0);
 
-    assert(TRGlyphRunGetCodeUnitRange(run).index == 2 && TRGlyphRunGetCodeUnitRange(run).length == 2);
+    assert(TRGlyphRunGetCodeUnitStart(run) == 2 && (TRGlyphRunGetCodeUnitEnd(run) - TRGlyphRunGetCodeUnitStart(run)) == 2);
     assert(TRGlyphRunGetStartExtraLength(run) == 1);
     assert(TRGlyphRunGetEndExtraLength(run) == 0);
 
@@ -545,9 +703,9 @@ void ComposedLineTests::testClusterCutByLine() {
     assert(TRGlyphRunGetClusterStart(run, 3) == 3);
 
     /* Distances are measured from the cut, so those inside the cluster are negative or zero. */
-    assert(TRGlyphRunGetDistance(run, 2) == 0.0f);
-    assert(TRGlyphRunGetDistance(run, 3) == Notdef / 2.0f);
-    assert(TRGlyphRunGetDistance(run, 4) == Notdef / 2.0f + B);
+    assert(runDistance(run, 2) == 0.0f);
+    assert(runDistance(run, 3) == Notdef / 2.0f);
+    assert(runDistance(run, 4) == Notdef / 2.0f + B);
     assert(TRGlyphRunGetWidth(run) == Notdef / 2.0f + B);
 
     TRComposedLineRelease(line);
@@ -576,8 +734,8 @@ void ComposedLineTests::testJustifiedCopiesAreIndependent() {
     assert((floats(TRGlyphRunGetGlyphAdvancesPtr(justified), 3) == vector<TRFloat>{ A + 10, B + 20, C + 30 }));
     assert(TRGlyphRunGetGlyphIDsPtr(justified) == TRGlyphRunGetGlyphIDsPtr(run));
     assert(TRGlyphRunGetWidth(justified) == A + B + C + 60.0f);
-    assert(TRGlyphRunGetDistance(justified, 1) == A + 10.0f);
-    assert(TRGlyphRunGetDistance(justified, 2) == A + B + 30.0f);
+    assert(runDistance(justified, 1) == A + 10.0f);
+    assert(runDistance(justified, 2) == A + B + 30.0f);
 
     /* The original is not changed. */
     assert(TRGlyphRunGetWidth(run) == A + B + C);
@@ -596,7 +754,7 @@ void ComposedLineTests::testJustifiedCopiesAreIndependent() {
 
 void ComposedLineTests::testLineMetricsFromTallestRun() {
     Fixture f(u"abc");
-    setTestFloat(f.text, 1, 1, TRAttributePointSize, 4096.0f);
+    setTestFloat(f.text, 1, 1, TRAttributeTypeSize, 4096.0f);
     TRComposedLineRef line = f.line(0, 3);
 
     /* The line takes the greatest ascent and descent of its runs. */
@@ -617,21 +775,17 @@ void ComposedLineTests::testBoundingBox() {
     TRGlyphCacheRef cache = TRGlyphCacheCreate(1024 * 1024);
     TRRendererSetGlyphCache(renderer, cache);
 
-    TRRect box = TRComposedLineGetBoundingBox(line, renderer);
+    TRRect box = TRComposedLineGetInkBox(line, renderer);
     assert(box.size.width > 0.0f && box.size.height > 0.0f);
 
     /* The glyphs are above the baseline, and the box is to the right of the start of the line. */
     assert(box.origin.y < 0.0f);
     assert(box.origin.x + box.size.width <= TRComposedLineGetWidth(line) + 4.0f);
 
-    /* The renderer was set up for the run, and the box is the same for a run alone. */
+    /* The box is the same for a run alone. */
     TRGlyphRunRef run = TRComposedLineGetGlyphRun(line, 0);
-    TRRect runBox = TRGlyphRunGetBoundingBox(run, { 0, 3 }, renderer);
+    TRRect runBox = TRGlyphRunGetInkBox(run, renderer);
     assert(runBox.origin.x == box.origin.x && runBox.size.width == box.size.width);
-
-    /* A box of a part of the glyphs is smaller. */
-    TRRect partial = TRGlyphRunGetBoundingBox(run, { 0, 1 }, renderer);
-    assert(partial.size.width < runBox.size.width);
 
     TRRendererRelease(renderer);
     TRGlyphCacheRelease(cache);
@@ -679,11 +833,11 @@ void ComposedLineTests::testReplacementLines() {
     assert(TRComposedLineGetWidth(line) == A + 500.0f + B);
     assert(TRComposedLineGetAscent(line) == 1900.0f);
     assert(TRComposedLineGetLeading(line) == 0.0f);
-    assert(TRComposedLineGetCodeUnitDistance(line, 2) == A + 500.0f);
+    assert(lineDistance(line, 2) == A + 500.0f);
 
     /* Its box is that of its room. */
     TRRendererRef renderer = TRRendererCreate();
-    TRRect box = TRGlyphRunGetBoundingBox(run, { 0, 1 }, renderer);
+    TRRect box = TRGlyphRunGetInkBox(run, renderer);
     assert(box.size.width == 500.0f && box.size.height == 400.0f);
     TRRendererRelease(renderer);
 
@@ -717,7 +871,7 @@ void ComposedLineTests::testBlockLine() {
     assert(TRGlyphRunGetWidth(TRComposedLineGetGlyphRun(line, 0)) == 120.0f);
     TRComposedLineRelease(line);
 
-    line = TRTypesetterCreateFrameLine(f.typesetter, { 0, 2 }, 150.0f);
+    line = TRTypesetterCreateFrameLine(f.typesetter, 0, 2, 150.0f);
     assert(line != nullptr);
     assert(TRGlyphRunGetWidth(TRComposedLineGetGlyphRun(line, 0)) == 150.0f);
     assert(!TRComposedLineIsTruncated(line));
@@ -728,7 +882,7 @@ void ComposedLineTests::testBlockLine() {
 
 static TRComposedLineRef makeToken(TRTypesetterRef typesetter, TRRange range, TRTruncationPlace place,
     const char16_t *token) {
-    TRComposedLineRef line = TRTypesetterCreateTruncationToken(typesetter, range, place, token,
+    TRComposedLineRef line = TRTypesetterCreateTruncationToken(typesetter, range.index, range.length, place, token,
         std::char_traits<char16_t>::length(token), TRStringEncodingUTF16);
     assert(line != nullptr);
 
@@ -745,35 +899,35 @@ void ComposedLineTests::testTruncation() {
     TRComposedLineRef token = makeToken(typesetter, all, TRTruncationPlaceEnd, u"c");
     assert(TRComposedLineGetWidth(token) == C);
 
-    TRComposedLineRef end = TRTypesetterCreateTruncatedLine(typesetter, all, extent,
+    TRComposedLineRef end = TRTypesetterCreateTruncatedLine(typesetter, all.index, all.length, extent,
         TRBreakModeCharacter, TRTruncationPlaceEnd, token);
     assert(end != nullptr);
     assert(TRComposedLineGetWidth(end) == A + B + C);
-    assert(TRComposedLineGetCodeUnitRange(end).index == 0);
-    assert(TRComposedLineGetCodeUnitRange(end).length == 2);
+    assert(TRComposedLineGetCodeUnitStart(end) == 0);
+    assert((TRComposedLineGetCodeUnitEnd(end) - TRComposedLineGetCodeUnitStart(end)) == 2);
     assert(TRComposedLineGetGlyphRunCount(end) == 2);
     assert(TRComposedLineIsTruncated(end));
 
-    TRComposedLineRef start = TRTypesetterCreateTruncatedLine(typesetter, all, extent,
+    TRComposedLineRef start = TRTypesetterCreateTruncatedLine(typesetter, all.index, all.length, extent,
         TRBreakModeCharacter, TRTruncationPlaceStart, token);
     assert(start != nullptr);
     assert(TRComposedLineGetWidth(start) == C + B + C);
-    assert(TRComposedLineGetCodeUnitRange(start).index == 4);
-    assert(TRComposedLineGetCodeUnitRange(start).length == 2);
+    assert(TRComposedLineGetCodeUnitStart(start) == 4);
+    assert((TRComposedLineGetCodeUnitEnd(start) - TRComposedLineGetCodeUnitStart(start)) == 2);
     assert(TRComposedLineGetGlyphRunCount(start) == 2);
     assert(TRComposedLineIsTruncated(start));
 
-    TRComposedLineRef middle = TRTypesetterCreateTruncatedLine(typesetter, all, extent,
+    TRComposedLineRef middle = TRTypesetterCreateTruncatedLine(typesetter, all.index, all.length, extent,
         TRBreakModeCharacter, TRTruncationPlaceMiddle, token);
     assert(middle != nullptr);
     assert(TRComposedLineGetWidth(middle) == A + C + C);
-    assert(TRComposedLineGetCodeUnitRange(middle).index == 0);
-    assert(TRComposedLineGetCodeUnitRange(middle).length == 6);
+    assert(TRComposedLineGetCodeUnitStart(middle) == 0);
+    assert((TRComposedLineGetCodeUnitEnd(middle) - TRComposedLineGetCodeUnitStart(middle)) == 6);
     assert(TRComposedLineGetGlyphRunCount(middle) == 3);
     assert(TRComposedLineIsTruncated(middle));
 
     /* Nothing is cut out if the text fits. */
-    TRComposedLineRef fits = TRTypesetterCreateTruncatedLine(typesetter, all, 10000.0f,
+    TRComposedLineRef fits = TRTypesetterCreateTruncatedLine(typesetter, all.index, all.length, 10000.0f,
         TRBreakModeCharacter, TRTruncationPlaceEnd, token);
     assert(fits != nullptr);
     assert(TRComposedLineGetWidth(fits) == 2.0f * (A + B + C));
@@ -792,7 +946,7 @@ void ComposedLineTests::testTruncationToken() {
     TRTypesetterRef typesetter = f.make();
 
     /* The default token has three dots, as the test font lacks the ellipsis character. */
-    TRComposedLineRef token = TRTypesetterCreateTruncationToken(typesetter, { 0, 3 },
+    TRComposedLineRef token = TRTypesetterCreateTruncationToken(typesetter, 0, 3,
         TRTruncationPlaceEnd, nullptr, 0, TRStringEncodingUTF16);
     assert(token != nullptr);
     assert(TRComposedLineGetWidth(token) == 3.0f * Notdef);
@@ -808,7 +962,7 @@ void ComposedLineTests::testJustifiedLine() {
     TRTypesetterRef typesetter = f.make();
     const TRFloat natural = A + Notdef + B;
 
-    TRComposedLineRef full = TRTypesetterCreateJustifiedLine(typesetter, { 0, 3 }, 1.0f, 4000.0f);
+    TRComposedLineRef full = TRTypesetterCreateJustifiedLine(typesetter, 0, 3, 1.0f, 4000.0f);
     assert(full != nullptr);
     assert(std::fabs(TRComposedLineGetWidth(full) - 4000.0f) < 0.01f);
 
@@ -818,17 +972,17 @@ void ComposedLineTests::testJustifiedLine() {
     assert(std::fabs(TRGlyphRunGetGlyphAdvancesPtr(run)[1] - (Notdef + 4000.0f - natural)) < 0.01f);
     assert(TRGlyphRunGetGlyphAdvancesPtr(run)[2] == B);
 
-    TRComposedLineRef half = TRTypesetterCreateJustifiedLine(typesetter, { 0, 3 }, 0.5f, 4000.0f);
+    TRComposedLineRef half = TRTypesetterCreateJustifiedLine(typesetter, 0, 3, 0.5f, 4000.0f);
     assert(half != nullptr);
     assert(std::fabs(TRComposedLineGetWidth(half) - (natural + (4000.0f - natural) / 2.0f)) < 0.01f);
 
     /* A trailing space is not counted for the justification. */
-    TRComposedLineRef trailing = TRTypesetterCreateJustifiedLine(typesetter, { 0, 4 }, 1.0f, 4000.0f);
+    TRComposedLineRef trailing = TRTypesetterCreateJustifiedLine(typesetter, 0, 4, 1.0f, 4000.0f);
     assert(trailing != nullptr);
     assert(std::fabs(TRComposedLineGetWidth(trailing) - 4000.0f - Notdef) < 0.01f);
 
     /* Without inner spaces, the line stays as it is. */
-    TRComposedLineRef none = TRTypesetterCreateJustifiedLine(typesetter, { 0, 1 }, 1.0f, 4000.0f);
+    TRComposedLineRef none = TRTypesetterCreateJustifiedLine(typesetter, 0, 1, 1.0f, 4000.0f);
     assert(none != nullptr);
     assert(TRComposedLineGetWidth(none) == A);
 
@@ -850,7 +1004,7 @@ void ComposedLineTests::testLinesOutliveTypesetter() {
     assert(TRComposedLineGetWidth(line) == A + B + C);
     assert(TRGlyphRunGetGlyphIDsPtr(TRComposedLineGetGlyphRun(line, 0))[1] == 2);
     assert(TRGlyphRunGetTypeface(TRComposedLineGetGlyphRun(line, 0)) != nullptr);
-    assert(TRGlyphRunGetDistance(TRComposedLineGetGlyphRun(line, 0), 2) == A + B);
+    assert(runDistance(TRComposedLineGetGlyphRun(line, 0), 2) == A + B);
 
     TRComposedLineRelease(line);
 }
@@ -865,10 +1019,10 @@ void ComposedLineTests::testConcurrentLines() {
     for (size_t t = 0; t < 8; t++) {
         threads.emplace_back([&]() {
             for (size_t i = 0; i < 100; i++) {
-                TRComposedLineRef line = TRTypesetterCreateSimpleLine(f.typesetter, { 1, 9 });
+                TRComposedLineRef line = TRTypesetterCreateSimpleLine(f.typesetter, 1, 9);
 
-                if (!line || TRComposedLineGetCodeUnitRange(line).length != 9
-                        || TRComposedLineGetCodeUnitDistance(line, 10) <= TRComposedLineGetCodeUnitDistance(line, 2)) {
+                if (!line || (TRComposedLineGetCodeUnitEnd(line) - TRComposedLineGetCodeUnitStart(line)) != 9
+                        || lineDistance(line, 10) <= lineDistance(line, 2)) {
                     failures++;
                 }
 

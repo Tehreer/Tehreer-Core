@@ -33,6 +33,7 @@ private:
     void testEmptyOutline();
     void testTransform();
     void testMissingCallbacks();
+    void testEnumerationCanStop();
     void testOutlineIsCopied();
     void testRetainRelease();
 };

@@ -22,6 +22,7 @@
 
 #include <API/TRAssert.h>
 #include <API/TRBase.h>
+#include <API/TRRenderer.h>
 #include <Core/Object.h>
 #include <Layout/CaretUtils.h>
 #include <Layout/TextRun.h>
@@ -223,6 +224,15 @@ TR_INTERNAL TRUInteger TRGlyphRunGetActualStart(TRGlyphRunRef glyphRun)
     return glyphRun->codeUnitStart - glyphRun->startExtra;
 }
 
+TR_INTERNAL TRFloat TRGlyphRunGetCaretEdge(TRGlyphRunRef glyphRun, TRUInteger codeUnitIndex)
+{
+    /* The code unit MUST be within the run and its clusters. */
+    TRAssert(codeUnitIndex >= glyphRun->codeUnitStart - glyphRun->startExtra
+          && codeUnitIndex <= glyphRun->codeUnitEnd + glyphRun->endExtra);
+
+    return glyphRun->caretEdges[codeUnitIndex - TRGlyphRunGetActualStart(glyphRun)];
+}
+
 TR_INTERNAL TRFloat TRGlyphRunGetDistanceInRange(TRGlyphRunRef glyphRun, TRUInteger start,
     TRUInteger end)
 {
@@ -232,14 +242,14 @@ TR_INTERNAL TRFloat TRGlyphRunGetDistanceInRange(TRGlyphRunRef glyphRun, TRUInte
         start - actualStart, end - actualStart);
 }
 
-TRRange TRGlyphRunGetCodeUnitRange(TRGlyphRunRef run)
+TRUInteger TRGlyphRunGetCodeUnitStart(TRGlyphRunRef run)
 {
-    TRRange range;
+    return run->codeUnitStart;
+}
 
-    range.index = run->codeUnitStart;
-    range.length = run->codeUnitEnd - run->codeUnitStart;
-
-    return range;
+TRUInteger TRGlyphRunGetCodeUnitEnd(TRGlyphRunRef run)
+{
+    return run->codeUnitEnd;
 }
 
 TRUInteger TRGlyphRunGetStartExtraLength(TRGlyphRunRef run)
@@ -366,72 +376,57 @@ TRUInteger TRGlyphRunGetClusterMapCount(TRGlyphRunRef run)
     return (run->codeUnitEnd + run->endExtra) - (run->codeUnitStart - run->startExtra);
 }
 
-TRUInteger TRGlyphRunGetClusterStart(TRGlyphRunRef run, TRUInteger index)
+TRUInteger TRGlyphRunGetClusterStart(TRGlyphRunRef run, TRUInteger codeUnitIndex)
 {
-    /* The index MUST be within the run. */
-    TRAssert(index >= run->codeUnitStart && index < run->codeUnitEnd);
+    TRUInteger clusterStart = TRInvalidIndex;
 
-    return TextRunGetClusterStart(run->textRun, index);
+    if (codeUnitIndex >= run->codeUnitStart && codeUnitIndex < run->codeUnitEnd) {
+        clusterStart = TextRunGetClusterStart(run->textRun, codeUnitIndex);
+    }
+
+    return clusterStart;
 }
 
-TRUInteger TRGlyphRunGetClusterEnd(TRGlyphRunRef run, TRUInteger index)
+TRUInteger TRGlyphRunGetClusterEnd(TRGlyphRunRef run, TRUInteger codeUnitIndex)
 {
-    /* The index MUST be within the run. */
-    TRAssert(index >= run->codeUnitStart && index < run->codeUnitEnd);
+    TRUInteger clusterEnd = TRInvalidIndex;
 
-    return TextRunGetClusterEnd(run->textRun, index);
+    if (codeUnitIndex >= run->codeUnitStart && codeUnitIndex < run->codeUnitEnd) {
+        clusterEnd = TextRunGetClusterEnd(run->textRun, codeUnitIndex);
+    }
+
+    return clusterEnd;
 }
 
-TRUInteger TRGlyphRunGetLeadingGlyphIndex(TRGlyphRunRef run, TRUInteger index)
+TRBoolean TRGlyphRunGetCodeUnitDistance(TRGlyphRunRef run, TRUInteger codeUnitIndex,
+    TRFloat *distance)
 {
-    /* The index MUST be within the run. */
-    TRAssert(index >= run->codeUnitStart && index < run->codeUnitEnd);
+    TRUInteger actualStart = TRGlyphRunGetActualStart(run);
+    TRUInteger actualCount = (run->codeUnitEnd + run->endExtra) - actualStart;
+    TRBoolean isFound = (codeUnitIndex >= actualStart
+                         && codeUnitIndex - actualStart <= actualCount);
 
-    return TextRunGetLeadingGlyphIndex(run->textRun, index) - run->glyphStart;
+    if (isFound) {
+        *distance = TRGlyphRunGetCaretEdge(run, codeUnitIndex);
+    }
+
+    return isFound;
 }
 
-TRUInteger TRGlyphRunGetTrailingGlyphIndex(TRGlyphRunRef run, TRUInteger index)
-{
-    /* The index MUST be within the run. */
-    TRAssert(index >= run->codeUnitStart && index < run->codeUnitEnd);
-
-    return TextRunGetTrailingGlyphIndex(run->textRun, index) - run->glyphStart;
-}
-
-TRFloat TRGlyphRunGetDistance(TRGlyphRunRef run, TRUInteger index)
-{
-    /* The index MUST be within the run, or its end. */
-    TRAssert(index >= run->codeUnitStart && index <= run->codeUnitEnd);
-
-    return run->caretEdges[index - TRGlyphRunGetActualStart(run)];
-}
-
-TRFloat TRGlyphRunGetClusterDistance(TRGlyphRunRef run, TRUInteger index)
-{
-    /* The index MUST be within the run, including its start and end extras, or the end of them. */
-    TRAssert(index >= run->codeUnitStart - run->startExtra
-          && index <= run->codeUnitEnd + run->endExtra);
-
-    return run->caretEdges[index - TRGlyphRunGetActualStart(run)];
-}
-
-TRUInteger TRGlyphRunGetIndexOfCodeUnit(TRGlyphRunRef run, TRFloat distance)
+TRUInteger TRGlyphRunGetCodeUnitIndex(TRGlyphRunRef run, TRFloat distance)
 {
     TRUInteger actualStart = TRGlyphRunGetActualStart(run);
     TRUInteger first = run->codeUnitStart - actualStart;
     TRUInteger last = run->codeUnitEnd - actualStart;
 
-    return actualStart + CaretUtilsGetIndexOfEdge(run->caretEdges,
-        TRGlyphRunIsRTL(run), distance, first, last);
+    return actualStart + CaretUtilsGetIndexOfEdge(run->caretEdges, TRGlyphRunIsRTL(run), distance,
+        first, last);
 }
 
-TRRect TRGlyphRunGetBoundingBox(TRGlyphRunRef run, TRRange glyphRange, TRRendererRef renderer)
+TRRect TRGlyphRunGetInkBox(TRGlyphRunRef run, TRRendererRef renderer)
 {
     TextRunRef textRun = run->textRun;
     TRRect box;
-
-    /* The range MUST be within the glyphs of the run. */
-    TRAssert(glyphRange.index + glyphRange.length <= run->glyphCount);
 
     if (textRun->kind == TextRunKindReplacement) {
         box.origin.x = 0.0f;
@@ -439,16 +434,35 @@ TRRect TRGlyphRunGetBoundingBox(TRGlyphRunRef run, TRRange glyphRange, TRRendere
         box.size.width = TRGlyphRunGetWidth(run);
         box.size.height = TRGlyphRunGetHeight(run);
     } else {
+        /* The renderer is set up for the run only while it measures, and then it is restored. */
+        TRTypefaceRef oldTypeface = renderer->typeface;
+        TRFloat oldTypeSize = renderer->typeSize;
+        TRFloat oldScaleX = renderer->scaleX;
+        TRFloat oldScaleY = renderer->scaleY;
+        TRWritingDirection oldDirection = renderer->writingDirection;
+
+        if (oldTypeface) {
+            TRTypefaceRetain(oldTypeface);
+        }
+
         TRRendererSetTypeface(renderer, textRun->typeface);
         TRRendererSetTypeSize(renderer, textRun->typeSize);
         TRRendererSetScaleX(renderer, textRun->scaleX);
         TRRendererSetScaleY(renderer, textRun->scaleY);
         TRRendererSetWritingDirection(renderer, textRun->writingDirection);
 
-        box = TRRendererGetRunBoundingBox(renderer,
-            TRGlyphRunGetGlyphIDsPtr(run) + glyphRange.index,
-            TRGlyphRunGetGlyphOffsetsPtr(run) + glyphRange.index,
-            TRGlyphRunGetAdvances(run) + glyphRange.index, glyphRange.length);
+        box = TRRendererGetRunInkBox(renderer, TRGlyphRunGetGlyphIDsPtr(run),
+            TRGlyphRunGetGlyphOffsetsPtr(run), TRGlyphRunGetAdvances(run), run->glyphCount);
+
+        TRRendererSetTypeface(renderer, oldTypeface);
+        TRRendererSetTypeSize(renderer, oldTypeSize);
+        TRRendererSetScaleX(renderer, oldScaleX);
+        TRRendererSetScaleY(renderer, oldScaleY);
+        TRRendererSetWritingDirection(renderer, oldDirection);
+
+        if (oldTypeface) {
+            TRTypefaceRelease(oldTypeface);
+        }
     }
 
     return box;

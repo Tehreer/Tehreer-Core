@@ -14,24 +14,22 @@
  * limitations under the License.
  */
 
-#ifndef _TEHREER_API_FONT_FILE_H
-#define _TEHREER_API_FONT_FILE_H
+#ifndef _TEHREER_API_FONT_FEATURES_H
+#define _TEHREER_API_FONT_FEATURES_H
 
-#include <Tehreer/TRFontFile.h>
+#include <Tehreer/TRBase.h>
+#include <Tehreer/TRFontFeatures.h>
 
 #include <API/TRBase.h>
-#include <Core/Array.h>
 #include <Core/Object.h>
-#include <Font/FontData.h>
 
-/*
- * A font file keeps the default typefaces that it made when it was created. The typefaces share the
- * data of the file, and not the file itself, so they and the file do not hold each other alive.
- */
-typedef struct _TRFontFile {
+typedef struct _TRFontFeatures {
     ObjectBase _base;
-    FontDataRef _data;
-    Array _typefaces;
-} TRFontFile;
+    TROpenTypeFeature *items;
+    TRUInteger count;
+} TRFontFeatures;
+
+/* Tells if two sets have the same settings in the same order, whatever objects they are. */
+TR_INTERNAL TRBoolean TRFontFeaturesIsEqual(TRFontFeaturesRef first, TRFontFeaturesRef second);
 
 #endif

@@ -24,6 +24,7 @@
 #include <string.h>
 
 #include <Tehreer/TRTypeface.h>
+#include <API/TRAssert.h>
 #include <API/TRBase.h>
 #include <API/TRTypeface.h>
 #include <Core/Memory.h>
@@ -63,6 +64,11 @@ typedef struct _RawMetadata {
     TRWidth width;
     TRSlope slope;
 
+    TRBoolean isScalable;
+
+    TRBitmapStrike *bitmapStrikes;
+    TRUInteger bitmapStrikeCount;
+
     VariationAxis *variationAxes;
     TRUInteger variationAxisCount;
 
@@ -87,10 +93,12 @@ typedef struct _RawMetadata {
 #define PREDEFINED_PALETTES 4
 #define COORDINATES         5
 #define COLORS              6
-#define COUNT               7
+#define BITMAP_STRIKES      7
+#define COUNT               8
 
 static RawMetadata *AllocateRawMetadata(MemoryRef memory, TRUInteger variationAxisCount,
-    TRUInteger namedStyleCount, TRUInteger paletteEntryCount, TRUInteger predefinedPaletteCount)
+    TRUInteger namedStyleCount, TRUInteger paletteEntryCount, TRUInteger predefinedPaletteCount,
+    TRUInteger bitmapStrikeCount)
 {
     void *pointers[COUNT] = { NULL };
     TRUInteger sizes[COUNT] = { 0 };
@@ -103,9 +111,13 @@ static RawMetadata *AllocateRawMetadata(MemoryRef memory, TRUInteger variationAx
     sizes[PREDEFINED_PALETTES] = sizeof(ColorPalette) * predefinedPaletteCount;
     sizes[COORDINATES]         = (sizeof(FT_Fixed) * variationAxisCount) * namedStyleCount;
     sizes[COLORS]              = (sizeof(FT_Color) * paletteEntryCount) * predefinedPaletteCount;
+    sizes[BITMAP_STRIKES]      = sizeof(TRBitmapStrike) * bitmapStrikeCount;
 
     if (MemoryAllocateChunks(memory, sizes, COUNT, pointers)) {
         rawMetadata = pointers[RAW_METADATA];
+        rawMetadata->isScalable = TRTrue;
+        rawMetadata->bitmapStrikes = pointers[BITMAP_STRIKES];
+        rawMetadata->bitmapStrikeCount = bitmapStrikeCount;
         rawMetadata->variationAxes = pointers[VARIATION_AXES];
         rawMetadata->variationAxisCount = variationAxisCount;
         rawMetadata->namedStyles = pointers[NAMED_STYLES];
@@ -148,6 +160,7 @@ static RawMetadata *AllocateRawMetadata(MemoryRef memory, TRUInteger variationAx
 #undef PREDEFINED_PALETTES
 #undef COORDINATES
 #undef COLORS
+#undef BITMAP_STRIKES
 #undef COUNT
 
 /* The `fvar` table starts with a header whose instance count is a big endian 16-bit number. */
@@ -363,6 +376,21 @@ static void ReadPredefinedPalettes(FT_Face ftFace, const FT_Palette_Data *ftPale
     }
 }
 
+static void ReadBitmapStrikes(FT_Face ftFace, RawMetadata *rawMetadata)
+{
+    TRUInteger index;
+
+    rawMetadata->isScalable = (FT_IS_SCALABLE(ftFace) != 0);
+
+    for (index = 0; index < rawMetadata->bitmapStrikeCount; index++) {
+        const FT_Bitmap_Size *ftSize = &ftFace->available_sizes[index];
+        TRBitmapStrike *strike = &rawMetadata->bitmapStrikes[index];
+
+        strike->pixelWidth = (TRFloat)ftSize->x_ppem / 64.0f;
+        strike->pixelHeight = (TRFloat)ftSize->y_ppem / 64.0f;
+    }
+}
+
 static RawMetadata *CreateRawMetadata(MemoryRef memory, FT_Face ftFace)
 {
     RawMetadata *rawMetadata = NULL;
@@ -391,7 +419,8 @@ static RawMetadata *CreateRawMetadata(MemoryRef memory, FT_Face ftFace)
     }
 
     rawMetadata = AllocateRawMetadata(memory, variationAxisCount, namedStyleCount,
-        paletteEntryCount, predefinedPaletteCount);
+        paletteEntryCount, predefinedPaletteCount,
+        (FT_HAS_FIXED_SIZES(ftFace) ? (TRUInteger)ftFace->num_fixed_sizes : 0));
 
     if (rawMetadata) {
         TRUInteger nameCount = 0;
@@ -404,6 +433,7 @@ static RawMetadata *CreateRawMetadata(MemoryRef memory, FT_Face ftFace)
 
         ReadFontNames(ftFace, os2Table, rawMetadata, &nameCount, &nameBytes);
         ReadDescription(rawMetadata, os2Table, headTable);
+        ReadBitmapStrikes(ftFace, rawMetadata);
 
         if (ftVariations) {
             ReadVariationAxes(ftFace, ftVariations, rawMetadata, &nameCount, &nameBytes);
@@ -438,7 +468,8 @@ static RawMetadata *CreateRawMetadata(MemoryRef memory, FT_Face ftFace)
 #define COORDINATES         6
 #define COLORS              7
 #define NAME_DATA           8
-#define COUNT               9
+#define BITMAP_STRIKES      9
+#define COUNT               10
 
 static void WriteVariationAxes(FaceMetadata *faceMetadata, const RawMetadata *rawMetadata,
     NameWriterRef writer, TRVariationAxis *axes)
@@ -591,6 +622,7 @@ static FaceMetadataRef CreateFaceMetadata(RawMetadata *rawMetadata)
     sizes[COORDINATES]         = (sizeof(TRFloat) * rawMetadata->variationAxisCount) * rawMetadata->namedStyleCount;
     sizes[COLORS]              = (sizeof(TRColor) * rawMetadata->paletteEntryCount) * rawMetadata->predefinedPaletteCount;
     sizes[NAME_DATA]           = rawMetadata->nameBytes;
+    sizes[BITMAP_STRIKES]      = sizeof(TRBitmapStrike) * rawMetadata->bitmapStrikeCount;
 
     faceMetadata = ObjectCreate(sizes, COUNT, pointers, NULL);
 
@@ -600,6 +632,9 @@ static FaceMetadataRef CreateFaceMetadata(RawMetadata *rawMetadata)
         NameWriterInitialize(&writer, pointers[NAME_STRINGS], pointers[NAME_DATA]);
 
         faceMetadata = pointers[FACE_METADATA];
+        faceMetadata->isScalable = rawMetadata->isScalable;
+        faceMetadata->bitmapStrikesPtr = pointers[BITMAP_STRIKES];
+        faceMetadata->bitmapStrikeCount = rawMetadata->bitmapStrikeCount;
         faceMetadata->variationAxesPtr = pointers[VARIATION_AXES];
         faceMetadata->namedStylesPtr = pointers[NAMED_STYLES];
         faceMetadata->paletteEntriesPtr = pointers[PALETTE_ENTRIES];
@@ -614,6 +649,11 @@ static FaceMetadataRef CreateFaceMetadata(RawMetadata *rawMetadata)
         faceMetadata->weight = rawMetadata->weight;
         faceMetadata->width = rawMetadata->width;
         faceMetadata->slope = rawMetadata->slope;
+
+        if (rawMetadata->bitmapStrikeCount > 0) {
+            memcpy(faceMetadata->bitmapStrikesPtr, rawMetadata->bitmapStrikes,
+                sizeof(TRBitmapStrike) * rawMetadata->bitmapStrikeCount);
+        }
 
         WriteVariationAxes(faceMetadata, rawMetadata, &writer, pointers[VARIATION_AXES]);
         WriteNamedStyles(faceMetadata, rawMetadata, &writer, pointers[NAMED_STYLES],
@@ -635,6 +675,7 @@ static FaceMetadataRef CreateFaceMetadata(RawMetadata *rawMetadata)
 #undef COORDINATES
 #undef COLORS
 #undef NAME_DATA
+#undef BITMAP_STRIKES
 #undef COUNT
 
 
@@ -654,6 +695,33 @@ TR_INTERNAL FaceMetadataRef FaceMetadataCreate(FT_Face ftFace)
     MemoryFinalize(&memory);
 
     return faceMetadata;
+}
+
+TR_INTERNAL TRUInteger FaceMetadataFindBitmapStrike(FaceMetadataRef faceMetadata,
+    TRInt32 pixelHeight)
+{
+    TRUInteger upperIndex = TRInvalidIndex;
+    TRUInteger lowerIndex = TRInvalidIndex;
+    TRUInteger index;
+
+    /* The face MUST have strikes. */
+    TRAssert(faceMetadata->bitmapStrikeCount > 0);
+
+    for (index = 0; index < faceMetadata->bitmapStrikeCount; index++) {
+        TRFloat height = faceMetadata->bitmapStrikesPtr[index].pixelHeight;
+
+        if (height * 64.0f >= (TRFloat)pixelHeight) {
+            if (upperIndex == TRInvalidIndex
+                    || height < faceMetadata->bitmapStrikesPtr[upperIndex].pixelHeight) {
+                upperIndex = index;
+            }
+        } else if (lowerIndex == TRInvalidIndex
+                   || height > faceMetadata->bitmapStrikesPtr[lowerIndex].pixelHeight) {
+            lowerIndex = index;
+        }
+    }
+
+    return (upperIndex != TRInvalidIndex ? upperIndex : lowerIndex);
 }
 
 TR_INTERNAL FaceMetadataRef FaceMetadataRetain(FaceMetadataRef faceMetadata)

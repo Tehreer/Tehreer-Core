@@ -79,11 +79,11 @@ struct Fixture {
     }
 
     TRUInteger forward(TRUInteger start, TRUInteger end, TRFloat extent, TRBreakMode mode = TRBreakModeLine) {
-        return TRTypesetterSuggestForwardBreak(typesetter, { start, end - start }, extent, mode);
+        return TRTypesetterSuggestForwardBreak(typesetter, start, end - start, extent, mode);
     }
 
     TRUInteger backward(TRUInteger start, TRUInteger end, TRFloat extent, TRBreakMode mode = TRBreakModeLine) {
-        return TRTypesetterSuggestBackwardBreak(typesetter, { start, end - start }, extent, mode);
+        return TRTypesetterSuggestBackwardBreak(typesetter, start, end - start, extent, mode);
     }
 };
 
@@ -224,7 +224,7 @@ void BreakResolverTests::testMixedSizes() {
     Fixture f(u"ab c ab");
 
     /* The second half of the text is half as big, so it takes half the extent. */
-    setTestFloat(f.text, 4, 3, TRAttributePointSize, 1024.0f);
+    setTestFloat(f.text, 4, 3, TRAttributeTypeSize, 1024.0f);
     TRTypesetterRelease(f.typesetter);
     f.typesetter = TRTypesetterCreate(f.text, nullptr, 0);
 

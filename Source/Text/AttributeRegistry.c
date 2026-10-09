@@ -16,43 +16,48 @@
 
 #include <SheenBidi/SheenBidi.h>
 #include <Tehreer/TRAttribute.h>
+#include <Tehreer/TRFontFeatures.h>
 #include <Tehreer/TRReplacement.h>
 #include <Tehreer/TRTypeface.h>
 
 #include <API/TRBase.h>
+#include <API/TRFontFeatures.h>
 #include <Core/Once.h>
 
 #include "AttributeRegistry.h"
 
-#define AttributeCount  20
+#define AttributeCount  22
 
 typedef struct _AttributeDescription {
     const char *name;
+    SBAttributeGroup group;
     SBAttributeScope scope;
 } AttributeDescription;
 
 /* The descriptions are in the order of the attribute types, which start from one. */
 static const AttributeDescription AttributeDescriptions[AttributeCount] = {
-    { "Typeface",               SBAttributeScopeCharacter },
-    { "PointSize",              SBAttributeScopeCharacter },
-    { "ScaleX",                 SBAttributeScopeCharacter },
-    { "ScaleY",                 SBAttributeScopeCharacter },
-    { "BaselineOffset",         SBAttributeScopeCharacter },
-    { "Obliqueness",            SBAttributeScopeCharacter },
-    { "Replacement",            SBAttributeScopeCharacter },
-    { "TextAlignment",          SBAttributeScopeParagraph },
-    { "FirstLineHeadIndent",    SBAttributeScopeParagraph },
-    { "HeadIndent",             SBAttributeScopeParagraph },
-    { "TailIndent",             SBAttributeScopeParagraph },
-    { "FirstIndentLineCount",   SBAttributeScopeParagraph },
-    { "ParagraphSpacingBefore", SBAttributeScopeParagraph },
-    { "ParagraphSpacing",       SBAttributeScopeParagraph },
-    { "LineHeightMultiple",     SBAttributeScopeParagraph },
-    { "MinimumLineHeight",      SBAttributeScopeParagraph },
-    { "MaximumLineHeight",      SBAttributeScopeParagraph },
-    { "LineSpacing",            SBAttributeScopeParagraph },
-    { "ForegroundColor",        SBAttributeScopeCharacter },
-    { "UserData",               SBAttributeScopeCharacter }
+    { "Typeface",               AttributeGroupShaping,  SBAttributeScopeCharacter },
+    { "TypeSize",              AttributeGroupShaping,  SBAttributeScopeCharacter },
+    { "ScaleX",                 AttributeGroupShaping,  SBAttributeScopeCharacter },
+    { "ScaleY",                 AttributeGroupShaping,  SBAttributeScopeCharacter },
+    { "BaselineOffset",         AttributeGroupShaping,  SBAttributeScopeCharacter },
+    { "Obliqueness",            AttributeGroupShaping,  SBAttributeScopeCharacter },
+    { "Replacement",            AttributeGroupShaping,  SBAttributeScopeCharacter },
+    { "TextAlignment",          SBAttributeGroupNone,   SBAttributeScopeParagraph },
+    { "FirstLineHeadIndent",    SBAttributeGroupNone,   SBAttributeScopeParagraph },
+    { "HeadIndent",             SBAttributeGroupNone,   SBAttributeScopeParagraph },
+    { "TailIndent",             SBAttributeGroupNone,   SBAttributeScopeParagraph },
+    { "FirstIndentLineCount",   SBAttributeGroupNone,   SBAttributeScopeParagraph },
+    { "ParagraphSpacingBefore", SBAttributeGroupNone,   SBAttributeScopeParagraph },
+    { "ParagraphSpacing",       SBAttributeGroupNone,   SBAttributeScopeParagraph },
+    { "LineHeightMultiple",     SBAttributeGroupNone,   SBAttributeScopeParagraph },
+    { "MinimumLineHeight",      SBAttributeGroupNone,   SBAttributeScopeParagraph },
+    { "MaximumLineHeight",      SBAttributeGroupNone,   SBAttributeScopeParagraph },
+    { "LineSpacing",            SBAttributeGroupNone,   SBAttributeScopeParagraph },
+    { "ForegroundColor",        SBAttributeGroupNone,   SBAttributeScopeCharacter },
+    { "UserData",               SBAttributeGroupNone,   SBAttributeScopeCharacter },
+    { "Language",               AttributeGroupShaping,  SBAttributeScopeCharacter },
+    { "FontFeatures",           AttributeGroupShaping,  SBAttributeScopeCharacter }
 };
 
 static AttributeRegistry GlobalAttributeRegistry;
@@ -72,8 +77,8 @@ static SBBoolean EqualAttributeItem(const void *firstPtr, const void *secondPtr)
         case TRAttributeTypeface:
             isEqual = firstItem->value.typeface == secondItem->value.typeface;
             break;
-        case TRAttributePointSize:
-            isEqual = firstItem->value.pointSize == secondItem->value.pointSize;
+        case TRAttributeTypeSize:
+            isEqual = firstItem->value.typeSize == secondItem->value.typeSize;
             break;
         case TRAttributeScaleX:
             isEqual = firstItem->value.scaleX == secondItem->value.scaleX;
@@ -131,6 +136,13 @@ static SBBoolean EqualAttributeItem(const void *firstPtr, const void *secondPtr)
         case TRAttributeUserData:
             isEqual = firstItem->value.userData == secondItem->value.userData;
             break;
+        case TRAttributeLanguage:
+            isEqual = firstItem->value.language == secondItem->value.language;
+            break;
+        case TRAttributeFontFeatures:
+            isEqual = TRFontFeaturesIsEqual(firstItem->value.fontFeatures,
+                                            secondItem->value.fontFeatures);
+            break;
         }
     }
 
@@ -145,6 +157,8 @@ static const void *RetainAttributeItem(const void *pointer)
         TRTypefaceRetain(item->value.typeface);
     } else if (item->type == TRAttributeReplacement) {
         TRReplacementRetain(item->value.replacement);
+    } else if (item->type == TRAttributeFontFeatures) {
+        TRFontFeaturesRetain(item->value.fontFeatures);
     }
 
     return pointer;
@@ -158,6 +172,8 @@ static void ReleaseAttributeItem(const void *pointer)
         TRTypefaceRelease(item->value.typeface);
     } else if (item->type == TRAttributeReplacement) {
         TRReplacementRelease(item->value.replacement);
+    } else if (item->type == TRAttributeFontFeatures) {
+        TRFontFeaturesRelease(item->value.fontFeatures);
     }
 }
 
@@ -175,7 +191,7 @@ static void InitializeAttributeRegistry(void)
 
     for (index = 0; index < AttributeCount; index++) {
         attributeInfos[index].name = AttributeDescriptions[index].name;
-        attributeInfos[index].group = SBAttributeGroupNone;
+        attributeInfos[index].group = AttributeDescriptions[index].group;
         attributeInfos[index].scope = AttributeDescriptions[index].scope;
     }
 

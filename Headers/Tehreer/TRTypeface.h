@@ -18,7 +18,6 @@
 #define _TEHREER_TYPEFACE_H
 
 #include <Tehreer/TRBase.h>
-#include <Tehreer/TRFontFile.h>
 #include <Tehreer/TRGeometry.h>
 #include <Tehreer/TRNamedStyle.h>
 #include <Tehreer/TRPalette.h>
@@ -76,6 +75,17 @@ typedef struct _TRVariationAxis {
     TRFloat defaultValue;
 } TRVariationAxis;
 
+/**
+ * A size at which a font has the images of its glyphs, such as the `CBDT` and `sbix` fonts of color
+ * emoji. The image of a glyph is not drawn from an outline, so it is picked from the strike whose
+ * size is the nearest to the one asked for, and the placement of the glyph tells how much it has to
+ * be scaled to match that size.
+ */
+typedef struct _TRBitmapStrike {
+    TRFloat pixelWidth;     /**< Number of pixels in the em square, horizontally. */
+    TRFloat pixelHeight;    /**< Number of pixels in the em square, vertically. */
+} TRBitmapStrike;
+
 typedef struct _TRNamedStyle {
     const TRStringView *subfamilyName;
     const TRFloat *coordinatesPtr;
@@ -128,22 +138,24 @@ TR_PUBLIC const TRPredefinedPalette *TRTypefaceGetPredefinedPalettesPtr(TRTypefa
 
 TR_PUBLIC TRUInteger TRTypefaceGetPredefinedPaletteCount(TRTypefaceRef typeface);
 
+/**
+ * Tells whether the glyphs of the typeface have outlines. The glyphs of a typeface that is not
+ * scalable, such as a `CBDT` color emoji font, only have images at the sizes of its bitmap strikes,
+ * so they have no paths and their images may need a scale to match the size that is asked for.
+ */
+TR_PUBLIC TRBoolean TRTypefaceIsScalable(TRTypefaceRef typeface);
+
+/**
+ * Returns the sizes at which the typeface has the images of its glyphs, which is empty for a
+ * typeface that has none.
+ */
+TR_PUBLIC const TRBitmapStrike *TRTypefaceGetBitmapStrikesPtr(TRTypefaceRef typeface);
+
+TR_PUBLIC TRUInteger TRTypefaceGetBitmapStrikeCount(TRTypefaceRef typeface);
+
 TR_PUBLIC const TRFloat *TRTypefaceGetVariationCoordinatesPtr(TRTypefaceRef typeface);
 
 TR_PUBLIC const TRColor *TRTypefaceGetAssociatedColorsPtr(TRTypefaceRef typeface);
-
-/**
- * Creates a typeface from a face of the font file, using the default variation coordinates and the
- * first predefined palette.
- *
- * @param fontFile
- *      The font file that contains the face.
- * @param faceIndex
- *      Index of the face, less than `TRFontFileGetFaceCount()`.
- * @return
- *      New typeface, or `NULL` if the index is out of range or the face cannot be loaded.
- */
-TR_PUBLIC TRTypefaceRef TRTypefaceCreate(TRFontFileRef fontFile, TRUInteger faceIndex);
 
 /**
  * Creates a variation instance of a typeface. The new typeface shares the font data with the
@@ -265,21 +277,37 @@ TR_PUBLIC TRPathRef TRTypefaceCreateGlyphPath(TRTypefaceRef typeface, TRGlyphID 
     TRFloat typeSize);
 
 /**
- * Copies the data of a table of the font.
+ * Returns the size of a table of the font in bytes, without reading it.
  *
  * @param typeface
  *      The typeface.
  * @param tag
  *      The tag of the table.
- * @param buffer
- *      Receives the data of the table, or `NULL` if only its size is wanted.
- * @param capacity
- *      The number of bytes that `buffer` can hold. A table that is bigger is cut short.
  * @return
- *      The size of the table in bytes, which is zero if the font has no such table.
+ *      The size of the table, which is zero if the font has no such table.
  */
-TR_PUBLIC TRUInteger TRTypefaceGetTableData(TRTypefaceRef typeface, TRTag tag, void *buffer,
-    TRUInteger capacity);
+TR_PUBLIC TRUInteger TRTypefaceGetTableSize(TRTypefaceRef typeface, TRTag tag);
+
+/**
+ * Copies a part of the data of a table of the font. Only the part that is asked for is read from
+ * the font, so a part of a big table is cheap.
+ *
+ * @param typeface
+ *      The typeface.
+ * @param tag
+ *      The tag of the table.
+ * @param offset
+ *      The offset in the table from where to copy, in bytes.
+ * @param buffer
+ *      Receives the data of the table.
+ * @param capacity
+ *      The number of bytes that `buffer` can hold. A part that is bigger is cut short.
+ * @return
+ *      The number of bytes copied, which is zero if the font has no such table, the offset is not
+ *      within it, or the buffer is `NULL`.
+ */
+TR_PUBLIC TRUInteger TRTypefaceGetTableData(TRTypefaceRef typeface, TRTag tag, TRUInteger offset,
+    void *buffer, TRUInteger capacity);
 
 /**
  * Copies the name of a glyph, as the font gives it in its post table, or its charset if it is a CFF

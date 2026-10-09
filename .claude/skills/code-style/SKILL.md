@@ -145,6 +145,29 @@ When a function requires something of its input (a frame has at least one line, 
 - Replace bit twiddling on raw bytes with named macros (`ReadUInt16BE`, offsets and sizes), and use the decoding functions that SheenBidi gives (`SBCodepointDecodePrevious...`) instead of rewriting them.
 - Name a local after the type of what it holds (`shapableFace`), and do not leave blank lines inside a group of `#undef`s.
 
+## 15. Ownership follows the Create Rule
+
+Use the memory management rules of Core Foundation for the whole library, internal functions included.
+
+- A function that has `Create` or `Copy` in its name returns a reference that the caller owns and has to release. `Create` makes a new object, `Copy` hands out a reference that it retained for the caller, as the cache does: `TRRendererCopyGlyphImage`, `TRTextCopyAttributes`.
+- A function that has `Get` in its name returns a reference that the caller does not own, and that stays valid as long as the owner is alive: `TRComposedFrameGetLine`, `TRFontFileGetTypeface`, `TRGlyphCacheGetDefault`. Never retain inside a `Get` function.
+- A setter retains the object that it is given and releases the one that it replaces.
+- Name a static helper by the same rule (`CreateGlyphImage`, `CopyCachedImage`), not `Render...` or `Find...`, if it returns a reference that is owned.
+
+## 16. Public API contracts
+
+- Never use `TRRange` in the public interface. Take the `index` and the `length` as two parameters, as `TRText` does, and return a range as its start and its end. `TRRange` exists only inside of the library.
+- Do not clamp what comes from outside, and do not leave it to an assertion. A function that is given an index that is not valid, or a range that is not within what it is for, does nothing and tells it: `NULL` for an object, `TRFalse` for a boolean or an out parameter that was not set, `TRInvalidIndex` for an index. Use the macros `IndexIsValid` and `RangeIsValid` of `API/TRBase.h`, which never add the index and the length, so they cannot overflow. An assertion is for an invariant that the library itself keeps.
+- A value that has no sentinel is returned through an out parameter, with a `TRBoolean` result that says if it was set.
+- An enumeration function passes a `TRBoolean *stop` to each callback, which is `TRFalse` when the callback is called, and that the callback sets to `TRTrue` to end the enumeration after it returns.
+- Name the parameters of an index after what it is: `codeUnitIndex`, `glyphIndex`, not `index`, wherever the function has more than one kind of index.
+- Call the box around what is drawn an ink box (`GetInkBox`). A box of advances and metrics is a bounding box.
+- A function that sets up a shared object (a renderer) for a call puts it back as it was before it returns.
+
+## 17. Allocation size macros
+
+The macros that name the chunks of an allocation (`RUN`, `COUNT`, ...) are defined right before the function that allocates, and undefined right after it. The function is the only thing between the `#define` and the `#undef` lines, and no macro is left defined for the rest of the file.
+
 ## Applying the rules to an existing function
 
 1. List every `return`, `goto`, `break`, `continue` that is not the last statement.

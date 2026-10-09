@@ -19,11 +19,11 @@
 
 #include <cassert>
 
-#include <Tehreer/TRFontFile.h>
 #include <Tehreer/TRTypeface.h>
 
 extern "C" {
 #include <API/TRTypeface.h>
+#include <Font/FontData.h>
 #include <Graphics/RenderableFace.h>
 #include <Graphics/ShapableFace.h>
 }
@@ -33,11 +33,11 @@ extern "C" {
 namespace Tehreer {
 
 inline TRTypefaceRef createTestTypeface(const char *fontName,
-    const TRFloat *variationCoordinates = nullptr) {
-    TRFontFileRef fontFile = TRFontFileCreateFromPath(testFontPath(fontName).c_str());
-    assert(fontFile != nullptr);
+    const TRFloat *variationCoordinates = nullptr, TRUInteger faceIndex = 0) {
+    FontDataRef fontData = FontDataCreateFromPath(testFontPath(fontName).c_str());
+    assert(fontData != nullptr);
 
-    RenderableFaceRef renderableFace = RenderableFaceCreate(fontFile, 0);
+    RenderableFaceRef renderableFace = RenderableFaceCreate(fontData, faceIndex);
     assert(renderableFace != nullptr);
 
     ShapableFaceRef shapableFace = ShapableFaceCreate(renderableFace);
@@ -49,7 +49,7 @@ inline TRTypefaceRef createTestTypeface(const char *fontName,
 
     ShapableFaceRelease(shapableFace);
     RenderableFaceRelease(renderableFace);
-    TRFontFileRelease(fontFile);
+    FontDataRelease(fontData);
 
     return typeface;
 }

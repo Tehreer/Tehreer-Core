@@ -143,14 +143,14 @@ TR_INTERNAL TRComposedLine *TRComposedLineCreate(const TextBuffer *buffer, TRUIn
     return line;
 }
 
-TRRange TRComposedLineGetCodeUnitRange(TRComposedLineRef line)
+TRUInteger TRComposedLineGetCodeUnitStart(TRComposedLineRef line)
 {
-    TRRange range;
+    return line->codeUnitStart;
+}
 
-    range.index = line->codeUnitStart;
-    range.length = line->codeUnitEnd - line->codeUnitStart;
-
-    return range;
+TRUInteger TRComposedLineGetCodeUnitEnd(TRComposedLineRef line)
+{
+    return line->codeUnitEnd;
 }
 
 TRUInt8 TRComposedLineGetParagraphLevel(TRComposedLineRef line)
@@ -230,60 +230,71 @@ TRUInteger TRComposedLineGetGlyphRunCount(TRComposedLineRef line)
 
 TRGlyphRunRef TRComposedLineGetGlyphRun(TRComposedLineRef line, TRUInteger index)
 {
-    /* The index MUST be less than the run count. */
-    TRAssert(index < line->runCount);
+    TRGlyphRunRef glyphRun = NULL;
 
-    return line->runs[index];
-}
-
-TRFloat TRComposedLineGetCodeUnitDistance(TRComposedLineRef line, TRUInteger index)
-{
-    TRFloat distance = 0.0f;
-    TRUInteger runIndex;
-
-    /* The index MUST be within the line, or its end. */
-    TRAssert(index >= line->codeUnitStart && index <= line->codeUnitEnd);
-
-    for (runIndex = 0; runIndex < line->runCount; runIndex++) {
-        TRGlyphRunRef glyphRun = line->runs[runIndex];
-
-        if (index >= glyphRun->codeUnitStart && index < glyphRun->codeUnitEnd) {
-            distance += TRGlyphRunGetDistance(glyphRun, index);
-            break;
-        } else {
-            distance += TRGlyphRunGetWidth(glyphRun);
-        }
+    if (index < line->runCount) {
+        glyphRun = line->runs[index];
     }
 
-    return distance;
+    return glyphRun;
 }
 
-void TRComposedLineEnumerateEdges(TRComposedLineRef line, TRRange range, TREdgeFunc func,
-    void *userData)
+TRBoolean TRComposedLineGetCodeUnitDistance(TRComposedLineRef line, TRUInteger codeUnitIndex,
+    TRFloat *distance)
 {
-    TRUInteger rangeEnd = range.index + range.length;
-    TRUInteger visualStart = NumberMax(range.index, line->codeUnitStart);
-    TRUInteger visualEnd = NumberMin(rangeEnd, line->codeUnitEnd);
+    TRBoolean isFound = (codeUnitIndex >= line->codeUnitStart && codeUnitIndex <= line->codeUnitEnd);
 
-    if (visualStart < visualEnd) {
+    if (isFound) {
+        TRFloat extent = 0.0f;
         TRUInteger runIndex;
 
         for (runIndex = 0; runIndex < line->runCount; runIndex++) {
             TRGlyphRunRef glyphRun = line->runs[runIndex];
 
-            if (glyphRun->codeUnitStart < visualEnd && glyphRun->codeUnitEnd > visualStart) {
-                TRUInteger selectionStart = NumberMax(visualStart, glyphRun->codeUnitStart);
-                TRUInteger selectionEnd = NumberMin(visualEnd, glyphRun->codeUnitEnd);
-                TRFloat leadingEdge = TRGlyphRunGetDistance(glyphRun, selectionStart);
-                TRFloat trailingEdge = TRGlyphRunGetDistance(glyphRun, selectionEnd);
+            if (codeUnitIndex >= glyphRun->codeUnitStart && codeUnitIndex < glyphRun->codeUnitEnd) {
+                extent += TRGlyphRunGetCaretEdge(glyphRun, codeUnitIndex);
+                break;
+            } else {
+                extent += TRGlyphRunGetWidth(glyphRun);
+            }
+        }
+
+        *distance = extent;
+    }
+
+    return isFound;
+}
+
+TRBoolean TRComposedLineEnumerateEdges(TRComposedLineRef line, TRUInteger index,
+    TRUInteger length, TREdgeFunc func, void *userData)
+{
+    TRUInteger lineLength = line->codeUnitEnd - line->codeUnitStart;
+    TRBoolean isValid = (index >= line->codeUnitStart
+                         && RangeIsValid(index - line->codeUnitStart, length, lineLength));
+
+    if (isValid && length > 0) {
+        TRUInteger rangeEnd = index + length;
+        TRBoolean shouldStop = TRFalse;
+        TRUInteger runIndex;
+
+        for (runIndex = 0; runIndex < line->runCount && !shouldStop; runIndex++) {
+            TRGlyphRunRef glyphRun = line->runs[runIndex];
+
+            if (glyphRun->codeUnitStart < rangeEnd && glyphRun->codeUnitEnd > index) {
+                TRUInteger selectionStart = NumberMax(index, glyphRun->codeUnitStart);
+                TRUInteger selectionEnd = NumberMin(rangeEnd, glyphRun->codeUnitEnd);
+                TRFloat leadingEdge = TRGlyphRunGetCaretEdge(glyphRun, selectionStart);
+                TRFloat trailingEdge = TRGlyphRunGetCaretEdge(glyphRun, selectionEnd);
                 TRFloat relativeLeft = glyphRun->origin.x;
                 TRFloat left = NumberMin(leadingEdge, trailingEdge) + relativeLeft;
                 TRFloat right = NumberMax(leadingEdge, trailingEdge) + relativeLeft;
 
-                func(userData, left, right);
+                func(userData, left, right, &shouldStop);
             }
         }
     }
+
+    return isValid;
 }
 
 TRUInteger TRComposedLineGetCodeUnitIndex(TRComposedLineRef line, TRFloat distance)
@@ -298,7 +309,7 @@ TRUInteger TRComposedLineGetCodeUnitIndex(TRComposedLineRef line, TRFloat distan
         glyphRun = line->runs[runIndex];
 
         if (glyphRun->origin.x <= distance) {
-            codeUnitIndex = TRGlyphRunGetIndexOfCodeUnit(glyphRun, distance - glyphRun->origin.x);
+            codeUnitIndex = TRGlyphRunGetCodeUnitIndex(glyphRun, distance - glyphRun->origin.x);
             break;
         }
     }
@@ -319,7 +330,7 @@ TRFloat TRComposedLineGetPenOffset(TRComposedLineRef line, TRFloat flushFactor,
     return penOffset;
 }
 
-TRRect TRComposedLineGetBoundingBox(TRComposedLineRef line, TRRendererRef renderer)
+TRRect TRComposedLineGetInkBox(TRComposedLineRef line, TRRendererRef renderer)
 {
     TRFloat minX = 0.0f, minY = 0.0f, maxX = 0.0f, maxY = 0.0f;
     TRBoolean hasBox = TRFalse;
@@ -328,14 +339,10 @@ TRRect TRComposedLineGetBoundingBox(TRComposedLineRef line, TRRendererRef render
 
     for (runIndex = 0; runIndex < line->runCount; runIndex++) {
         TRGlyphRunRef glyphRun = line->runs[runIndex];
-        TRRange glyphRange;
         TRRect runBox;
         TRFloat left, top, right, bottom;
 
-        glyphRange.index = 0;
-        glyphRange.length = glyphRun->glyphCount;
-
-        runBox = TRGlyphRunGetBoundingBox(glyphRun, glyphRange, renderer);
+        runBox = TRGlyphRunGetInkBox(glyphRun, renderer);
         left = runBox.origin.x + glyphRun->origin.x;
         top = runBox.origin.y + glyphRun->origin.y;
         right = left + runBox.size.width;

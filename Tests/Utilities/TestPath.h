@@ -36,21 +36,21 @@ inline std::vector<PathEvent> enumeratePath(TRPathRef path,
     using Events = std::vector<PathEvent>;
 
     TRPathCallbacks callbacks = {};
-    callbacks.moveTo = [](void *data, TRFloat x, TRFloat y) {
+    callbacks.moveTo = [](void *data, TRFloat x, TRFloat y, TRBoolean *) {
         static_cast<Events *>(data)->push_back({ PathEvent::Move, { { x, y } } });
     };
-    callbacks.lineTo = [](void *data, TRFloat x, TRFloat y) {
+    callbacks.lineTo = [](void *data, TRFloat x, TRFloat y, TRBoolean *) {
         static_cast<Events *>(data)->push_back({ PathEvent::Line, { { x, y } } });
     };
-    callbacks.quadTo = [](void *data, TRFloat cx, TRFloat cy, TRFloat x, TRFloat y) {
+    callbacks.quadTo = [](void *data, TRFloat cx, TRFloat cy, TRFloat x, TRFloat y, TRBoolean *) {
         static_cast<Events *>(data)->push_back({ PathEvent::Quad, { { cx, cy }, { x, y } } });
     };
     callbacks.cubicTo = [](void *data, TRFloat c1x, TRFloat c1y, TRFloat c2x, TRFloat c2y,
-        TRFloat x, TRFloat y) {
+        TRFloat x, TRFloat y, TRBoolean *) {
         static_cast<Events *>(data)->push_back({ PathEvent::Cubic,
             { { c1x, c1y }, { c2x, c2y }, { x, y } } });
     };
-    callbacks.close = [](void *data) {
+    callbacks.close = [](void *data, TRBoolean *) {
         static_cast<Events *>(data)->push_back({ PathEvent::Close, {} });
     };
 

@@ -32,53 +32,42 @@ static BreakType GetBreakType(TRBreakMode breakMode)
     return (breakMode == TRBreakModeCharacter ? BreakTypeGrapheme : BreakTypeLine);
 }
 
-/* Returns the index of the first block that starts at or after the code unit. */
-static TRUInteger GetFirstBlockIndex(TRTypesetterRef typesetter, TRUInteger codeUnitIndex)
-{
-    TRUInteger low = 0;
-    TRUInteger high = typesetter->blockCount;
-
-    while (low < high) {
-        TRUInteger mid = (low + high) >> 1;
-
-        if (typesetter->blocks[mid]->codeUnitStart < codeUnitIndex) {
-            low = mid + 1;
-        } else {
-            high = mid;
-        }
-    }
-
-    return low;
-}
-
+/* Finds the first block that starts in the range, which is the one that the break stops before. */
 static TextRunRef FindBlockForward(TRTypesetterRef typesetter, TRUInteger start, TRUInteger end)
 {
+    TRUInteger runCount = TRTypesetterGetRunCount(typesetter);
+    TRUInteger runIndex = TRTypesetterFindRun(typesetter, start);
     TextRunRef block = NULL;
 
-    if (typesetter->blockCount > 0) {
-        TRUInteger index;
+    for (; block == NULL && runIndex < runCount; runIndex++) {
+        TextRunRef textRun = TRTypesetterGetRun(typesetter, runIndex);
 
-        index = GetFirstBlockIndex(typesetter, start);
-
-        if (index < typesetter->blockCount && typesetter->blocks[index]->codeUnitStart < end) {
-            block = typesetter->blocks[index];
+        if (textRun->codeUnitStart >= end) {
+            break;
+        }
+        if (textRun->codeUnitStart >= start && TextRunIsBlock(textRun)) {
+            block = textRun;
         }
     }
 
     return block;
 }
 
+/* Finds the last block that starts in the range, which is the one that the break stops after. */
 static TextRunRef FindBlockBackward(TRTypesetterRef typesetter, TRUInteger start, TRUInteger end)
 {
+    TRUInteger runIndex = TRTypesetterFindRun(typesetter, end - 1);
     TextRunRef block = NULL;
 
-    if (typesetter->blockCount > 0) {
-        TRUInteger index;
+    /* The index wraps around to the invalid one after the first run. */
+    for (; block == NULL && runIndex != TRInvalidIndex; runIndex--) {
+        TextRunRef textRun = TRTypesetterGetRun(typesetter, runIndex);
 
-        index = GetFirstBlockIndex(typesetter, end);
-
-        if (index > 0 && typesetter->blocks[index - 1]->codeUnitStart >= start) {
-            block = typesetter->blocks[index - 1];
+        if (textRun->codeUnitStart < start) {
+            break;
+        }
+        if (TextRunIsBlock(textRun)) {
+            block = textRun;
         }
     }
 
@@ -248,9 +237,11 @@ static TRUInteger FindBackwardBreak(TRTypesetterRef typesetter, TRFloat extent, 
 static TRUInteger FindForwardBreakInRange(TRTypesetterRef typesetter, TRFloat extent,
     TRUInteger start, TRUInteger end, TRBreakMode breakMode)
 {
-    TRUInteger paragraphIndex = TRTypesetterFindParagraph(typesetter, start);
-    ParagraphInfo *paragraph = &typesetter->paragraphs[paragraphIndex];
-    TRUInteger maxIndex = (end < paragraph->end ? end : paragraph->end);
+    ParagraphInfo paragraph;
+    TRUInteger maxIndex;
+
+    TRTypesetterGetParagraph(typesetter, start, &paragraph);
+    maxIndex = NumberMin(end, paragraph.end);
 
     return FindForwardBreak(typesetter, extent, GetBreakType(breakMode), start, end, maxIndex);
 }
@@ -258,9 +249,11 @@ static TRUInteger FindForwardBreakInRange(TRTypesetterRef typesetter, TRFloat ex
 static TRUInteger FindBackwardBreakInRange(TRTypesetterRef typesetter, TRFloat extent,
     TRUInteger start, TRUInteger end, TRBreakMode breakMode)
 {
-    TRUInteger paragraphIndex = TRTypesetterFindParagraph(typesetter, end - 1);
-    ParagraphInfo *paragraph = &typesetter->paragraphs[paragraphIndex];
-    TRUInteger minIndex = (start > paragraph->start ? start : paragraph->start);
+    ParagraphInfo paragraph;
+    TRUInteger minIndex;
+
+    TRTypesetterGetParagraph(typesetter, end - 1, &paragraph);
+    minIndex = NumberMax(start, paragraph.start);
 
     return FindBackwardBreak(typesetter, extent, GetBreakType(breakMode), end, start, minIndex);
 }

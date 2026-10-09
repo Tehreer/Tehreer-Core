@@ -48,6 +48,7 @@ private:
     void testGlyphIDs();
     void testGlyphAdvance();
     void testGlyphPath();
+    void testBitmapTypeface();
 };
 
 }

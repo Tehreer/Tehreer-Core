@@ -29,6 +29,8 @@
 #include <API/TRGlyphImage.h>
 #include <API/TRTypeface.h>
 #include <Core/Object.h>
+#include <Font/FaceMetadata.h>
+#include <Graphics/RenderableFace.h>
 
 #include "TRRenderer.h"
 
@@ -44,10 +46,24 @@ static void FinalizeRenderer(ObjectRef object)
     }
 }
 
-/* Converts a value to fixed point with the given number of fractional bits, rounding it. */
+/*
+ * Converts a value to fixed point with the given unit, rounding it. A value that is out of range
+ * is saturated, and one that is not a number is zero, as a conversion of them is not defined.
+ */
 static TRInt32 ToFixed(TRFloat value, TRFloat unit)
 {
-    return (TRInt32)((value * unit) + 0.5f);
+    TRFloat scaled = (value * unit) + 0.5f;
+    TRInt32 fixed = 0;
+
+    if (scaled >= 2147483648.0f) {
+        fixed = INT32_MAX;
+    } else if (scaled <= -2147483648.0f) {
+        fixed = INT32_MIN;
+    } else if (scaled == scaled) {
+        fixed = (TRInt32)scaled;
+    }
+
+    return fixed;
 }
 
 static TRInt32 ToPixelSize(const TRRenderer *renderer, TRFloat scale)
@@ -65,13 +81,54 @@ static TRGlyphCacheRef GetCache(const TRRenderer *renderer)
 /*
  * The key refers to the typeface without retaining it. The renderer keeps the typeface alive during
  * the lookup, and the cache retains it for each entry that it creates.
+ *
+ * A face without outlines only has the images of its strikes, so the key is the size of the strike
+ * that is nearest to the size that was asked for, and the images are kept at that size. The scale
+ * says how much they have to be scaled to match the size that was asked for. It is one for any
+ * other face.
  */
-static void SetupDataKey(const TRRenderer *renderer, GlyphDataKey *key)
+static void SetupDataKey(const TRRenderer *renderer, GlyphDataKey *key, TRFloat *scaleX,
+    TRFloat *scaleY)
 {
+    FaceMetadataRef metadata = renderer->typeface->renderableFace->metadata;
+
     key->typeface = renderer->typeface;
     key->pixelWidth = ToPixelSize(renderer, renderer->scaleX);
     key->pixelHeight = ToPixelSize(renderer, renderer->scaleY);
     key->skewX = ToFixed(renderer->skewX, 65536.0f);
+
+    *scaleX = 1.0f;
+    *scaleY = 1.0f;
+
+    if (!metadata->isScalable && metadata->bitmapStrikeCount > 0 && key->pixelWidth > 0
+            && key->pixelHeight > 0) {
+        TRUInteger index = FaceMetadataFindBitmapStrike(metadata, key->pixelHeight);
+        const TRBitmapStrike *strike = &metadata->bitmapStrikesPtr[index];
+        TRInt32 strikeWidth = ToFixed(strike->pixelWidth, 64.0f);
+        TRInt32 strikeHeight = ToFixed(strike->pixelHeight, 64.0f);
+
+        if (strikeWidth > 0 && strikeHeight > 0) {
+            *scaleX = (TRFloat)key->pixelWidth / (TRFloat)strikeWidth;
+            *scaleY = (TRFloat)key->pixelHeight / (TRFloat)strikeHeight;
+
+            key->pixelWidth = strikeWidth;
+            key->pixelHeight = strikeHeight;
+            key->skewX = 0;
+        }
+    }
+}
+
+/* Gets the scale of the images that the renderer finds, which is one if it has no typeface. */
+static void GetImageScale(const TRRenderer *renderer, TRFloat *scaleX, TRFloat *scaleY)
+{
+    *scaleX = 1.0f;
+    *scaleY = 1.0f;
+
+    if (renderer->typeface) {
+        GlyphDataKey key;
+
+        SetupDataKey(renderer, &key, scaleX, scaleY);
+    }
 }
 
 /* Rounds half up, which does not depend on the sign as the truncation of a cast does. */
@@ -140,7 +197,7 @@ TRRendererRef TRRendererCreate(void)
         renderer->renderScale = 1.0f;
         renderer->writingDirection = TRWritingDirectionLeftToRight;
         renderer->foregroundColor = TRColorMake(0xFF, 0x00, 0x00, 0x00);
-        renderer->strokeWidth = 1.0f;
+        renderer->strokeRadius = 0.5f;
         renderer->strokeCap = TRStrokeCapButt;
         renderer->strokeJoin = TRStrokeJoinRound;
         renderer->strokeMiter = 1.0f;
@@ -208,9 +265,9 @@ void TRRendererSetForegroundColor(TRRendererRef renderer, TRColor foregroundColo
     renderer->foregroundColor = foregroundColor;
 }
 
-void TRRendererSetStrokeWidth(TRRendererRef renderer, TRFloat strokeWidth)
+void TRRendererSetStrokeRadius(TRRendererRef renderer, TRFloat strokeRadius)
 {
-    renderer->strokeWidth = strokeWidth;
+    renderer->strokeRadius = strokeRadius;
 }
 
 void TRRendererSetStrokeCap(TRRendererRef renderer, TRStrokeCap strokeCap)
@@ -235,63 +292,66 @@ TRBoolean TRRendererIsRenderable(TRRendererRef renderer)
             && ToPixelSize(renderer, renderer->scaleY) >= 64);
 }
 
-TRGlyphImageRef TRRendererGetGlyphImage(TRRendererRef renderer, TRGlyphID glyphID)
+TRGlyphImageRef TRRendererCopyGlyphImage(TRRendererRef renderer, TRGlyphID glyphID)
 {
     TRGlyphImageRef glyphImage = NULL;
 
     if (renderer->typeface) {
+        TRFloat scaleX, scaleY;
         GlyphDataKey key;
 
-        SetupDataKey(renderer, &key);
+        SetupDataKey(renderer, &key, &scaleX, &scaleY);
 
-        glyphImage = TRGlyphCacheGetImage(GetCache(renderer), &key, glyphID,
+        glyphImage = TRGlyphCacheCopyImage(GetCache(renderer), &key, glyphID,
             renderer->foregroundColor);
     }
 
     return glyphImage;
 }
 
-TRGlyphImageRef TRRendererGetStrokeImage(TRRendererRef renderer, TRGlyphID glyphID)
+TRGlyphImageRef TRRendererCopyStrokeImage(TRRendererRef renderer, TRGlyphID glyphID)
 {
     TRGlyphImageRef strokeImage = NULL;
 
     if (renderer->typeface) {
-        TRFloat radius = (renderer->strokeWidth > 0.0f ? renderer->strokeWidth / 2.0f : 0.0f);
+        TRFloat radius = (renderer->strokeRadius > 0.0f ? renderer->strokeRadius : 0.0f);
         TRFloat miter = (renderer->strokeMiter > 0.0f ? renderer->strokeMiter : 0.0f);
+        TRFloat scaleX, scaleY;
         GlyphDataKey key;
         GlyphStrokeKey strokeKey;
 
-        SetupDataKey(renderer, &key);
+        SetupDataKey(renderer, &key, &scaleX, &scaleY);
 
         strokeKey.lineRadius = ToFixed(radius, 64.0f);
         strokeKey.lineCap = renderer->strokeCap;
         strokeKey.lineJoin = renderer->strokeJoin;
         strokeKey.miterLimit = ToFixed(miter, 65536.0f);
 
-        strokeImage = TRGlyphCacheGetStrokeImage(GetCache(renderer), &key, &strokeKey, glyphID);
+        strokeImage = TRGlyphCacheCopyStrokeImage(GetCache(renderer), &key, &strokeKey, glyphID);
     }
 
     return strokeImage;
 }
 
-TRPathRef TRRendererGetGlyphPath(TRRendererRef renderer, TRGlyphID glyphID)
+TRPathRef TRRendererCopyGlyphPath(TRRendererRef renderer, TRGlyphID glyphID)
 {
     TRPathRef glyphPath = NULL;
 
     if (renderer->typeface) {
+        TRFloat scaleX, scaleY;
         GlyphDataKey key;
 
-        SetupDataKey(renderer, &key);
+        SetupDataKey(renderer, &key, &scaleX, &scaleY);
 
-        glyphPath = TRGlyphCacheGetPath(GetCache(renderer), &key, glyphID);
+        glyphPath = TRGlyphCacheCopyPath(GetCache(renderer), &key, glyphID);
     }
 
     return glyphPath;
 }
 
-TRRect TRRendererGetGlyphBoundingBox(TRRendererRef renderer, TRGlyphID glyphID)
+TRRect TRRendererGetGlyphInkBox(TRRendererRef renderer, TRGlyphID glyphID)
 {
-    TRGlyphImageRef image = TRRendererGetGlyphImage(renderer, glyphID);
+    TRGlyphImageRef image = TRRendererCopyGlyphImage(renderer, glyphID);
     TRRect box;
 
     box.origin.x = 0.0f;
@@ -301,11 +361,14 @@ TRRect TRRendererGetGlyphBoundingBox(TRRendererRef renderer, TRGlyphID glyphID)
 
     if (image) {
         TRFloat scale = renderer->renderScale;
+        TRFloat scaleX, scaleY;
 
-        box.origin.x = (TRFloat)TRGlyphImageGetLeft(image) / scale;
-        box.origin.y = (TRFloat)(-TRGlyphImageGetTop(image)) / scale;
-        box.size.width = (TRFloat)TRGlyphImageGetWidth(image) / scale;
-        box.size.height = (TRFloat)TRGlyphImageGetHeight(image) / scale;
+        GetImageScale(renderer, &scaleX, &scaleY);
+
+        box.origin.x = ((TRFloat)TRGlyphImageGetLeft(image) * scaleX) / scale;
+        box.origin.y = ((TRFloat)(-TRGlyphImageGetTop(image)) * scaleY) / scale;
+        box.size.width = ((TRFloat)TRGlyphImageGetWidth(image) * scaleX) / scale;
+        box.size.height = ((TRFloat)TRGlyphImageGetHeight(image) * scaleY) / scale;
 
         TRGlyphImageRelease(image);
     }
@@ -313,15 +376,17 @@ TRRect TRRendererGetGlyphBoundingBox(TRRendererRef renderer, TRGlyphID glyphID)
     return box;
 }
 
-TRRect TRRendererGetRunBoundingBox(TRRendererRef renderer, const TRGlyphID *glyphIDs,
+TRRect TRRendererGetRunInkBox(TRRendererRef renderer, const TRGlyphID *glyphIDs,
     const TRPoint *offsets, const TRFloat *advances, TRUInteger count)
 {
     TRFloat minX = 0.0f, minY = 0.0f, maxX = 0.0f, maxY = 0.0f;
     TRBoolean hasBox = TRFalse;
+    TRFloat scaleX, scaleY;
     RunPen pen;
     TRRect box;
     TRUInteger index;
 
+    GetImageScale(renderer, &scaleX, &scaleY);
     SetupPen(renderer, &pen);
 
     for (index = 0; index < count; index++) {
@@ -330,12 +395,13 @@ TRRect TRRendererGetRunBoundingBox(TRRendererRef renderer, const TRGlyphID *glyp
 
         BeginGlyph(renderer, &pen, offsets, advances, index, &offsetX, &offsetY, &advance);
 
-        image = TRRendererGetGlyphImage(renderer, glyphIDs[index]);
+        image = TRRendererCopyGlyphImage(renderer, glyphIDs[index]);
         if (image) {
-            TRFloat left = RoundPixel(pen.penX + offsetX + (TRFloat)TRGlyphImageGetLeft(image));
-            TRFloat top = RoundPixel(-offsetY - (TRFloat)TRGlyphImageGetTop(image));
-            TRFloat right = left + (TRFloat)TRGlyphImageGetWidth(image);
-            TRFloat bottom = top + (TRFloat)TRGlyphImageGetHeight(image);
+            TRFloat left = RoundPixel(pen.penX + offsetX
+                                      + ((TRFloat)TRGlyphImageGetLeft(image) * scaleX));
+            TRFloat top = RoundPixel(-offsetY - ((TRFloat)TRGlyphImageGetTop(image) * scaleY));
+            TRFloat right = left + ((TRFloat)TRGlyphImageGetWidth(image) * scaleX);
+            TRFloat bottom = top + ((TRFloat)TRGlyphImageGetHeight(image) * scaleY);
 
             if (!hasBox) {
                 minX = left;
@@ -344,10 +410,10 @@ TRRect TRRendererGetRunBoundingBox(TRRendererRef renderer, const TRGlyphID *glyp
                 maxY = bottom;
                 hasBox = TRTrue;
             } else {
-                minX = (left < minX ? left : minX);
-                minY = (top < minY ? top : minY);
-                maxX = (right > maxX ? right : maxX);
-                maxY = (bottom > maxY ? bottom : maxY);
+                minX = NumberMin(left, minX);
+                minY = NumberMin(top, minY);
+                maxX = NumberMax(right, maxX);
+                maxY = NumberMax(bottom, maxY);
             }
 
             TRGlyphImageRelease(image);
@@ -379,28 +445,32 @@ void TRRendererEnumerateGlyphPlacements(TRRendererRef renderer, TRGlyphImageKind
     const TRGlyphID *glyphIDs, const TRPoint *offsets, const TRFloat *advances, TRUInteger count,
     TRGlyphPlacementFunc func, void *userData)
 {
+    TRBoolean shouldStop = TRFalse;
+    TRFloat scaleX, scaleY;
     RunPen pen;
     TRUInteger index;
 
+    GetImageScale(renderer, &scaleX, &scaleY);
     SetupPen(renderer, &pen);
 
-    for (index = 0; index < count; index++) {
+    for (index = 0; index < count && !shouldStop; index++) {
         TRFloat offsetX, offsetY, advance;
         TRGlyphImageRef image;
 
         BeginGlyph(renderer, &pen, offsets, advances, index, &offsetX, &offsetY, &advance);
 
         image = (kind == TRGlyphImageKindStroke
-                 ? TRRendererGetStrokeImage(renderer, glyphIDs[index])
-                 : TRRendererGetGlyphImage(renderer, glyphIDs[index]));
+                 ? TRRendererCopyStrokeImage(renderer, glyphIDs[index])
+                 : TRRendererCopyGlyphImage(renderer, glyphIDs[index]));
 
         if (image) {
             TRPoint origin;
 
-            origin.x = RoundPixel(pen.penX + offsetX + (TRFloat)TRGlyphImageGetLeft(image));
-            origin.y = RoundPixel(-offsetY - (TRFloat)TRGlyphImageGetTop(image));
+            origin.x = RoundPixel(pen.penX + offsetX
+                                  + ((TRFloat)TRGlyphImageGetLeft(image) * scaleX));
+            origin.y = RoundPixel(-offsetY - ((TRFloat)TRGlyphImageGetTop(image) * scaleY));
 
-            func(userData, index, image, origin);
+            func(userData, index, image, origin, scaleX, scaleY, &shouldStop);
             TRGlyphImageRelease(image);
         }
 
@@ -414,17 +484,18 @@ void TRRendererEnumerateGlyphPaths(TRRendererRef renderer, const TRGlyphID *glyp
 {
     TRBoolean isReverse = (renderer->writingDirection == TRWritingDirectionRightToLeft);
     TRFloat inverseScale = 1.0f / renderer->renderScale;
+    TRBoolean isStopped = TRFalse;
     TRFloat penX = 0.0f;
     TRUInteger index;
 
-    for (index = 0; index < count; index++) {
+    for (index = 0; index < count && !isStopped; index++) {
         TRPathRef path;
 
         if (isReverse) {
             penX -= advances[index];
         }
 
-        path = TRRendererGetGlyphPath(renderer, glyphIDs[index]);
+        path = TRRendererCopyGlyphPath(renderer, glyphIDs[index]);
         if (path) {
             TRAffineTransform transform;
 
@@ -436,7 +507,7 @@ void TRRendererEnumerateGlyphPaths(TRRendererRef renderer, const TRGlyphID *glyp
             transform.tx = penX + offsets[index].x;
             transform.ty = -offsets[index].y;
 
-            TRPathEnumerate(path, &transform, callbacks, userData);
+            isStopped = !TRPathEnumerate(path, &transform, callbacks, userData);
             TRPathRelease(path);
         }
 

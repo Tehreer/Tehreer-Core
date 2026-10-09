@@ -23,6 +23,7 @@
 
 #include <SheenBidi/SheenBidi.h>
 
+#include <Tehreer/TRSheenBidi.h>
 #include <Tehreer/TRText.h>
 
 extern "C" {
@@ -45,6 +46,7 @@ void TextTests::run() {
     testCreateUTF32();
     testCreateEmpty();
     testGetCodeUnitsRange();
+    testRangesAreChecked();
     testSheenBidiText();
     testCreateCopy();
     testCreateMutable();
@@ -136,6 +138,113 @@ void TextTests::testGetCodeUnitsRange() {
     assert(buffer[0] == 'h');
 
     TRTextRelease(text);
+}
+
+void TextTests::testRangesAreChecked() {
+    const TRUInteger max = TRInvalidIndex;
+    const char string[] = "abcdefgh";
+    TRTextRef text = TRTextCreate(string, 8, TRStringEncodingUTF8);
+    char buffer[16];
+
+    /* Code units are only copied from a range that is within the text. */
+    memset(buffer, '.', sizeof(buffer));
+    assert(TRTextGetCodeUnits(text, 6, 2, buffer));
+    assert(memcmp(buffer, "gh.", 3) == 0);
+    assert(TRTextGetCodeUnits(text, 8, 0, buffer));
+    assert(!TRTextGetCodeUnits(text, 6, 10, buffer));
+    assert(!TRTextGetCodeUnits(text, 6, max, buffer));
+    assert(!TRTextGetCodeUnits(text, 8, 3, buffer));
+    assert(!TRTextGetCodeUnits(text, 100, 3, buffer));
+    assert(!TRTextGetCodeUnits(text, max, max, buffer));
+    assert(!TRTextGetCodeUnits(text, 0, 8, nullptr));
+    assert(memcmp(buffer, "gh.", 3) == 0);
+
+    /* The attributes of a position that is not in the text are not there. */
+    TRUInteger length = 99;
+    assert(TRTextCopyAttributes(text, 8, &length) == nullptr && length == 0);
+    assert(TRTextCopyAttributes(text, max, nullptr) == nullptr);
+    TRTextRelease(text);
+
+    TRMutableTextRef mutableText = TRTextCreateMutable(TRStringEncodingUTF8);
+    assert(TRTextAppendCodeUnits(mutableText, "abcd", 4));
+
+    /* An index can be the end of the text to insert there, but not past it. */
+    assert(TRTextInsertCodeUnits(mutableText, 4, "ef", 2));
+    assert(TRTextGetLength(mutableText) == 6);
+    assert(!TRTextInsertCodeUnits(mutableText, 7, "XX", 2));
+    assert(!TRTextInsertCodeUnits(mutableText, max, "XX", 2));
+    assert(TRTextGetLength(mutableText) == 6);
+    TRTextGetCodeUnits(mutableText, 0, 6, buffer);
+    assert(memcmp(buffer, "abcdef", 6) == 0);
+
+    /* A range that is not in the text is not deleted, not even a part of it. */
+    assert(!TRTextDeleteCodeUnits(mutableText, 4, max));
+    assert(!TRTextDeleteCodeUnits(mutableText, 4, 3));
+    assert(!TRTextDeleteCodeUnits(mutableText, 10, 2));
+    assert(TRTextGetLength(mutableText) == 6);
+    assert(TRTextDeleteCodeUnits(mutableText, 4, 2));
+    assert(TRTextDeleteCodeUnits(mutableText, 2, 0));
+    assert(TRTextGetLength(mutableText) == 4);
+
+    assert(!TRTextReplaceCodeUnits(mutableText, 3, 50, "XY", 2));
+    assert(!TRTextReplaceCodeUnits(mutableText, 99, 5, "Z", 1));
+    assert(TRTextGetLength(mutableText) == 4);
+    assert(TRTextReplaceCodeUnits(mutableText, 3, 1, "XY", 2));
+    assert(TRTextGetLength(mutableText) == 5);
+    TRTextGetCodeUnits(mutableText, 0, 5, buffer);
+    assert(memcmp(buffer, "abcXY", 5) == 0);
+
+    /* Replacing with nothing deletes the range. */
+    assert(TRTextReplaceCodeUnits(mutableText, 0, 2, nullptr, 0));
+    assert(TRTextGetLength(mutableText) == 3);
+
+    /* Missing code units change nothing. */
+    assert(!TRTextInsertCodeUnits(mutableText, 1, nullptr, 3));
+    assert(!TRTextAppendCodeUnits(mutableText, nullptr, 3));
+    assert(!TRTextReplaceCodeUnits(mutableText, 0, 1, nullptr, 3));
+    assert(!TRTextSetCodeUnits(mutableText, nullptr, 3));
+    assert(TRTextGetLength(mutableText) == 3);
+
+    /* An attribute is only set on a range that is in the text, with a type that is known. */
+    TRAttribute attribute = {};
+    attribute.type = TRAttributeTypeSize;
+    attribute.value.typeSize = 12.0f;
+    assert(!TRTextSetAttribute(mutableText, 1, max, &attribute));
+    assert(!TRTextSetAttribute(mutableText, 1, 3, &attribute));
+    assert(!TRTextSetAttribute(mutableText, 99, 2, &attribute));
+    assert(!TRTextSetAttribute(mutableText, 0, 3, nullptr));
+    assert(TRTextSetAttribute(mutableText, 0, 0, &attribute));
+
+    TRAttribute unknown = {};
+    unknown.type = 1000;
+    assert(!TRTextSetAttribute(mutableText, 0, 3, &unknown));
+
+    assert(TRTextSetAttribute(mutableText, 1, 2, &attribute));
+    TRAttributeListRef list = TRTextCopyAttributes(mutableText, 0, &length);
+    assert(TRAttributeListGetCount(list) == 0 && length == 1);
+    TRAttributeListRelease(list);
+
+    list = TRTextCopyAttributes(mutableText, 1, &length);
+    assert(TRAttributeListGetCount(list) == 1 && length == 2);
+
+    /* Items that are not in a list are not given. */
+    assert(TRAttributeListGetItem(list, 0) != nullptr);
+    assert(TRAttributeListGetItem(list, 1) == nullptr);
+    assert(TRAttributeListGetItem(list, max) == nullptr);
+    TRAttributeListRelease(list);
+
+    assert(!TRTextRemoveAttribute(mutableText, 2, max, TRAttributeTypeSize));
+    assert(!TRTextRemoveAttribute(mutableText, 50, 5, TRAttributeTypeSize));
+    assert(!TRTextRemoveAttribute(mutableText, 0, 3, 1000));
+    assert(TRTextRemoveAttribute(mutableText, 2, 1, TRAttributeTypeSize));
+    list = TRTextCopyAttributes(mutableText, 1, &length);
+    assert(TRAttributeListGetCount(list) == 1 && length == 1);
+    TRAttributeListRelease(list);
+
+    /* Text that is not given cannot be made. */
+    assert(TRTextCreate(nullptr, 3, TRStringEncodingUTF8) == nullptr);
+
+    TRTextRelease(mutableText);
 }
 
 void TextTests::testSheenBidiText() {

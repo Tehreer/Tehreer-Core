@@ -21,8 +21,10 @@
 #include <vector>
 
 #include <Tehreer/TRAttribute.h>
+#include <Tehreer/TRFontFeatures.h>
 #include <Tehreer/TRReplacement.h>
 #include <Tehreer/TRString.h>
+#include <Tehreer/TRShapingEngine.h>
 #include <Tehreer/TRText.h>
 #include <Tehreer/TRTypesetter.h>
 
@@ -59,6 +61,8 @@ void TypesetterTests::run() {
     testRunQueries();
     testEncodings();
     testUnknownScriptsAndNotdef();
+    testLanguageAndFeatureAttributes();
+    testRangesAreChecked();
 }
 
 /*
@@ -74,6 +78,21 @@ constexpr TRFloat Notdef = 908.0f;
 
 static TRTypesetterRef create(TRTextRef text, const TRAttribute *defaults = nullptr, TRUInteger count = 0) {
     return const_cast<TRTypesetterRef>(TRTypesetterCreate(text, defaults, count));
+}
+
+/* The paragraphs of the text of a typesetter, which are found from the code units. */
+static vector<ParagraphInfo> paragraphsOf(TRTypesetterRef typesetter) {
+    vector<ParagraphInfo> paragraphs;
+
+    for (TRUInteger index = 0; index < TRTypesetterGetCodeUnitCount(typesetter);) {
+        ParagraphInfo paragraph;
+        TRTypesetterGetParagraph(typesetter, index, &paragraph);
+
+        paragraphs.push_back(paragraph);
+        index = paragraph.end;
+    }
+
+    return paragraphs;
 }
 
 static vector<TRFloat> advancesOf(TextRunRef run) {
@@ -112,30 +131,30 @@ void TypesetterTests::testDefaultAttributes() {
     TRAttribute defaults[2] = {};
     defaults[0].type = TRAttributeTypeface;
     defaults[0].value.typeface = typeface;
-    defaults[1].type = TRAttributePointSize;
-    defaults[1].value.pointSize = EmSize;
+    defaults[1].type = TRAttributeTypeSize;
+    defaults[1].value.typeSize = EmSize;
 
     TRTypesetterRef typesetter = create(text, defaults, 2);
     assert(typesetter != nullptr);
-    assert(typesetter->runCount == 1);
-    assert(typesetter->runs[0]->typeSize == EmSize);
-    assert((advancesOf(typesetter->runs[0]) == vector<TRFloat>{ A, B, C }));
+    assert(TRTypesetterGetRunCount(typesetter) == 1);
+    assert(TRTypesetterGetRun(typesetter, 0)->typeSize == EmSize);
+    assert((advancesOf(TRTypesetterGetRun(typesetter, 0)) == vector<TRFloat>{ A, B, C }));
     TRTypesetterRelease(typesetter);
 
     /* Without a size, it is 16, and what the text sets wins over the defaults. */
-    defaults[1].value.pointSize = 0.0f;
+    defaults[1].value.typeSize = 0.0f;
     TRTextRelease(text);
     text = makeTestText(u"abc");
     typesetter = create(text, defaults, 1);
-    assert(typesetter->runs[0]->typeSize == 16.0f);
+    assert(TRTypesetterGetRun(typesetter, 0)->typeSize == 16.0f);
     TRTypesetterRelease(typesetter);
 
-    setTestFloat(text, 1, 2, TRAttributePointSize, 100.0f);
+    setTestFloat(text, 1, 2, TRAttributeTypeSize, 100.0f);
     TRAttribute onlyTypeface = defaults[0];
     typesetter = create(text, &onlyTypeface, 1);
-    assert(typesetter->runCount == 2);
-    assert(typesetter->runs[0]->typeSize == 16.0f);
-    assert(typesetter->runs[1]->typeSize == 100.0f);
+    assert(TRTypesetterGetRunCount(typesetter) == 2);
+    assert(TRTypesetterGetRun(typesetter, 0)->typeSize == 16.0f);
+    assert(TRTypesetterGetRun(typesetter, 1)->typeSize == 100.0f);
     TRTypesetterRelease(typesetter);
 
     TRTextRelease(text);
@@ -150,12 +169,12 @@ void TypesetterTests::testSingleRun() {
     assert(typesetter != nullptr);
     assert(TRTypesetterGetCodeUnitCount(typesetter) == 3);
 
-    assert(typesetter->paragraphCount == 1);
-    assert(typesetter->paragraphs[0].start == 0 && typesetter->paragraphs[0].end == 3);
-    assert(typesetter->paragraphs[0].baseLevel == 0);
+    assert(paragraphsOf(typesetter).size() == 1);
+    assert(paragraphsOf(typesetter)[0].start == 0 && paragraphsOf(typesetter)[0].end == 3);
+    assert(paragraphsOf(typesetter)[0].baseLevel == 0);
 
-    assert(typesetter->runCount == 1);
-    TextRunRef run = typesetter->runs[0];
+    assert(TRTypesetterGetRunCount(typesetter) == 1);
+    TextRunRef run = TRTypesetterGetRun(typesetter, 0);
     assert(run->kind == TextRunKindIntrinsic);
     assert(run->codeUnitStart == 0 && run->codeUnitEnd == 3);
     assert(run->bidiLevel == 0 && !run->isBackward);
@@ -184,7 +203,7 @@ void TypesetterTests::testEmptyText() {
 
     assert(typesetter != nullptr);
     assert(TRTypesetterGetCodeUnitCount(typesetter) == 0);
-    assert(typesetter->paragraphCount == 0 && typesetter->runCount == 0);
+    assert(paragraphsOf(typesetter).size() == 0 && TRTypesetterGetRunCount(typesetter) == 0);
     assert(TRTypesetterFindRun(typesetter, 0) == TRInvalidIndex);
 
     TRTypesetterRelease(typesetter);
@@ -198,7 +217,7 @@ void TypesetterTests::testRunsFollowShapingAttributes() {
     TRMutableTextRef text = makeTestText(u"abcabcabc", regular, EmSize);
 
     /* A size, a scale, an offset and an obliqueness each have their own runs. */
-    setTestFloat(text, 3, 1, TRAttributePointSize, 1024.0f);
+    setTestFloat(text, 3, 1, TRAttributeTypeSize, 1024.0f);
     setTestFloat(text, 4, 1, TRAttributeScaleX, 2.0f);
     setTestFloat(text, 5, 1, TRAttributeScaleY, 2.0f);
     setTestFloat(text, 6, 1, TRAttributeBaselineOffset, 5.0f);
@@ -211,14 +230,14 @@ void TypesetterTests::testRunsFollowShapingAttributes() {
 
     TRTypesetterRef typesetter = create(text);
     assert(typesetter != nullptr);
-    assert(typesetter->runCount == 7);
+    assert(TRTypesetterGetRunCount(typesetter) == 7);
 
     const size_t starts[] = { 0, 3, 4, 5, 6, 7, 8 };
     for (size_t i = 0; i < 7; i++) {
-        assert(typesetter->runs[i]->codeUnitStart == starts[i]);
+        assert(TRTypesetterGetRun(typesetter, i)->codeUnitStart == starts[i]);
     }
-    assert(typesetter->runs[6]->typeface == other);
-    assert(typesetter->runs[1]->typeSize == 1024.0f);
+    assert(TRTypesetterGetRun(typesetter, 6)->typeface == other);
+    assert(TRTypesetterGetRun(typesetter, 1)->typeSize == 1024.0f);
 
     TRTypesetterRelease(typesetter);
 
@@ -229,17 +248,17 @@ void TypesetterTests::testRunsFollowShapingAttributes() {
     setTestFloat(merged, 4, 2, TRAttributeScaleX, 1.5f);
 
     typesetter = create(merged);
-    assert(typesetter->runCount == 1);
-    assert(typesetter->runs[0]->scaleX == 1.5f);
+    assert(TRTypesetterGetRunCount(typesetter) == 1);
+    assert(TRTypesetterGetRun(typesetter, 0)->scaleX == 1.5f);
     TRTypesetterRelease(typesetter);
 
     /* A value that is the same as the default does not split either. */
     TRMutableTextRef same = makeTestText(u"abcabc", regular, EmSize);
     setTestFloat(same, 2, 2, TRAttributeScaleX, 1.0f);
-    setTestFloat(same, 4, 1, TRAttributePointSize, EmSize);
+    setTestFloat(same, 4, 1, TRAttributeTypeSize, EmSize);
 
     typesetter = create(same);
-    assert(typesetter->runCount == 1);
+    assert(TRTypesetterGetRunCount(typesetter) == 1);
     TRTypesetterRelease(typesetter);
 
     TRTextRelease(same);
@@ -269,8 +288,8 @@ void TypesetterTests::testPaintAttributesDoNotSplitRuns() {
 
     /* The text is shaped as a whole, since colors and user data do not change glyphs. */
     TRTypesetterRef typesetter = create(text);
-    assert(typesetter->runCount == 1);
-    assert(typesetter->runs[0]->codeUnitStart == 0 && typesetter->runs[0]->codeUnitEnd == 6);
+    assert(TRTypesetterGetRunCount(typesetter) == 1);
+    assert(TRTypesetterGetRun(typesetter, 0)->codeUnitStart == 0 && TRTypesetterGetRun(typesetter, 0)->codeUnitEnd == 6);
 
     TRTypesetterRelease(typesetter);
     TRTextRelease(text);
@@ -285,9 +304,9 @@ void TypesetterTests::testScaleAndBaselineOffset() {
     setTestFloat(text, 1, 1, TRAttributeBaselineOffset, 7.0f);
 
     TRTypesetterRef typesetter = create(text);
-    assert(typesetter->runCount == 2);
+    assert(TRTypesetterGetRunCount(typesetter) == 2);
 
-    TextRunRef scaled = typesetter->runs[0];
+    TextRunRef scaled = TRTypesetterGetRun(typesetter, 0);
     assert(scaled->glyphAdvances[0] == A * 2.0f);
     assert(scaled->glyphOffsets[0].x == 0.0f && scaled->glyphOffsets[0].y == 0.0f);
     /* The vertical scale applies to the metrics. */
@@ -296,7 +315,7 @@ void TypesetterTests::testScaleAndBaselineOffset() {
     assert(scaled->caretEdges[1] == A * 2.0f);
 
     /* The baseline offset raises the glyphs. */
-    TextRunRef raised = typesetter->runs[1];
+    TextRunRef raised = TRTypesetterGetRun(typesetter, 1);
     assert(raised->glyphAdvances[0] == B);
     assert(raised->glyphOffsets[0].y == 7.0f);
 
@@ -311,30 +330,30 @@ void TypesetterTests::testBidirectionalRuns() {
     TRMutableTextRef text = makeTestText(u"ab \u05E9\u05DC\u05D5\u05DD cd", typeface, EmSize);
     TRTypesetterRef typesetter = create(text);
 
-    assert(typesetter->paragraphCount == 1);
-    assert(typesetter->paragraphs[0].baseLevel == 0);
-    assert(typesetter->runCount == 4);
+    assert(paragraphsOf(typesetter).size() == 1);
+    assert(paragraphsOf(typesetter)[0].baseLevel == 0);
+    assert(TRTypesetterGetRunCount(typesetter) == 4);
 
-    TextRunRef latin = typesetter->runs[0];
+    TextRunRef latin = TRTypesetterGetRun(typesetter, 0);
     assert(latin->codeUnitStart == 0 && latin->codeUnitEnd == 3 && latin->bidiLevel == 0);
     assert(!latin->isBackward && latin->writingDirection == TRWritingDirectionLeftToRight);
 
     /* Hebrew is shaped right to left at an odd level, which flows with the direction. */
-    TextRunRef hebrew = typesetter->runs[1];
+    TextRunRef hebrew = TRTypesetterGetRun(typesetter, 1);
     assert(hebrew->codeUnitStart == 3 && hebrew->codeUnitEnd == 7 && hebrew->bidiLevel == 1);
     assert(!hebrew->isBackward && hebrew->writingDirection == TRWritingDirectionRightToLeft);
     assert(TextRunIsRTL(hebrew));
     assert(hebrew->glyphCount == 4);
 
     /* The runs cover the text without gaps. */
-    assert(typesetter->runs[2]->codeUnitStart == 7);
-    assert(typesetter->runs[3]->codeUnitEnd == 10);
-    for (size_t i = 1; i < typesetter->runCount; i++) {
-        assert(typesetter->runs[i]->codeUnitStart == typesetter->runs[i - 1]->codeUnitEnd);
+    assert(TRTypesetterGetRun(typesetter, 2)->codeUnitStart == 7);
+    assert(TRTypesetterGetRun(typesetter, 3)->codeUnitEnd == 10);
+    for (size_t i = 1; i < TRTypesetterGetRunCount(typesetter); i++) {
+        assert(TRTypesetterGetRun(typesetter, i)->codeUnitStart == TRTypesetterGetRun(typesetter, i - 1)->codeUnitEnd);
     }
 
     /* A run at an even level whose script goes right to left is shaped backward. */
-    TextRunRef space = typesetter->runs[2];
+    TextRunRef space = TRTypesetterGetRun(typesetter, 2);
     assert(space->bidiLevel == 0);
     assert(space->isBackward == (space->writingDirection == TRWritingDirectionRightToLeft));
 
@@ -349,18 +368,18 @@ void TypesetterTests::testParagraphs() {
     TRTypesetterRef typesetter = create(text);
 
     /* A newline belongs to the paragraph that it ends, and runs do not cross paragraphs. */
-    assert(typesetter->paragraphCount == 4);
+    assert(paragraphsOf(typesetter).size() == 4);
     const size_t starts[] = { 0, 3, 6, 7 };
     const size_t ends[] = { 3, 6, 7, 9 };
     for (size_t i = 0; i < 4; i++) {
-        assert(typesetter->paragraphs[i].start == starts[i]);
-        assert(typesetter->paragraphs[i].end == ends[i]);
+        assert(paragraphsOf(typesetter)[i].start == starts[i]);
+        assert(paragraphsOf(typesetter)[i].end == ends[i]);
     }
 
-    assert(typesetter->runCount == 4);
+    assert(TRTypesetterGetRunCount(typesetter) == 4);
     for (size_t i = 0; i < 4; i++) {
-        assert(typesetter->runs[i]->codeUnitStart == starts[i]);
-        assert(typesetter->runs[i]->codeUnitEnd == ends[i]);
+        assert(TRTypesetterGetRun(typesetter, i)->codeUnitStart == starts[i]);
+        assert(TRTypesetterGetRun(typesetter, i)->codeUnitEnd == ends[i]);
     }
 
     TRTypesetterRelease(typesetter);
@@ -374,12 +393,12 @@ void TypesetterTests::testRightToLeftParagraph() {
     TRTypesetterRef typesetter = create(text);
 
     /* The base level comes from the first strong character of each paragraph. */
-    assert(typesetter->paragraphCount == 2);
-    assert(typesetter->paragraphs[0].baseLevel == 1);
-    assert(typesetter->paragraphs[1].baseLevel == 0);
+    assert(paragraphsOf(typesetter).size() == 2);
+    assert(paragraphsOf(typesetter)[0].baseLevel == 1);
+    assert(paragraphsOf(typesetter)[1].baseLevel == 0);
 
     /* The Latin letters are embedded at the level above the base. */
-    TextRunRef latin = typesetter->runs[1];
+    TextRunRef latin = TRTypesetterGetRun(typesetter, 1);
     assert(latin->codeUnitStart == 3 && latin->codeUnitEnd == 5 && latin->bidiLevel == 2);
     assert(!latin->isBackward);
 
@@ -427,10 +446,12 @@ void TypesetterTests::testReplacementRuns() {
     TRTextSetAttribute(text, 1, 1, &attribute);
 
     TRTypesetterRef typesetter = create(text);
-    assert(typesetter->runCount == 3);
-    assert(typesetter->blockCount == 0);
+    assert(TRTypesetterGetRunCount(typesetter) == 3);
+    for (TRUInteger i = 0; i < TRTypesetterGetRunCount(typesetter); i++) {
+        assert(!TextRunIsBlock(TRTypesetterGetRun(typesetter, i)));
+    }
 
-    TextRunRef run = typesetter->runs[1];
+    TextRunRef run = TRTypesetterGetRun(typesetter, 1);
     assert(run->kind == TextRunKindReplacement);
     assert(run->codeUnitStart == 1 && run->codeUnitEnd == 2);
     assert(run->replacement == replacement);
@@ -466,8 +487,8 @@ void TypesetterTests::testReplacementRuns() {
     TextRunRelease(forFrame);
 
     /* A run that is not a replacement is returned as it is. */
-    TextRunRef same = TextRunCreateForLayoutWidth(typesetter->runs[0], 120.0f);
-    assert(same == typesetter->runs[0]);
+    TextRunRef same = TextRunCreateForLayoutWidth(TRTypesetterGetRun(typesetter, 0), 120.0f);
+    assert(same == TRTypesetterGetRun(typesetter, 0));
     TextRunRelease(same);
 
     TRTypesetterRelease(typesetter);
@@ -491,12 +512,17 @@ void TypesetterTests::testBlockReplacements() {
     TRTextSetAttribute(text, 3, 1, &attribute);
 
     TRTypesetterRef typesetter = create(text);
-    assert(typesetter->runCount == 5);
-    assert(typesetter->blockCount == 1);
-    assert(TextRunIsBlock(typesetter->blocks[0]));
-    assert(typesetter->blocks[0] == typesetter->runs[3]);
-    assert(!TextRunIsBlock(typesetter->runs[1]));
-    assert(!TextRunIsBlock(typesetter->runs[0]));
+    assert(TRTypesetterGetRunCount(typesetter) == 5);
+
+    /* Only the run of the block replacement is a block. */
+    size_t blockCount = 0;
+    for (TRUInteger i = 0; i < TRTypesetterGetRunCount(typesetter); i++) {
+        blockCount += (TextRunIsBlock(TRTypesetterGetRun(typesetter, i)) ? 1 : 0);
+    }
+    assert(blockCount == 1);
+    assert(TextRunIsBlock(TRTypesetterGetRun(typesetter, 3)));
+    assert(!TextRunIsBlock(TRTypesetterGetRun(typesetter, 1)));
+    assert(!TextRunIsBlock(TRTypesetterGetRun(typesetter, 0)));
 
     TRTypesetterRelease(typesetter);
     TRTextRelease(text);
@@ -514,8 +540,8 @@ void TypesetterTests::testTextIsCopied() {
     TRTextReplaceCodeUnits(text, 0, 3, u"cba cba", 7);
     assert(TRTextGetLength(text) == 7);
     assert(TRTypesetterGetCodeUnitCount(typesetter) == 3);
-    assert(typesetter->runCount == 1);
-    assert(typesetter->runs[0]->glyphIDs[0] == 1);
+    assert(TRTypesetterGetRunCount(typesetter) == 1);
+    assert(TRTypesetterGetRun(typesetter, 0)->glyphIDs[0] == 1);
 
     TRTypesetterRelease(typesetter);
     TRTextRelease(text);
@@ -525,18 +551,21 @@ void TypesetterTests::testTextIsCopied() {
 void TypesetterTests::testFindRunsAndParagraphs() {
     TRTypefaceRef typeface = createTestTypeface("Roboto-Regular.abc.ttf");
     TRMutableTextRef text = makeTestText(u"ab\ncde\nf", typeface, EmSize);
-    setTestFloat(text, 4, 1, TRAttributePointSize, 1024.0f);
+    setTestFloat(text, 4, 1, TRAttributeTypeSize, 1024.0f);
     TRTypesetterRef typesetter = create(text);
 
     /* Paragraphs are [0, 3), [3, 7) and [7, 8), and the second one has three runs. */
-    assert(typesetter->paragraphCount == 3);
+    assert(paragraphsOf(typesetter).size() == 3);
     const size_t paragraphOf[] = { 0, 0, 0, 1, 1, 1, 1, 2 };
     for (size_t i = 0; i < 8; i++) {
-        assert(TRTypesetterFindParagraph(typesetter, i) == paragraphOf[i]);
-    }
-    assert(TRTypesetterFindParagraph(typesetter, 8) == TRInvalidIndex);
+        ParagraphInfo paragraph;
+        TRTypesetterGetParagraph(typesetter, i, &paragraph);
 
-    assert(typesetter->runCount == 5);
+        assert(paragraph.start == paragraphsOf(typesetter)[paragraphOf[i]].start);
+        assert(paragraph.end == paragraphsOf(typesetter)[paragraphOf[i]].end);
+    }
+
+    assert(TRTypesetterGetRunCount(typesetter) == 5);
     const size_t runOf[] = { 0, 0, 0, 1, 2, 3, 3, 4 };
     for (size_t i = 0; i < 8; i++) {
         assert(TRTypesetterFindRun(typesetter, i) == runOf[i]);
@@ -551,10 +580,10 @@ void TypesetterTests::testFindRunsAndParagraphs() {
 void TypesetterTests::testMeasureRange() {
     TRTypefaceRef typeface = createTestTypeface("Roboto-Regular.abc.ttf");
     TRMutableTextRef text = makeTestText(u"abcabc", typeface, EmSize);
-    setTestFloat(text, 3, 3, TRAttributePointSize, 1024.0f);
+    setTestFloat(text, 3, 3, TRAttributeTypeSize, 1024.0f);
     TRTypesetterRef typesetter = create(text);
 
-    assert(typesetter->runCount == 2);
+    assert(TRTypesetterGetRunCount(typesetter) == 2);
     assert(TRTypesetterMeasureRange(typesetter, 0, 0) == 0.0f);
     assert(TRTypesetterMeasureRange(typesetter, 0, 1) == A);
     assert(TRTypesetterMeasureRange(typesetter, 1, 3) == B + C);
@@ -574,7 +603,7 @@ void TypesetterTests::testRunQueries() {
     TRTypefaceRef typeface = createTestTypeface("Roboto-Regular.abc.ttf");
     TRMutableTextRef text = makeTestText(u"abc", typeface, EmSize);
     TRTypesetterRef typesetter = create(text);
-    TextRunRef run = typesetter->runs[0];
+    TextRunRef run = TRTypesetterGetRun(typesetter, 0);
 
     /* One glyph for each code unit, so each cluster is a single code unit. */
     for (size_t i = 0; i < 3; i++) {
@@ -606,8 +635,8 @@ void TypesetterTests::testEncodings() {
     TRAttribute attributes[2] = {};
     attributes[0].type = TRAttributeTypeface;
     attributes[0].value.typeface = typeface;
-    attributes[1].type = TRAttributePointSize;
-    attributes[1].value.pointSize = EmSize;
+    attributes[1].type = TRAttributeTypeSize;
+    attributes[1].value.typeSize = EmSize;
 
     /* The same text in each encoding is shaped alike, and counts its own code units. */
     TRTextRef utf8 = TRTextCreate("ab\xC3\xA9" "c", 5, TRStringEncodingUTF8);
@@ -623,12 +652,12 @@ void TypesetterTests::testEncodings() {
     assert(TRTypesetterGetCodeUnitCount(byWords) == 4);
 
     const vector<TRFloat> expected = { A, B, Notdef, C };
-    assert(advancesOf(byBytes->runs[0]) == expected);
-    assert(advancesOf(byUnits->runs[0]) == expected);
-    assert(advancesOf(byWords->runs[0]) == expected);
+    assert(advancesOf(TRTypesetterGetRun(byBytes, 0)) == expected);
+    assert(advancesOf(TRTypesetterGetRun(byUnits, 0)) == expected);
+    assert(advancesOf(TRTypesetterGetRun(byWords, 0)) == expected);
 
     /* Each code unit of the bytes has an entry in the cluster map. */
-    assert((vector<TRUInteger>(byBytes->runs[0]->clusterMap, byBytes->runs[0]->clusterMap + 5)
+    assert((vector<TRUInteger>(TRTypesetterGetRun(byBytes, 0)->clusterMap, TRTypesetterGetRun(byBytes, 0)->clusterMap + 5)
             == vector<TRUInteger>{ 0, 1, 2, 2, 3 }));
 
     TRTypesetterRelease(byWords);
@@ -648,21 +677,170 @@ void TypesetterTests::testUnknownScriptsAndNotdef() {
     TRTypesetterRef typesetter = create(text);
 
     assert(typesetter != nullptr);
-    assert(typesetter->runCount >= 3);
-    for (size_t i = 0; i < typesetter->runCount; i++) {
-        TextRunRef run = typesetter->runs[i];
+    assert(TRTypesetterGetRunCount(typesetter) >= 3);
+    for (size_t i = 0; i < TRTypesetterGetRunCount(typesetter); i++) {
+        TextRunRef run = TRTypesetterGetRun(typesetter, i);
         assert(run->glyphCount > 0);
         assert(TextRunGetWidth(run) > 0.0f);
         assert(run->codeUnitEnd > run->codeUnitStart);
     }
 
     /* The runs cover the text exactly once. */
-    assert(typesetter->runs[0]->codeUnitStart == 0);
-    assert(typesetter->runs[typesetter->runCount - 1]->codeUnitEnd == TRTextGetLength(text));
+    assert(TRTypesetterGetRun(typesetter, 0)->codeUnitStart == 0);
+    assert(TRTypesetterGetRun(typesetter, TRTypesetterGetRunCount(typesetter) - 1)->codeUnitEnd == TRTextGetLength(text));
 
     TRTypesetterRelease(typesetter);
     TRTextRelease(text);
     TRTypefaceRelease(typeface);
+}
+
+void TypesetterTests::testLanguageAndFeatureAttributes() {
+    TRTypefaceRef regular = createTestTypeface("Roboto-Regular.abc.ttf");
+
+    /* The language is a tag, which the name of a language gives. */
+    assert(TRShapingEngineGetLanguageTag("ur-PK") == TRTagMake('U', 'R', 'D', ' '));
+    assert(TRShapingEngineGetLanguageTag("tr") == TRTagMake('T', 'R', 'K', ' '));
+    assert(TRShapingEngineGetLanguageTag(nullptr) == TRTagMake('d', 'f', 'l', 't'));
+
+    TRMutableTextRef text = makeTestText(u"abcabcabc", regular, EmSize);
+
+    TRAttribute language = {};
+    language.type = TRAttributeLanguage;
+    language.value.language = TRTagMake('T', 'R', 'K', ' ');
+    TRTextSetAttribute(text, 3, 3, &language);
+
+    TROpenTypeFeature smallCaps = { TRTagMake('s', 'm', 'c', 'p'), 1 };
+    TRFontFeaturesRef features = TRFontFeaturesCreate(&smallCaps, 1);
+    TRFontFeaturesRef sameFeatures = TRFontFeaturesCreate(&smallCaps, 1);
+    assert(features != nullptr && sameFeatures != nullptr && features != sameFeatures);
+
+    TRAttribute featureAttribute = {};
+    featureAttribute.type = TRAttributeFontFeatures;
+    featureAttribute.value.fontFeatures = features;
+    TRTextSetAttribute(text, 6, 1, &featureAttribute);
+
+    /* A set that has the same settings as its neighbor is shaped together with it. */
+    featureAttribute.value.fontFeatures = sameFeatures;
+    TRTextSetAttribute(text, 7, 2, &featureAttribute);
+
+    /* The text keeps what it needs, so the sets can go. */
+    TRFontFeaturesRelease(features);
+    TRFontFeaturesRelease(sameFeatures);
+
+    TRTypesetterRef typesetter = create(text);
+    assert(typesetter != nullptr);
+    assert(TRTypesetterGetRunCount(typesetter) == 3);
+    assert(TRTypesetterGetRun(typesetter, 0)->codeUnitEnd == 3);
+    assert(TRTypesetterGetRun(typesetter, 1)->codeUnitEnd == 6);
+    assert(TRTypesetterGetRun(typesetter, 2)->codeUnitStart == 6 && TRTypesetterGetRun(typesetter, 2)->codeUnitEnd == 9);
+    TRTypesetterRelease(typesetter);
+
+    /* Another set of settings, or a different value, is a different run. */
+    TROpenTypeFeature tabular[] = { { TRTagMake('t', 'n', 'u', 'm'), 1 } };
+    TRFontFeaturesRef other = TRFontFeaturesCreate(tabular, 1);
+    featureAttribute.value.fontFeatures = other;
+    TRTextSetAttribute(text, 8, 1, &featureAttribute);
+    TRFontFeaturesRelease(other);
+
+    typesetter = create(text);
+    assert(TRTypesetterGetRunCount(typesetter) == 4);
+    TRTypesetterRelease(typesetter);
+
+    /* The default attributes can give them as well. */
+    TRMutableTextRef plain = makeTestText(u"abc", regular, EmSize);
+    TRAttribute defaults[2] = {};
+    defaults[0].type = TRAttributeLanguage;
+    defaults[0].value.language = TRTagMake('E', 'N', 'G', ' ');
+    TRFontFeaturesRef none = TRFontFeaturesCreate(nullptr, 0);
+    assert(none != nullptr && TRFontFeaturesGetCount(none) == 0);
+    defaults[1].type = TRAttributeFontFeatures;
+    defaults[1].value.fontFeatures = none;
+    typesetter = create(plain, defaults, 2);
+    assert(typesetter != nullptr && TRTypesetterGetRunCount(typesetter) == 1);
+    TRTypesetterRelease(typesetter);
+
+    TRFontFeaturesRelease(none);
+    TRTextRelease(plain);
+    TRTextRelease(text);
+    TRTypefaceRelease(regular);
+}
+
+void TypesetterTests::testRangesAreChecked() {
+    const TRUInteger max = TRInvalidIndex;
+    TRTypefaceRef regular = createTestTypeface("Roboto-Regular.abc.ttf");
+    TRMutableTextRef text = makeTestText(u"abc abc", regular, EmSize);
+    TRTypesetterRef typesetter = create(text);
+
+    /* A range that is within the text is the line, up to the end of the text. */
+    TRComposedLineRef line = TRTypesetterCreateSimpleLine(typesetter, 4, 3);
+    assert(line != nullptr);
+    assert(TRComposedLineGetCodeUnitStart(line) == 4);
+    assert(TRComposedLineGetCodeUnitEnd(line) == 7);
+    TRComposedLineRelease(line);
+
+    line = TRTypesetterCreateFrameLine(typesetter, 2, 5, 10000.0f);
+    assert(line != nullptr && TRComposedLineGetCodeUnitEnd(line) == 7);
+    TRComposedLineRelease(line);
+
+    line = TRTypesetterCreateJustifiedLine(typesetter, 0, 7, 1.0f, 10000.0f);
+    assert(line != nullptr && TRComposedLineGetCodeUnitEnd(line) == 7);
+    TRComposedLineRelease(line);
+
+    /* Nothing is made of a range that is empty or is not within the text, however big it is. */
+    assert(TRTypesetterCreateSimpleLine(typesetter, 4, 4) == nullptr);
+    assert(TRTypesetterCreateSimpleLine(typesetter, 0, 8) == nullptr);
+    assert(TRTypesetterCreateSimpleLine(typesetter, 7, 1) == nullptr);
+    assert(TRTypesetterCreateSimpleLine(typesetter, 8, 1) == nullptr);
+    assert(TRTypesetterCreateSimpleLine(typesetter, 99, 3) == nullptr);
+    assert(TRTypesetterCreateSimpleLine(typesetter, 2, 0) == nullptr);
+    assert(TRTypesetterCreateSimpleLine(typesetter, 0, max) == nullptr);
+    assert(TRTypesetterCreateSimpleLine(typesetter, max, max) == nullptr);
+    assert(TRTypesetterCreateSimpleLine(typesetter, 2, max - 1) == nullptr);
+    assert(TRTypesetterCreateFrameLine(typesetter, 9, 1, 100.0f) == nullptr);
+    assert(TRTypesetterCreateFrameLine(typesetter, 0, 9, 100.0f) == nullptr);
+    assert(TRTypesetterCreateJustifiedLine(typesetter, 7, 1, 1.0f, 100.0f) == nullptr);
+    assert(TRTypesetterCreateJustifiedLine(typesetter, 0, max, 1.0f, 100.0f) == nullptr);
+    assert(TRTypesetterCreateTruncationToken(typesetter, 8, 1, TRTruncationPlaceEnd, nullptr, 0,
+        TRStringEncodingUTF16) == nullptr);
+    assert(TRTypesetterCreateTruncationToken(typesetter, 0, 99, TRTruncationPlaceEnd, nullptr, 0,
+        TRStringEncodingUTF16) == nullptr);
+
+    /* A truncated line needs its token, and its range is checked as well. */
+    assert(TRTypesetterCreateTruncatedLine(typesetter, 0, 7, 1000.0f, TRBreakModeCharacter,
+        TRTruncationPlaceEnd, nullptr) == nullptr);
+
+    TRComposedLineRef token = TRTypesetterCreateTruncationToken(typesetter, 0, 7,
+        TRTruncationPlaceEnd, nullptr, 0, TRStringEncodingUTF16);
+    assert(token != nullptr);
+    assert(TRTypesetterCreateTruncatedLine(typesetter, 0, 8, 3000.0f, TRBreakModeCharacter,
+        TRTruncationPlaceEnd, token) == nullptr);
+    line = TRTypesetterCreateTruncatedLine(typesetter, 0, 7, 3000.0f, TRBreakModeCharacter,
+        TRTruncationPlaceEnd, token);
+    assert(line != nullptr && TRComposedLineIsTruncated(line));
+    TRComposedLineRelease(line);
+    TRComposedLineRelease(token);
+
+    /* There is no break to suggest in a range that is empty or is not within the text. */
+    assert(TRTypesetterSuggestForwardBreak(typesetter, 99, 3, 1000.0f, TRBreakModeCharacter)
+        == TRInvalidIndex);
+    assert(TRTypesetterSuggestForwardBreak(typesetter, 3, 0, 1000.0f, TRBreakModeCharacter)
+        == TRInvalidIndex);
+    assert(TRTypesetterSuggestForwardBreak(typesetter, 0, max, 1000.0f, TRBreakModeLine)
+        == TRInvalidIndex);
+    assert(TRTypesetterSuggestBackwardBreak(typesetter, 99, 3, 1000.0f, TRBreakModeCharacter)
+        == TRInvalidIndex);
+    assert(TRTypesetterSuggestBackwardBreak(typesetter, 3, 0, 1000.0f, TRBreakModeCharacter)
+        == TRInvalidIndex);
+    assert(TRTypesetterSuggestBackwardBreak(typesetter, 5, 3, 1000.0f, TRBreakModeLine)
+        == TRInvalidIndex);
+
+    /* A range that is within the text breaks as it did. */
+    assert(TRTypesetterSuggestForwardBreak(typesetter, 0, 7, 100000.0f, TRBreakModeLine) == 7);
+    assert(TRTypesetterSuggestBackwardBreak(typesetter, 0, 7, 100000.0f, TRBreakModeLine) == 0);
+
+    TRTypesetterRelease(typesetter);
+    TRTextRelease(text);
+    TRTypefaceRelease(regular);
 }
 
 #ifdef STANDALONE_TESTING

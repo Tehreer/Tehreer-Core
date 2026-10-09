@@ -21,14 +21,17 @@
 
 #include <Tehreer/TRAttribute.h>
 #include <Tehreer/TRAttributeList.h>
+#include <Tehreer/TRSheenBidi.h>
 #include <Tehreer/TRText.h>
 
 #include <API/TRAssert.h>
+#include <API/TRAttributeList.h>
 #include <API/TRBase.h>
 #include <API/TRComposedLine.h>
 #include <API/TRGlyphRun.h>
 #include <API/TRTypesetter.h>
 #include <Core/Allocator.h>
+#include <Core/Array.h>
 #include <Layout/BreakResolver.h>
 #include <Layout/TextBuffer.h>
 #include <Layout/TextRun.h>
@@ -57,17 +60,24 @@ static TRBoolean EnsureRunListCapacity(RunList *list)
     return hasCapacity;
 }
 
-/* Goes through the visual runs of a range that is inside a paragraph. */
-static TRBoolean ForEachVisualRunInRange(SBTextRef sbText, TRUInteger start, TRUInteger end,
-    VisualRunFunc func, void *context)
-{
-    TRBoolean isEnumerated = TRFalse;
-    SBVisualRunIteratorRef iterator;
+/* A part of a line in the order that it is shown, with the bidirectional level of its text. */
+typedef struct _VisualRun {
+    TRUInteger start;
+    TRUInteger end;
+    TRUInt8 level;
+} VisualRun;
 
-    iterator = SBTextCreateVisualRunIterator(sbText, start, end - start);
+/* Adds the visual runs of a range that is inside a paragraph. */
+static TRBoolean AddVisualRuns(SBTextRef sbText, TRUInteger start, TRUInteger end,
+    Array *visualRuns)
+{
+    SBVisualRunIteratorRef iterator = SBTextCreateVisualRunIterator(sbText, start, end - start);
+    TRBoolean isAdded = TRFalse;
 
     if (iterator) {
-        while (SBVisualRunIteratorMoveNext(iterator)) {
+        isAdded = TRTrue;
+
+        while (isAdded && SBVisualRunIteratorMoveNext(iterator)) {
             const SBVisualRun *sbRun = SBVisualRunIteratorGetCurrent(iterator);
             VisualRun visualRun;
 
@@ -75,31 +85,60 @@ static TRBoolean ForEachVisualRunInRange(SBTextRef sbText, TRUInteger start, TRU
             visualRun.end = sbRun->index + sbRun->length;
             visualRun.level = sbRun->level;
 
-            func(context, &visualRun);
+            isAdded = ArrayAppend(visualRuns, &visualRun);
         }
 
         SBVisualRunIteratorRelease(iterator);
-
-        isEnumerated = TRTrue;
     }
 
-    return isEnumerated;
+    return isAdded;
 }
 
-/* Moves to the paragraph that is shown next, and tells if there is one to move to. */
-static TRBoolean MoveToNextParagraph(TRUInteger *paragraphIndex, TRBoolean isRTL)
+/*
+ * Finds the visual runs of a range in the order that they are shown, which is not the order of the
+ * text where it has mixed directions. A range that spans paragraphs shows them one after another in
+ * the direction of the first of them. The range MUST NOT be empty. Returns TRFalse if the runs
+ * could not be found.
+ */
+static TRBoolean FindVisualRuns(TRTypesetterRef typesetter, TRUInteger start, TRUInteger end,
+    Array *visualRuns)
 {
-    TRBoolean hasNext = TRTrue;
+    SBTextRef sbText = TRTextGetSheenBidiText(typesetter->text);
+    TRBoolean isFound = TRFalse;
+    TRBoolean hasMore = TRTrue;
+    ParagraphInfo paragraph;
+    TRBoolean isRTL;
 
-    if (!isRTL) {
-        *paragraphIndex += 1;
-    } else if (*paragraphIndex > 0) {
-        *paragraphIndex -= 1;
-    } else {
-        hasNext = TRFalse;
+    TRTypesetterGetParagraph(typesetter, start, &paragraph);
+    isRTL = (paragraph.baseLevel & 1) == 1;
+
+    /* The paragraphs of a right-to-left line are shown from the last one to the first. */
+    if (isRTL && paragraph.end < end) {
+        TRTypesetterGetParagraph(typesetter, end - 1, &paragraph);
     }
 
-    return hasNext;
+    while (hasMore) {
+        TRUInteger feasibleStart = NumberMax(paragraph.start, start);
+        TRUInteger feasibleEnd = NumberMin(paragraph.end, end);
+
+        isFound = AddVisualRuns(sbText, feasibleStart, feasibleEnd, visualRuns);
+
+        if (isRTL) {
+            hasMore = (isFound && feasibleStart != start);
+
+            if (hasMore) {
+                TRTypesetterGetParagraph(typesetter, feasibleStart - 1, &paragraph);
+            }
+        } else {
+            hasMore = (isFound && feasibleEnd != end);
+
+            if (hasMore) {
+                TRTypesetterGetParagraph(typesetter, feasibleEnd, &paragraph);
+            }
+        }
+    }
+
+    return isFound;
 }
 
 /* Gets what the text is painted with from the attributes at an index. */
@@ -107,15 +146,17 @@ static TRUInteger GetPaint(TRTypesetterRef typesetter, TRUInteger index, GlyphRu
 {
     SBTextRef sbText = TRTextGetSheenBidiText(typesetter->text);
     TRUInteger length = 0;
-    SBAttributeListRef attributes;
+    SBAttributeListRef sbAttributes;
+    TRAttributeListRef attributes;
 
     paint->hasForegroundColor = TRFalse;
     paint->foregroundColor = 0;
     paint->userData = NULL;
 
-    attributes = SBTextGetAttributes(sbText,
+    sbAttributes = SBTextGetAttributes(sbText,
         SBAttributeFilterMakeCollection(SBAttributeGroupNone, SBAttributeScopeCharacter),
         index, &length);
+    attributes = TRAttributeListMake(sbAttributes);
 
     if (attributes) {
         TRUInteger count = TRAttributeListGetCount(attributes);
@@ -132,7 +173,7 @@ static TRUInteger GetPaint(TRTypesetterRef typesetter, TRUInteger index, GlyphRu
             }
         }
 
-        SBAttributeListRelease(attributes);
+        TRAttributeListRelease(attributes);
     }
 
     return length;
@@ -194,21 +235,6 @@ static TRUInteger AppendPaintedRuns(TRTypesetterRef typesetter, RunList *list, T
     return insertIndex;
 }
 
-typedef struct _SimpleLineContext {
-    TRTypesetterRef typesetter;
-    RunList *list;
-    TRBoolean hasLayoutWidth;
-    TRFloat layoutWidth;
-} SimpleLineContext;
-
-static void AppendRunOfSimpleLine(void *context, const VisualRun *visualRun)
-{
-    SimpleLineContext *simple = context;
-
-    LineResolverAppendVisualRuns(simple->typesetter, visualRun->start, visualRun->end,
-        simple->list, simple->hasLayoutWidth, simple->layoutWidth);
-}
-
 /* The part of a range that is skipped by a truncation, and where the token goes. */
 typedef struct _TruncationHandler {
     TRTypesetterRef typesetter;
@@ -239,9 +265,8 @@ static void AppendRunAfterSkip(TruncationHandler *handler, const VisualRun *visu
         handler->list, TRFalse, 0.0f);
 }
 
-static void AppendRunOfTruncation(void *context, const VisualRun *visualRun)
+static void AppendRunOfTruncation(TruncationHandler *handler, const VisualRun *visualRun)
 {
-    TruncationHandler *handler = context;
     RunList *list = handler->list;
     TRUInteger visualStart = visualRun->start;
     TRUInteger visualEnd = visualRun->end;
@@ -291,6 +316,7 @@ static TRBoolean AppendRunsAroundSkip(TRTypesetterRef typesetter, TRUInteger sta
     TRUInteger *trailingTokenIndex)
 {
     TruncationHandler handler;
+    Array visualRuns;
     TRBoolean isFound;
 
     handler.typesetter = typesetter;
@@ -300,7 +326,19 @@ static TRBoolean AppendRunsAroundSkip(TRTypesetterRef typesetter, TRUInteger sta
     handler.leadingTokenIndex = TRInvalidIndex;
     handler.trailingTokenIndex = TRInvalidIndex;
 
-    isFound = LineResolverForEachVisualRun(typesetter, start, end, AppendRunOfTruncation, &handler);
+    ArrayInitialize(&visualRuns, sizeof(VisualRun));
+    isFound = FindVisualRuns(typesetter, start, end, &visualRuns);
+
+    if (isFound) {
+        TRUInteger count = ArrayGetCount(&visualRuns);
+        TRUInteger index;
+
+        for (index = 0; index < count; index++) {
+            AppendRunOfTruncation(&handler, ArrayGetItem(&visualRuns, index));
+        }
+    }
+
+    ArrayFinalize(&visualRuns);
 
     *leadingTokenIndex = handler.leadingTokenIndex;
     *trailingTokenIndex = handler.trailingTokenIndex;
@@ -330,7 +368,38 @@ static TRComposedLine *MarkTruncated(TRComposedLine *line)
 
 static TRUInt8 GetBaseLevel(TRTypesetterRef typesetter, TRUInteger index)
 {
-    return typesetter->paragraphs[TRTypesetterFindParagraph(typesetter, index)].baseLevel;
+    ParagraphInfo paragraph;
+
+    TRTypesetterGetParagraph(typesetter, index, &paragraph);
+
+    return paragraph.baseLevel;
+}
+
+/* Appends the glyph runs of a range, in the order of the visual runs that it has. */
+static TRBoolean AppendRunsOfRange(TRTypesetterRef typesetter, TRUInteger start, TRUInteger end,
+    RunList *list, TRBoolean hasLayoutWidth, TRFloat layoutWidth)
+{
+    Array visualRuns;
+    TRBoolean isAppended;
+
+    ArrayInitialize(&visualRuns, sizeof(VisualRun));
+    isAppended = FindVisualRuns(typesetter, start, end, &visualRuns);
+
+    if (isAppended) {
+        TRUInteger count = ArrayGetCount(&visualRuns);
+        TRUInteger index;
+
+        for (index = 0; index < count; index++) {
+            const VisualRun *visualRun = ArrayGetItem(&visualRuns, index);
+
+            LineResolverAppendVisualRuns(typesetter, visualRun->start, visualRun->end, list,
+                hasLayoutWidth, layoutWidth);
+        }
+    }
+
+    ArrayFinalize(&visualRuns);
+
+    return isAppended;
 }
 
 static TRComposedLine *CreateStartTruncatedLine(TRTypesetterRef typesetter, TRUInteger start,
@@ -586,42 +655,6 @@ TR_INTERNAL void RunListInsert(RunList *list, TRUInteger index, TRGlyphRun *glyp
     }
 }
 
-TR_INTERNAL TRBoolean LineResolverForEachVisualRun(TRTypesetterRef typesetter, TRUInteger start,
-    TRUInteger end, VisualRunFunc func, void *context)
-{
-    TRBoolean isEnumerated = TRFalse;
-    TRUInteger paragraphIndex = TRTypesetterFindParagraph(typesetter, start);
-
-    if (paragraphIndex != TRInvalidIndex) {
-        SBTextRef sbText = TRTextGetSheenBidiText(typesetter->text);
-        TRBoolean isRTL;
-        TRUInteger feasibleStart;
-        TRUInteger feasibleEnd;
-
-        isRTL = (typesetter->paragraphs[paragraphIndex].baseLevel & 1) == 1;
-
-        /* The paragraphs of a right-to-left line are shown from the last one to the first. */
-        if (isRTL && typesetter->paragraphs[paragraphIndex].end < end) {
-            paragraphIndex = TRTypesetterFindParagraph(typesetter, end - 1);
-        }
-
-        do {
-            const ParagraphInfo *paragraph = &typesetter->paragraphs[paragraphIndex];
-
-            feasibleStart = (paragraph->start > start ? paragraph->start : start);
-            feasibleEnd = (paragraph->end < end ? paragraph->end : end);
-
-            isEnumerated = ForEachVisualRunInRange(sbText, feasibleStart, feasibleEnd, func, context);
-
-            if (!isEnumerated || !MoveToNextParagraph(&paragraphIndex, isRTL)) {
-                break;
-            }
-        } while (isRTL ? feasibleStart != start : feasibleEnd != end);
-    }
-
-    return isEnumerated;
-}
-
 TR_INTERNAL void LineResolverAppendVisualRuns(TRTypesetterRef typesetter, TRUInteger start,
     TRUInteger end, RunList *list, TRBoolean hasLayoutWidth, TRFloat layoutWidth)
 {
@@ -647,7 +680,7 @@ TR_INTERNAL void LineResolverAppendVisualRuns(TRTypesetterRef typesetter, TRUInt
             TRUInt8 bidiLevel;
             TRBoolean isForwardRun;
 
-            textRun = typesetter->runs[runIndex];
+            textRun = TRTypesetterGetRun(typesetter, runIndex);
             feasibleStart = (textRun->codeUnitStart > visualStart
                              ? textRun->codeUnitStart : visualStart);
             feasibleEnd = (textRun->codeUnitEnd < end ? textRun->codeUnitEnd : end);
@@ -696,22 +729,13 @@ TR_INTERNAL TRComposedLine *LineResolverCreateSimpleLine(TRTypesetterRef typeset
     TRUInteger start, TRUInteger end, TRBoolean hasLayoutWidth, TRFloat layoutWidth)
 {
     TRComposedLine *simpleLine = NULL;
-    TRUInteger paragraphIndex = TRTypesetterFindParagraph(typesetter, start);
     RunList list;
-    SimpleLineContext context;
 
     RunListInitialize(&list);
 
-    context.typesetter = typesetter;
-    context.list = &list;
-    context.hasLayoutWidth = hasLayoutWidth;
-    context.layoutWidth = layoutWidth;
-
-    if (paragraphIndex != TRInvalidIndex
-            && LineResolverForEachVisualRun(typesetter, start, end, AppendRunOfSimpleLine,
-                &context)) {
+    if (AppendRunsOfRange(typesetter, start, end, &list, hasLayoutWidth, layoutWidth)) {
         simpleLine = LineResolverCreateLine(typesetter, start, end, &list,
-            typesetter->paragraphs[paragraphIndex].baseLevel);
+            GetBaseLevel(typesetter, start));
     } else {
         RunListFinalize(&list);
     }
@@ -756,21 +780,12 @@ TR_INTERNAL TRComposedLine *LineResolverCreateJustifiedLine(TRTypesetterRef type
     TRFloat extraWidth = justificationExtent - actualWidth;
     TRFloat availableWidth = extraWidth * justificationFactor;
     TRUInteger innerSpaceCount = ComputeSpaceCount(typesetter, wordStart, wordEnd);
-    TRUInteger paragraphIndex = TRTypesetterFindParagraph(typesetter, start);
     TRBoolean isJustified = TRFalse;
-    SimpleLineContext context;
     RunList list;
 
     RunListInitialize(&list);
 
-    context.typesetter = typesetter;
-    context.list = &list;
-    context.hasLayoutWidth = TRFalse;
-    context.layoutWidth = 0.0f;
-
-    if (paragraphIndex != TRInvalidIndex
-            && LineResolverForEachVisualRun(typesetter, start, end, AppendRunOfSimpleLine,
-                &context) && !list.hasFailed) {
+    if (AppendRunsOfRange(typesetter, start, end, &list, TRFalse, 0.0f) && !list.hasFailed) {
         TRFloat spaceAddition = (innerSpaceCount > 0
                                  ? availableWidth / (TRFloat)innerSpaceCount : 0.0f);
         TRUInteger runIndex;
@@ -785,7 +800,7 @@ TR_INTERNAL TRComposedLine *LineResolverCreateJustifiedLine(TRTypesetterRef type
 
     if (isJustified) {
         justifiedLine = LineResolverCreateLine(typesetter, start, end, &list,
-            typesetter->paragraphs[paragraphIndex].baseLevel);
+            GetBaseLevel(typesetter, start));
     } else {
         RunListFinalize(&list);
     }

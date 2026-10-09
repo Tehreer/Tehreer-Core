@@ -17,11 +17,18 @@
 #ifndef _TEHREER_TEXT_ATTRIBUTE_REGISTRY_H
 #define _TEHREER_TEXT_ATTRIBUTE_REGISTRY_H
 
+#include <SheenBidi/SBAttributeInfo.h>
 #include <SheenBidi/SBAttributeRegistry.h>
 #include <SheenBidi/SBTextConfig.h>
 
 #include <API/TRBase.h>
 #include <Tehreer/TRAttribute.h>
+
+/*
+ * The attributes that decide how text is shaped are in a group of their own, so that a change of
+ * the other ones, such as the foreground color, does not split the runs that are shaped.
+ */
+#define AttributeGroupShaping   ((SBAttributeGroup)1)
 
 typedef struct _AttributeRegistry {
     SBAttributeRegistryRef _registry;

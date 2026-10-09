@@ -94,16 +94,18 @@ TR_PUBLIC void TRFrameResolverSetVerticalAlignment(TRFrameResolverRef resolver,
 TR_PUBLIC void TRFrameResolverSetTruncationMode(TRFrameResolverRef resolver, TRBreakMode mode);
 
 /**
- * Sets where the last line of the frame is cut, and enables the truncation. It is disabled by
+ * Sets where the last line of the frame is cut. It does not enable the truncation; the end is the
  * default.
  */
 TR_PUBLIC void TRFrameResolverSetTruncationPlace(TRFrameResolverRef resolver,
     TRTruncationPlace place);
 
 /**
- * Disables the truncation.
+ * Sets whether the last line of the frame is cut, if there is more text than the frame can show.
+ * It is disabled by default.
  */
-TR_PUBLIC void TRFrameResolverDisableTruncation(TRFrameResolverRef resolver);
+TR_PUBLIC void TRFrameResolverSetTruncationEnabled(TRFrameResolverRef resolver,
+    TRBoolean isEnabled);
 
 /**
  * Sets whether the lines that end before the end of their paragraph are justified.
@@ -141,14 +143,18 @@ TR_PUBLIC void TRFrameResolverSetLineHeightMultiplier(TRFrameResolverRef resolve
  * which case it covers the whole range.
  *
  * @param resolver
- *      The resolver, which MUST have a typesetter.
- * @param range
- *      The code units of the frame, which MUST NOT be empty, and MUST be within the text.
+ *      The resolver, which has to have a typesetter.
+ * @param index
+ *      The index of the first code unit of the frame.
+ * @param length
+ *      The number of code units of the frame, which MUST NOT be zero. The range of the frame has to
+ *      be within the text.
  * @return
- *      New frame, or `NULL` on failure.
+ *      New frame, or `NULL` if the resolver has no typesetter, the range is empty or is not within
+ *      the text, or on failure.
  */
 TR_PUBLIC TRComposedFrameRef TRFrameResolverCreateFrame(TRFrameResolverRef resolver,
-    TRRange range);
+    TRUInteger index, TRUInteger length);
 
 /**
  * Increments the reference count of a resolver.

@@ -43,6 +43,7 @@ private:
     void testRightToLeft();
     void testIndexOfLine();
     void testSelection();
+    void testRangesAreChecked();
     void testFramesOutliveResolver();
 };
 

@@ -252,8 +252,10 @@ CMake build **one standalone executable per suite** (e.g. `AtomicTests`, `OnceTe
 - Keep changes minimal and focused on the task at hand
 - Update CMake file lists when files are added/removed/renamed
 - Base branch work on `develop`; use a `[scope]` commit tag matching the area touched
+- Follow the Create Rule of Core Foundation for ownership (`Create`/`Copy` return an owned reference, `Get` does not), and take an index and a length instead of a `TRRange` in the public API, returning `NULL`, `TRFalse` or `TRInvalidIndex` for what is not valid (see `.claude/skills/code-style/SKILL.md`, sections 15 to 17)
 
 ### Don't
+- Use `TRRange` in the public API, clamp a range that comes from outside, or leave it to `TRAssert`
 
 - Use `//` comments in C sources
 - Write early exits from a function (`return`, `goto`), nest blocks deeper than 3 levels, open a block with a bare `{`, declare uninitialized variables before initialized ones, declare variables far from where they are used, or place functions out of the static → internal → public order

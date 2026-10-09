@@ -30,29 +30,32 @@ typedef const struct _TRPath *TRPathRef;
 
 /**
  * Callbacks that receive the elements of a path. Any of them can be `NULL` to ignore that kind of
- * element.
+ * element. Each of them gets a flag, which is `TRFalse` when it is called, that it can set to
+ * `TRTrue` to stop the enumeration after it returns.
  */
 typedef struct _TRPathCallbacks {
     /** Starts a new contour at the given point. */
-    void (*moveTo)(void *userData, TRFloat x, TRFloat y);
+    void (*moveTo)(void *userData, TRFloat x, TRFloat y, TRBoolean *stop);
 
     /** Adds a straight line from the current point. */
-    void (*lineTo)(void *userData, TRFloat x, TRFloat y);
+    void (*lineTo)(void *userData, TRFloat x, TRFloat y, TRBoolean *stop);
 
     /** Adds a quadratic curve from the current point. */
-    void (*quadTo)(void *userData, TRFloat controlX, TRFloat controlY, TRFloat x, TRFloat y);
+    void (*quadTo)(void *userData, TRFloat controlX, TRFloat controlY, TRFloat x, TRFloat y,
+        TRBoolean *stop);
 
     /** Adds a cubic curve from the current point. */
     void (*cubicTo)(void *userData, TRFloat control1X, TRFloat control1Y,
-        TRFloat control2X, TRFloat control2Y, TRFloat x, TRFloat y);
+        TRFloat control2X, TRFloat control2Y, TRFloat x, TRFloat y, TRBoolean *stop);
 
     /** Closes the current contour. */
-    void (*close)(void *userData);
+    void (*close)(void *userData, TRBoolean *stop);
 } TRPathCallbacks;
 
 /**
  * Passes each element of the path to the callbacks, in order. Every contour starts with a move and
- * ends with a close. The y axis of the coordinates points downward.
+ * ends with a close, unless the enumeration is stopped. The y axis of the coordinates points
+ * downward.
  *
  * @param path
  *      The path to enumerate.
@@ -62,8 +65,11 @@ typedef struct _TRPathCallbacks {
  *      The callbacks that receive the elements.
  * @param userData
  *      An opaque pointer that is passed to every callback.
+ * @return
+ *      `TRTrue` if all of the elements were passed, `TRFalse` if a callback stopped the
+ *      enumeration.
  */
-TR_PUBLIC void TRPathEnumerate(TRPathRef path, const TRAffineTransform *transform,
+TR_PUBLIC TRBoolean TRPathEnumerate(TRPathRef path, const TRAffineTransform *transform,
     const TRPathCallbacks *callbacks, void *userData);
 
 /**

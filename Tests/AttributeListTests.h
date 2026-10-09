@@ -27,7 +27,7 @@ public:
 
 private:
     void testNoAttributes();
-    void testPointSizeAttribute();
+    void testTypeSizeAttribute();
     void testRunLengths();
     void testRemoveAttribute();
     void testOverwriteAttribute();

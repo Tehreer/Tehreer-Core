@@ -33,13 +33,22 @@ typedef struct _TRComposedFrame *TRComposedFrameRef;
 
 /**
  * The function that gets the rectangles of a selection.
+ *
+ * @param userData
+ *      The pointer that was passed to the enumeration.
+ * @param rect
+ *      A rectangle of the selection, in the coordinates of the frame.
+ * @param stop
+ *      Set it to `TRTrue` to stop the enumeration after the function returns; it is `TRFalse` when
+ *      the function is called.
  */
-typedef void (*TRSelectionFunc)(void *userData, TRRect rect);
+typedef void (*TRSelectionFunc)(void *userData, TRRect rect, TRBoolean *stop);
 
 /**
- * Returns the code units that the frame covers.
+ * Returns the index of the first code unit that the frame covers, and the index after the last one.
  */
-TR_PUBLIC TRRange TRComposedFrameGetCodeUnitRange(TRComposedFrameRef frame);
+TR_PUBLIC TRUInteger TRComposedFrameGetCodeUnitStart(TRComposedFrameRef frame);
+TR_PUBLIC TRUInteger TRComposedFrameGetCodeUnitEnd(TRComposedFrameRef frame);
 
 /**
  * Returns the width of the frame.
@@ -57,32 +66,45 @@ TR_PUBLIC TRFloat TRComposedFrameGetHeight(TRComposedFrameRef frame);
 TR_PUBLIC TRUInteger TRComposedFrameGetLineCount(TRComposedFrameRef frame);
 
 /**
- * Returns a line of the frame, which stays valid as long as the frame does. The index MUST be less
- * than the line count.
+ * Returns a line of the frame, which stays valid as long as the frame does, or `NULL` if the index
+ * is not less than the line count.
  */
 TR_PUBLIC TRComposedLineRef TRComposedFrameGetLine(TRComposedFrameRef frame, TRUInteger index);
 
 /**
- * Returns the index of the line that has a code unit, or `TRInvalidIndex` if there is none. The
- * code unit MUST be within the range of the frame, or at its end, which has no line.
+ * Returns the index of the line that has a code unit, or `TRInvalidIndex` if there is none, as for
+ * a code unit that is not within the range of the frame.
  */
 TR_PUBLIC TRUInteger TRComposedFrameGetIndexOfLineForCodeUnit(TRComposedFrameRef frame,
-    TRUInteger index);
+    TRUInteger codeUnitIndex);
 
 /**
  * Returns the index of the line that suits a position best: the line whose top and bottom have its
- * y, or the last line if there is none. The frame MUST have at least one line.
+ * y, or the last line if there is none. A frame always has at least one line.
  */
 TR_PUBLIC TRUInteger TRComposedFrameGetIndexOfLineAtPosition(TRComposedFrameRef frame,
     TRPoint position);
 
 /**
  * Passes the rectangles that cover a range of code units to the function. A range that spans
- * lines is covered with the paddings of the lines too. The range MUST NOT be empty, and MUST be
- * within the range of the frame.
+ * lines is covered with the paddings of the lines too.
+ *
+ * @param frame
+ *      The frame.
+ * @param index
+ *      The index of the first code unit of the range.
+ * @param length
+ *      The number of code units of the range.
+ * @param func
+ *      The function to call for each rectangle, which can stop the enumeration.
+ * @param userData
+ *      An opaque pointer that is passed to the function.
+ * @return
+ *      `TRTrue` if the enumeration is done, or stopped, `TRFalse` if the range is not within the
+ *      range of the frame, in which case nothing is passed.
  */
-TR_PUBLIC void TRComposedFrameEnumerateSelection(TRComposedFrameRef frame, TRRange range,
-    TRSelectionFunc func, void *userData);
+TR_PUBLIC TRBoolean TRComposedFrameEnumerateSelection(TRComposedFrameRef frame, TRUInteger index,
+    TRUInteger length, TRSelectionFunc func, void *userData);
 
 /**
  * Increments the reference count of a frame.

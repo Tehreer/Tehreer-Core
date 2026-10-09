@@ -33,6 +33,9 @@ private:
     void testDistances();
     void testIndexOfCodeUnit();
     void testEnumerateEdges();
+    void testIndicesAreChecked();
+    void testInkBoxRestoresRenderer();
+    void testEnumerationCanStop();
     void testPenOffset();
     void testPaintAttributesSplitRuns();
     void testMixedDirections();

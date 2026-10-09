@@ -14,20 +14,47 @@
  * limitations under the License.
  */
 
+#include <stddef.h>
+
 #include <SheenBidi/SBAttributeInfo.h>
 #include <SheenBidi/SBAttributeList.h>
 
 #include <Tehreer/TRAttributeList.h>
 
+#include <API/TRBase.h>
+
+#include "TRAttributeList.h"
+
+TR_INTERNAL TRAttributeListRef TRAttributeListMake(SBAttributeListRef sbList)
+{
+    return (TRAttributeListRef)sbList;
+}
+
 const TRAttribute *TRAttributeListGetItem(TRAttributeListRef list, TRUInteger index)
 {
-    const SBAttributeItem *item = SBAttributeListGetItem(list, index);
+    const TRAttribute *attribute = NULL;
 
-    /* The value is stored immediately after the ID, sized as sizeof(TRAttribute). */
-    return (const TRAttribute *)(&item->attributeID + 1);
+    if (index < SBAttributeListGetCount((SBAttributeListRef)list)) {
+        const SBAttributeItem *item = SBAttributeListGetItem((SBAttributeListRef)list, index);
+
+        /* The value is stored immediately after the ID, sized as sizeof(TRAttribute). */
+        attribute = (const TRAttribute *)(&item->attributeID + 1);
+    }
+
+    return attribute;
 }
 
 TRUInteger TRAttributeListGetCount(TRAttributeListRef list)
 {
-    return SBAttributeListGetCount(list);
+    return SBAttributeListGetCount((SBAttributeListRef)list);
+}
+
+TRAttributeListRef TRAttributeListRetain(TRAttributeListRef list)
+{
+    return TRAttributeListMake(SBAttributeListRetain((SBAttributeListRef)list));
+}
+
+void TRAttributeListRelease(TRAttributeListRef list)
+{
+    SBAttributeListRelease((SBAttributeListRef)list);
 }

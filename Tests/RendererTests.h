@@ -47,6 +47,9 @@ private:
     void testEnumerateWithRenderScale();
     void testColorGlyphs();
     void testConcurrentRenderers();
+    void testBitmapGlyphs();
+    void testEnumerationsCanStop();
+    void testInvalidSizes();
 };
 
 }

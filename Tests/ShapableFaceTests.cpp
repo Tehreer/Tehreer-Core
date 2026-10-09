@@ -23,9 +23,8 @@
 
 #include <hb.h>
 
-#include <Tehreer/TRFontFile.h>
-
 extern "C" {
+#include <Font/FontData.h>
 #include <Graphics/RenderableFace.h>
 #include <Graphics/ShapableFace.h>
 }
@@ -59,23 +58,23 @@ class RenderableFaceHolder {
 public:
     explicit RenderableFaceHolder(const char *fontName) {
         m_path = testFontPath(fontName);
-        m_fontFile = TRFontFileCreateFromPath(m_path.c_str());
-        assert(m_fontFile != nullptr);
+        m_fontData = FontDataCreateFromPath(m_path.c_str());
+        assert(m_fontData != nullptr);
 
-        m_face = RenderableFaceCreate(m_fontFile, 0);
+        m_face = RenderableFaceCreate(m_fontData, 0);
         assert(m_face != nullptr);
     }
 
     ~RenderableFaceHolder() {
         RenderableFaceRelease(m_face);
-        TRFontFileRelease(m_fontFile);
+        FontDataRelease(m_fontData);
     }
 
     RenderableFaceRef get() const { return m_face; }
 
 private:
     string m_path;
-    TRFontFileRef m_fontFile = nullptr;
+    FontDataRef m_fontData = nullptr;
     RenderableFaceRef m_face = nullptr;
 };
 

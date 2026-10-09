@@ -41,6 +41,7 @@ typedef struct _Enumeration {
     void *userData;
     const TRAffineTransform *transform;
     TRBoolean isOpen;
+    TRBoolean shouldStop;
 } Enumeration;
 
 static void MapPoint(const Enumeration *enumeration, const FT_Vector *vector,
@@ -62,9 +63,9 @@ static void MapPoint(const Enumeration *enumeration, const FT_Vector *vector,
 
 static void CloseContour(Enumeration *enumeration)
 {
-    if (enumeration->isOpen) {
+    if (enumeration->isOpen && !enumeration->shouldStop) {
         if (enumeration->callbacks->close) {
-            enumeration->callbacks->close(enumeration->userData);
+            enumeration->callbacks->close(enumeration->userData, &enumeration->shouldStop);
         }
 
         enumeration->isOpen = TRFalse;
@@ -80,12 +81,13 @@ static int EnumerateMoveTo(const FT_Vector *to, void *user)
 
     if (enumeration->callbacks->moveTo) {
         MapPoint(enumeration, to, &x, &y);
-        enumeration->callbacks->moveTo(enumeration->userData, x, y);
+        enumeration->callbacks->moveTo(enumeration->userData, x, y, &enumeration->shouldStop);
     }
 
     enumeration->isOpen = TRTrue;
 
-    return 0;
+    /* A function of FreeType that returns an error stops the walk through the outline. */
+    return (enumeration->shouldStop ? 1 : 0);
 }
 
 static int EnumerateLineTo(const FT_Vector *to, void *user)
@@ -95,10 +97,10 @@ static int EnumerateLineTo(const FT_Vector *to, void *user)
 
     if (enumeration->callbacks->lineTo) {
         MapPoint(enumeration, to, &x, &y);
-        enumeration->callbacks->lineTo(enumeration->userData, x, y);
+        enumeration->callbacks->lineTo(enumeration->userData, x, y, &enumeration->shouldStop);
     }
 
-    return 0;
+    return (enumeration->shouldStop ? 1 : 0);
 }
 
 static int EnumerateConicTo(const FT_Vector *control, const FT_Vector *to, void *user)
@@ -109,10 +111,11 @@ static int EnumerateConicTo(const FT_Vector *control, const FT_Vector *to, void 
     if (enumeration->callbacks->quadTo) {
         MapPoint(enumeration, control, &controlX, &controlY);
         MapPoint(enumeration, to, &x, &y);
-        enumeration->callbacks->quadTo(enumeration->userData, controlX, controlY, x, y);
+        enumeration->callbacks->quadTo(enumeration->userData, controlX, controlY, x, y,
+            &enumeration->shouldStop);
     }
 
-    return 0;
+    return (enumeration->shouldStop ? 1 : 0);
 }
 
 static int EnumerateCubicTo(const FT_Vector *control1, const FT_Vector *control2,
@@ -126,10 +129,10 @@ static int EnumerateCubicTo(const FT_Vector *control1, const FT_Vector *control2
         MapPoint(enumeration, control2, &control2X, &control2Y);
         MapPoint(enumeration, to, &x, &y);
         enumeration->callbacks->cubicTo(enumeration->userData, control1X, control1Y,
-            control2X, control2Y, x, y);
+            control2X, control2Y, x, y, &enumeration->shouldStop);
     }
 
-    return 0;
+    return (enumeration->shouldStop ? 1 : 0);
 }
 
 TR_INTERNAL TRPathRef TRPathCreateFromOutline(const FT_Outline *outline)
@@ -160,9 +163,11 @@ TR_INTERNAL TRPathRef TRPathCreateFromOutline(const FT_Outline *outline)
     return path;
 }
 
-void TRPathEnumerate(TRPathRef path, const TRAffineTransform *transform,
+TRBoolean TRPathEnumerate(TRPathRef path, const TRAffineTransform *transform,
     const TRPathCallbacks *callbacks, void *userData)
 {
+    TRBoolean isStopped = TRFalse;
+
     if (callbacks && path->outline.n_contours > 0) {
         FT_Outline_Funcs funcs;
         Enumeration enumeration;
@@ -178,12 +183,17 @@ void TRPathEnumerate(TRPathRef path, const TRAffineTransform *transform,
         enumeration.userData = userData;
         enumeration.transform = transform;
         enumeration.isOpen = TRFalse;
+        enumeration.shouldStop = TRFalse;
 
         /* The outline is only read, so dropping the const qualifier is safe. */
         FT_Outline_Decompose((FT_Outline *)&path->outline, &funcs, &enumeration);
 
         CloseContour(&enumeration);
+
+        isStopped = enumeration.shouldStop;
     }
+
+    return !isStopped;
 }
 
 TRPathRef TRPathRetain(TRPathRef path)

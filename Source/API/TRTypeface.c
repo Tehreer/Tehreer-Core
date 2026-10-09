@@ -24,7 +24,6 @@
 #include <Tehreer/TRString.h>
 
 #include <API/TRBase.h>
-#include <API/TRFontFile.h>
 #include <Core/Allocator.h>
 #include <Core/Object.h>
 #include <Font/FaceMetadata.h>
@@ -375,6 +374,21 @@ TRUInteger TRTypefaceGetPredefinedPaletteCount(TRTypefaceRef typeface)
     return typeface->renderableFace->metadata->predefinedPaletteCount;
 }
 
+TRBoolean TRTypefaceIsScalable(TRTypefaceRef typeface)
+{
+    return typeface->renderableFace->metadata->isScalable;
+}
+
+const TRBitmapStrike *TRTypefaceGetBitmapStrikesPtr(TRTypefaceRef typeface)
+{
+    return typeface->renderableFace->metadata->bitmapStrikesPtr;
+}
+
+TRUInteger TRTypefaceGetBitmapStrikeCount(TRTypefaceRef typeface)
+{
+    return typeface->renderableFace->metadata->bitmapStrikeCount;
+}
+
 const TRFloat *TRTypefaceGetVariationCoordinatesPtr(TRTypefaceRef typeface)
 {
     return typeface->faceCoordinates;
@@ -383,32 +397,6 @@ const TRFloat *TRTypefaceGetVariationCoordinatesPtr(TRTypefaceRef typeface)
 const TRColor *TRTypefaceGetAssociatedColorsPtr(TRTypefaceRef typeface)
 {
     return typeface->faceColors;
-}
-
-TRTypefaceRef TRTypefaceCreate(TRFontFileRef fontFile, TRUInteger faceIndex)
-{
-    TRTypefaceRef typeface = NULL;
-
-    if (fontFile && faceIndex < fontFile->numFaces) {
-        RenderableFaceRef renderableFace;
-
-        renderableFace = RenderableFaceCreate(fontFile, faceIndex);
-
-        if (renderableFace) {
-            ShapableFaceRef shapableFace;
-
-            shapableFace = ShapableFaceCreate(renderableFace);
-
-            if (shapableFace) {
-                typeface = TRTypefaceCreateDefault(renderableFace, shapableFace, NULL);
-                ShapableFaceRelease(shapableFace);
-            }
-
-            RenderableFaceRelease(renderableFace);
-        }
-    }
-
-    return typeface;
 }
 
 TRTypefaceRef TRTypefaceCreateWithVariation(TRTypefaceRef typeface, const TRFloat *coordinates,
@@ -564,23 +552,15 @@ TRPathRef TRTypefaceCreateGlyphPath(TRTypefaceRef typeface, TRGlyphID glyphID, T
     return glyphPath;
 }
 
-TRUInteger TRTypefaceGetTableData(TRTypefaceRef typeface, TRTag tag, void *buffer,
-    TRUInteger capacity)
+TRUInteger TRTypefaceGetTableSize(TRTypefaceRef typeface, TRTag tag)
 {
-    void *table = NULL;
-    TRUInteger size = 0;
+    return RenderableFaceGetTableSize(typeface->renderableFace, tag);
+}
 
-    RenderableFaceCopyTable(typeface->renderableFace, tag, &table, &size);
-
-    if (table) {
-        if (buffer) {
-            memcpy(buffer, table, (size < capacity ? size : capacity));
-        }
-
-        AllocatorDeallocateBlock(table);
-    }
-
-    return size;
+TRUInteger TRTypefaceGetTableData(TRTypefaceRef typeface, TRTag tag, TRUInteger offset,
+    void *buffer, TRUInteger capacity)
+{
+    return RenderableFaceReadTable(typeface->renderableFace, tag, offset, buffer, capacity);
 }
 
 TRUInteger TRTypefaceGetGlyphName(TRTypefaceRef typeface, TRGlyphID glyphID, char *buffer,

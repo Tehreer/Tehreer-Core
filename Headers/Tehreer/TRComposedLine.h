@@ -37,13 +37,24 @@ typedef const struct _TRComposedLine *TRComposedLineRef;
 
 /**
  * A function that receives the left and right edges of a part of a line.
+ *
+ * @param userData
+ *      The pointer that was passed to the enumeration.
+ * @param left
+ *      The left edge of the part, measured from the start of the line.
+ * @param right
+ *      The right edge of the part, measured from the start of the line.
+ * @param stop
+ *      Set it to `TRTrue` to stop the enumeration after the function returns; it is `TRFalse` when
+ *      the function is called.
  */
-typedef void (*TREdgeFunc)(void *userData, TRFloat left, TRFloat right);
+typedef void (*TREdgeFunc)(void *userData, TRFloat left, TRFloat right, TRBoolean *stop);
 
 /**
- * Returns the code units that the line covers.
+ * Returns the index of the first code unit that the line covers, and the index after the last one.
  */
-TR_PUBLIC TRRange TRComposedLineGetCodeUnitRange(TRComposedLineRef line);
+TR_PUBLIC TRUInteger TRComposedLineGetCodeUnitStart(TRComposedLineRef line);
+TR_PUBLIC TRUInteger TRComposedLineGetCodeUnitEnd(TRComposedLineRef line);
 
 /**
  * Returns the base level of the paragraph of the line: even for left-to-right and odd for
@@ -97,25 +108,50 @@ TR_PUBLIC TRBoolean TRComposedLineIsBlock(TRComposedLineRef line);
 TR_PUBLIC TRBoolean TRComposedLineIsTruncated(TRComposedLineRef line);
 
 /**
- * Returns the number of glyph runs, and a glyph run by its index. The run is not retained for the
- * caller, and stays valid as long as the line is alive.
+ * Returns the number of glyph runs, and a glyph run by its index, which is `NULL` if the index is
+ * not less than the count. The run is not retained for the caller, and stays valid as long as the
+ * line is alive.
  */
 TR_PUBLIC TRUInteger TRComposedLineGetGlyphRunCount(TRComposedLineRef line);
 TR_PUBLIC TRGlyphRunRef TRComposedLineGetGlyphRun(TRComposedLineRef line, TRUInteger index);
 
 /**
- * Returns the distance from the start of the line to the boundary before a code unit, which can be
+ * Gets the distance from the start of the line to the boundary before a code unit, which can be
  * the end of the line too.
+ *
+ * @param line
+ *      The line.
+ * @param codeUnitIndex
+ *      The index of the code unit, from the start of the line to its end.
+ * @param distance
+ *      Receives the distance.
+ * @return
+ *      `TRTrue` if the distance was given, `TRFalse` if the code unit is out of the line.
  */
-TR_PUBLIC TRFloat TRComposedLineGetCodeUnitDistance(TRComposedLineRef line, TRUInteger index);
+TR_PUBLIC TRBoolean TRComposedLineGetCodeUnitDistance(TRComposedLineRef line,
+    TRUInteger codeUnitIndex, TRFloat *distance);
 
 /**
  * Passes the parts of the line that a range of code units covers to the function, as pairs of
  * their left and right edges, measured from the start of the line. There is a part for each glyph
  * run that the range touches, in the order of the runs.
+ *
+ * @param line
+ *      The line.
+ * @param index
+ *      The index of the first code unit of the range.
+ * @param length
+ *      The number of code units of the range.
+ * @param func
+ *      The function to call for each part, which can stop the enumeration.
+ * @param userData
+ *      An opaque pointer that is passed to the function.
+ * @return
+ *      `TRTrue` if the enumeration is done, or stopped, `TRFalse` if the range is not within the
+ *      line, in which case nothing is passed.
  */
-TR_PUBLIC void TRComposedLineEnumerateEdges(TRComposedLineRef line, TRRange range,
-    TREdgeFunc func, void *userData);
+TR_PUBLIC TRBoolean TRComposedLineEnumerateEdges(TRComposedLineRef line, TRUInteger index,
+    TRUInteger length, TREdgeFunc func, void *userData);
 
 /**
  * Returns the code unit boundary that is closest to a distance from the start of the line.
@@ -132,10 +168,10 @@ TR_PUBLIC TRFloat TRComposedLineGetPenOffset(TRComposedLineRef line, TRFloat flu
     TRFloat flushExtent);
 
 /**
- * Returns the box around the glyphs of the line, relative to its origin. The renderer is set up
- * for each run as `TRGlyphRunGetBoundingBox()` does.
+ * Returns the ink box of the glyphs of the line, relative to its origin. The renderer is set up for
+ * each run, and restored, as `TRGlyphRunGetInkBox()` does.
  */
-TR_PUBLIC TRRect TRComposedLineGetBoundingBox(TRComposedLineRef line, TRRendererRef renderer);
+TR_PUBLIC TRRect TRComposedLineGetInkBox(TRComposedLineRef line, TRRendererRef renderer);
 
 /**
  * Retains the line.

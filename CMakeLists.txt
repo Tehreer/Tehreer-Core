@@ -18,6 +18,7 @@ project(Tehreer
 option(TR_CONFIG_UNITY "Build with a single unity source file" ON)
 option(ENABLE_COVERAGE "Enable code coverage instrumentation (only enabled with BUILD_TESTING)" OFF)
 set(TR_DEPS_DIR "" CACHE PATH "Directory with pre-fetched dependency sources (freetype, harfbuzz, libunibreak, SheenBidi) to use instead of fetching them")
+option(TR_BUILD_DEMO "Build the SDL demo application" OFF)
 option(ENABLE_ASAN "Enable address sanitizer" OFF)
 option(ENABLE_UBSAN "Enable undefined behavior sanitizer" OFF)
 
@@ -230,6 +231,7 @@ if(BUILD_TESTS)
     CaretUtilsTests
     ComposedLineTests
     FaceMetadataTests
+    FontFeaturesTests
     FontFileTests
     FrameTests
     FreeTypeTests
@@ -375,6 +377,10 @@ if(BUILD_TESTS)
     Tests/BaseTests.h
     Tests/BaseTests.cpp
   )
+  set(FontFeaturesTests
+    Tests/FontFeaturesTests.h
+    Tests/FontFeaturesTests.cpp
+  )
   set(FontFileTests
     Tests/FontFileTests.h
     Tests/FontFileTests.cpp
@@ -440,6 +446,14 @@ if(BUILD_TESTS)
       target_link_options(Tehreer PUBLIC --coverage)
     endif()
   endif()
+endif()
+
+# ------------------------------------------------------------------------------
+# Demo Application
+# ------------------------------------------------------------------------------
+
+if(TR_BUILD_DEMO)
+  add_subdirectory(Demo)
 endif()
 
 # ------------------------------------------------------------------------------

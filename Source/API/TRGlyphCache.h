@@ -80,15 +80,15 @@ TR_INTERNAL void TRGlyphCacheFinalize(TRGlyphCacheRef cache);
  * Returns the image of the glyph in its default form, which uses the foreground color only if the
  * glyph has layers that are painted with it.
  */
-TR_INTERNAL TRGlyphImageRef TRGlyphCacheGetImage(TRGlyphCacheRef cache, const GlyphDataKey *key,
+TR_INTERNAL TRGlyphImageRef TRGlyphCacheCopyImage(TRGlyphCacheRef cache, const GlyphDataKey *key,
     TRGlyphID glyphID, TRColor foregroundColor);
 
 /* Returns the image of the glyph that is made by stroking its outline. */
-TR_INTERNAL TRGlyphImageRef TRGlyphCacheGetStrokeImage(TRGlyphCacheRef cache,
+TR_INTERNAL TRGlyphImageRef TRGlyphCacheCopyStrokeImage(TRGlyphCacheRef cache,
     const GlyphDataKey *key, const GlyphStrokeKey *strokeKey, TRGlyphID glyphID);
 
 /* Returns the outline of the glyph in pixels. */
-TR_INTERNAL TRPathRef TRGlyphCacheGetPath(TRGlyphCacheRef cache, const GlyphDataKey *key,
+TR_INTERNAL TRPathRef TRGlyphCacheCopyPath(TRGlyphCacheRef cache, const GlyphDataKey *key,
     TRGlyphID glyphID);
 
 #endif

@@ -18,6 +18,7 @@
 #define _TEHREER_ATTRIBUTE_H
 
 #include <Tehreer/TRBase.h>
+#include <Tehreer/TRFontFeatures.h>
 #include <Tehreer/TRReplacement.h>
 #include <Tehreer/TRTypeface.h>
 
@@ -31,7 +32,7 @@ TR_EXTERN_C_BEGIN
 enum {
     /* Run attributes */
     TRAttributeTypeface = 1,                /**< The typeface of the text. */
-    TRAttributePointSize = 2,               /**< The size of the em square. */
+    TRAttributeTypeSize = 2,               /**< The size of the em square. */
     TRAttributeScaleX = 3,                  /**< Horizontal scale of the glyphs; 1.0 by default. */
     TRAttributeScaleY = 4,                  /**< Vertical scale of the glyphs; 1.0 by default. */
     TRAttributeBaselineOffset = 5,          /**< Distance to raise the text above its baseline. */
@@ -39,6 +40,8 @@ enum {
     TRAttributeReplacement = 7,             /**< Content that replaces the text of the range. */
     TRAttributeForegroundColor = 19,        /**< The color that the text is painted with. */
     TRAttributeUserData = 20,               /**< Opaque data of the owner; see below. */
+    TRAttributeLanguage = 21,               /**< OpenType language tag of the text; see below. */
+    TRAttributeFontFeatures = 22,           /**< OpenType feature settings; see below. */
 
     /* Paragraph attributes */
     TRAttributeTextAlignment = 8,           /**< The alignment of the lines. */
@@ -68,8 +71,6 @@ enum {
 };
 typedef TRUInt32 TRTextAlignment;
 
-typedef TRFloat TRPointSize;
-
 /**
  * The value of an attribute. The member to use depends on the type of the attribute.
  *
@@ -79,6 +80,13 @@ typedef TRFloat TRPointSize;
  * of text with its own attributes, such as links or underlines, and has to keep what it points to
  * alive as long as the text is used.
  *
+ * The language and the font features change how the text is shaped, so a glyph run never spans a
+ * change of them. The language is the OpenType tag of a language, which makes the font pick the
+ * forms of it, as for the Han characters of Japanese or Chinese, or the dotted and dotless i of
+ * Turkish; `TRShapingEngineGetLanguageTag()` makes it from a name in the form of BCP 47, and it is
+ * the default language if it is not set. The font features are the settings that are applied on
+ * top of the defaults of the font, e.g. `smcp` for small capitals or `tnum` for tabular figures.
+ *
  * The indents of a paragraph are measured from the leading edge, except the tail indent: if it is
  * positive, it is the distance from the leading edge to the trailing margin, and if it is zero or
  * negative, its absolute value is the distance from the trailing edge. The first indent line count
@@ -86,7 +94,7 @@ typedef TRFloat TRPointSize;
  */
 typedef union _TRAttributeValue {
     TRTypefaceRef typeface;
-    TRPointSize pointSize;
+    TRFloat typeSize;
     TRFloat scaleX;
     TRFloat scaleY;
     TRFloat baselineOffset;
@@ -94,6 +102,8 @@ typedef union _TRAttributeValue {
     TRReplacementRef replacement;
     TRColor foregroundColor;
     const void *userData;
+    TRTag language;
+    TRFontFeaturesRef fontFeatures;
     TRTextAlignment textAlignment;
     TRFloat firstLineHeadIndent;
     TRFloat headIndent;

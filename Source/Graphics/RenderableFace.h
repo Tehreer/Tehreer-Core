@@ -27,12 +27,12 @@
 #include <Tehreer/TRTypeface.h>
 
 #include <API/TRBase.h>
-#include <API/TRFontFile.h>
 #include <Core/AtomicUInt.h>
 #include <Core/Data.h>
 #include <Core/Mutex.h>
 #include <Core/Object.h>
 #include <Font/FaceMetadata.h>
+#include <Font/FontData.h>
 #include <Graphics/GlyphBitmap.h>
 #include <SFNT/Utilities.h>
 
@@ -46,7 +46,7 @@ typedef struct _FaceNode {
 typedef struct _RenderableFace {
     ObjectBase _base;
 
-    TRFontFileRef _fontFile;
+    FontDataRef _fontData;
     TRUInteger faceIndex;
 
     FaceNode _facePool[RawFacePoolSize];
@@ -103,10 +103,15 @@ typedef struct _FontParams {
     FT_Matrix transform;
 } FontParams;
 
-TR_INTERNAL RenderableFaceRef RenderableFaceCreate(TRFontFileRef fontFile, TRUInteger faceIndex);
+TR_INTERNAL RenderableFaceRef RenderableFaceCreate(FontDataRef fontData, TRUInteger faceIndex);
 
 TR_INTERNAL void RenderableFaceCopyTable(RenderableFaceRef renderableFace, TRTag tag,
     void **buffer, TRUInteger *size);
+
+TR_INTERNAL TRUInteger RenderableFaceGetTableSize(RenderableFaceRef renderableFace, TRTag tag);
+
+TR_INTERNAL TRUInteger RenderableFaceReadTable(RenderableFaceRef renderableFace, TRTag tag,
+    TRUInteger offset, void *buffer, TRUInteger capacity);
 
 TR_INTERNAL TRUInteger RenderableFaceCopyGlyphName(RenderableFaceRef renderableFace,
     TRGlyphID glyphID, char *buffer, TRUInteger capacity);

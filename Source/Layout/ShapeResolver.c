@@ -16,6 +16,7 @@
 
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <hb.h>
 #include <hb-ot.h>
@@ -24,16 +25,21 @@
 
 #include <Tehreer/TRAttribute.h>
 #include <Tehreer/TRAttributeList.h>
+#include <Tehreer/TRFontFeatures.h>
 #include <Tehreer/TRReplacement.h>
 #include <Tehreer/TRShapingEngine.h>
 #include <Tehreer/TRShapingResult.h>
 #include <Tehreer/TRText.h>
+#include <Tehreer/TRSheenBidi.h>
 #include <Tehreer/TRTypeface.h>
 
+#include <API/TRAttributeList.h>
 #include <API/TRBase.h>
+#include <API/TRFontFeatures.h>
 #include <API/TRTypesetter.h>
 #include <Core/Allocator.h>
 #include <Layout/TextRun.h>
+#include <Text/AttributeRegistry.h>
 
 #include "ShapeResolver.h"
 
@@ -45,6 +51,8 @@ typedef struct _ShapingStyle {
     TRFloat scaleX;
     TRFloat scaleY;
     TRReplacementRef replacement;
+    TRTag languageTag;
+    TRFontFeaturesRef fontFeatures;
 } ShapingStyle;
 
 typedef struct _PendingRun {
@@ -61,7 +69,6 @@ typedef struct _ResolverContext {
     TRShapingEngineRef engine;
     TRUInteger unitSize;
     ShapingStyle defaultStyle;
-    TRUInteger runCapacity;
 } ResolverContext;
 
 /* Returns the OpenType tag of a script, which is the newest one if the script has more. */
@@ -85,6 +92,8 @@ static void InitializeStyle(ShapingStyle *style)
     style->scaleX = 1.0f;
     style->scaleY = 1.0f;
     style->replacement = NULL;
+    style->languageTag = 0;
+    style->fontFeatures = NULL;
 }
 
 static void ApplyAttributes(ShapingStyle *style, const TRAttribute *items, TRUInteger count)
@@ -98,8 +107,8 @@ static void ApplyAttributes(ShapingStyle *style, const TRAttribute *items, TRUIn
         case TRAttributeTypeface:
             style->typeface = item->value.typeface;
             break;
-        case TRAttributePointSize:
-            style->typeSize = item->value.pointSize;
+        case TRAttributeTypeSize:
+            style->typeSize = item->value.typeSize;
             break;
         case TRAttributeScaleX:
             style->scaleX = item->value.scaleX;
@@ -116,12 +125,29 @@ static void ApplyAttributes(ShapingStyle *style, const TRAttribute *items, TRUIn
         case TRAttributeReplacement:
             style->replacement = item->value.replacement;
             break;
+        case TRAttributeLanguage:
+            style->languageTag = item->value.language;
+            break;
+        case TRAttributeFontFeatures:
+            style->fontFeatures = item->value.fontFeatures;
+            break;
         }
     }
 
     if (style->typeSize < 0.0f) {
         style->typeSize = 0.0f;
     }
+}
+
+static TRBoolean EqualFontFeatures(TRFontFeaturesRef first, TRFontFeaturesRef second)
+{
+    TRBoolean isEqual = (first == second);
+
+    if (!isEqual && first && second) {
+        isEqual = TRFontFeaturesIsEqual(first, second);
+    }
+
+    return isEqual;
 }
 
 static TRBoolean EqualStyles(const ShapingStyle *first, const ShapingStyle *second)
@@ -132,34 +158,28 @@ static TRBoolean EqualStyles(const ShapingStyle *first, const ShapingStyle *seco
         && first->obliqueness == second->obliqueness
         && first->scaleX == second->scaleX
         && first->scaleY == second->scaleY
-        && first->replacement == second->replacement;
+        && first->replacement == second->replacement
+        && first->languageTag == second->languageTag
+        && EqualFontFeatures(first->fontFeatures, second->fontFeatures);
 }
 
 static TRBoolean AppendRun(ResolverContext *context, TextRunRef textRun)
 {
-    TRBoolean isAppended = TRTrue;
-    TRTypesetter *typesetter = context->typesetter;
+    return ArrayAppend(&context->typesetter->runs, &textRun);
+}
 
-    if (typesetter->runCount == context->runCapacity) {
-        TRUInteger newCapacity;
-        TextRunRef *newRuns;
+/* Sets the features of the style on the engine, which are none if the style has no features. */
+static TRBoolean SetupFeatures(TRShapingEngineRef engine, const ShapingStyle *style)
+{
+    const TROpenTypeFeature *features = NULL;
+    TRUInteger count = 0;
 
-        newCapacity = (context->runCapacity == 0 ? 16 : context->runCapacity * 2);
-        newRuns = AllocatorReallocateBlock(typesetter->runs, newCapacity * sizeof(TextRunRef));
-
-        if (newRuns) {
-            typesetter->runs = newRuns;
-            context->runCapacity = newCapacity;
-        } else {
-            isAppended = TRFalse;
-        }
+    if (style->fontFeatures) {
+        features = TRFontFeaturesGetItemsPtr(style->fontFeatures);
+        count = TRFontFeaturesGetCount(style->fontFeatures);
     }
 
-    if (isAppended) {
-        typesetter->runs[typesetter->runCount++] = textRun;
-    }
-
-    return isAppended;
+    return TRShapingEngineSetOpenTypeFeatures(engine, features, count);
 }
 
 static TextRunRef ShapeIntrinsicRun(ResolverContext *context, const PendingRun *pending)
@@ -168,23 +188,27 @@ static TextRunRef ShapeIntrinsicRun(ResolverContext *context, const PendingRun *
     TRTypesetter *typesetter = context->typesetter;
     const ShapingStyle *style = &pending->style;
     TRTag scriptTag = GetScriptTag(pending->script);
+    TRTag languageTag = (style->languageTag ? style->languageTag : TRTagMake('d', 'f', 'l', 't'));
     TRWritingDirection direction = TRShapingEngineGetScriptDefaultDirection(scriptTag);
     TRBoolean isRTL = (pending->level & 1) == 1;
     TRBoolean isBackward = (isRTL && direction == TRWritingDirectionLeftToRight)
                         || (!isRTL && direction == TRWritingDirectionRightToLeft);
     const TRUInt8 *units = (const TRUInt8 *)typesetter->buffer.codeUnits;
-    TRShapingResultRef shapingResult;
+    TRShapingResultRef shapingResult = NULL;
 
     TRShapingEngineSetTypeface(context->engine, style->typeface);
     TRShapingEngineSetTypeSize(context->engine, style->typeSize);
     TRShapingEngineSetScriptTag(context->engine, scriptTag);
+    TRShapingEngineSetLanguageTag(context->engine, languageTag);
     TRShapingEngineSetWritingDirection(context->engine, direction);
     TRShapingEngineSetShapingOrder(context->engine,
         isBackward ? TRShapingOrderBackward : TRShapingOrderForward);
 
-    shapingResult = TRShapingEngineShape(context->engine,
-        units + (pending->start * context->unitSize), pending->end - pending->start,
-        typesetter->buffer.encoding);
+    if (SetupFeatures(context->engine, style)) {
+        shapingResult = TRShapingEngineCreateShapingResult(context->engine,
+            units + (pending->start * context->unitSize), pending->end - pending->start,
+            typesetter->buffer.encoding);
+    }
 
     if (shapingResult) {
         textRun = TextRunCreateIntrinsic(pending->start, pending->end, pending->level,
@@ -226,7 +250,7 @@ static TRBoolean ShapeRun(ResolverContext *context, const PendingRun *pending)
 }
 
 /* Gets the style of a uniform run from the attributes of its characters. */
-static void ResolveStyle(const ResolverContext *context, SBAttributeListRef attributes,
+static void ResolveStyle(const ResolverContext *context, TRAttributeListRef attributes,
     ShapingStyle *style)
 {
     TRUInteger count = TRAttributeListGetCount(attributes);
@@ -240,20 +264,20 @@ static void ResolveStyle(const ResolverContext *context, SBAttributeListRef attr
 }
 
 static TRBoolean ResolveParagraph(ResolverContext *context, SBUniformRunIteratorRef iterator,
-    const ParagraphInfo *paragraph)
+    const SBParagraphInfo *paragraph)
 {
     TRBoolean isResolved = TRTrue;
     PendingRun pending;
 
     pending.isValid = TRFalse;
 
-    SBUniformRunIteratorReset(iterator, paragraph->start, paragraph->end - paragraph->start);
+    SBUniformRunIteratorReset(iterator, paragraph->index, paragraph->length);
 
     while (SBUniformRunIteratorMoveNext(iterator)) {
         const SBUniformRun *uniformRun = SBUniformRunIteratorGetCurrent(iterator);
         ShapingStyle style;
 
-        ResolveStyle(context, uniformRun->attributes, &style);
+        ResolveStyle(context, TRAttributeListMake(uniformRun->attributes), &style);
 
         /* Runs that only differ in what is not about shaping are shaped together. */
         if (pending.isValid && pending.level == uniformRun->level
@@ -285,81 +309,18 @@ static TRBoolean ResolveParagraph(ResolverContext *context, SBUniformRunIterator
     return isResolved;
 }
 
-static TRBoolean ResolveAllParagraphs(ResolverContext *context, SBUniformRunIteratorRef iterator)
+static TRBoolean ResolveAllParagraphs(ResolverContext *context, SBUniformRunIteratorRef runIterator,
+    SBParagraphIteratorRef paragraphIterator)
 {
     TRBoolean isResolved = TRTrue;
-    TRTypesetter *typesetter = context->typesetter;
-    TRUInteger index;
 
-    /* Only what the characters set decides the runs; paragraph attributes are not run attributes. */
-    SBUniformRunIteratorSetupFilter(iterator,
-        SBAttributeFilterMakeCollection(SBAttributeGroupNone, SBAttributeScopeCharacter));
+    /* Only the attributes of shaping decide the runs, not the paragraph ones nor the paint ones. */
+    SBUniformRunIteratorSetupFilter(runIterator,
+        SBAttributeFilterMakeCollection(AttributeGroupShaping, SBAttributeScopeCharacter));
 
-    for (index = 0; index < typesetter->paragraphCount; index++) {
-        isResolved = ResolveParagraph(context, iterator, &typesetter->paragraphs[index]);
-
-        if (!isResolved) {
-            break;
-        }
-    }
-
-    return isResolved;
-}
-
-static TRBoolean AppendParagraph(TRTypesetter *typesetter, TRUInteger *capacity,
-    const SBParagraphInfo *info)
-{
-    TRBoolean isAppended = TRTrue;
-
-    if (typesetter->paragraphCount == *capacity) {
-        ParagraphInfo *newParagraphs;
-        TRUInteger newCapacity;
-
-        newCapacity = (*capacity == 0 ? 8 : *capacity * 2);
-        newParagraphs = AllocatorReallocateBlock(typesetter->paragraphs,
-            newCapacity * sizeof(ParagraphInfo));
-
-        if (newParagraphs) {
-            typesetter->paragraphs = newParagraphs;
-            *capacity = newCapacity;
-        } else {
-            isAppended = TRFalse;
-        }
-    }
-
-    if (isAppended) {
-        ParagraphInfo *paragraph;
-
-        paragraph = &typesetter->paragraphs[typesetter->paragraphCount++];
-        paragraph->start = info->index;
-        paragraph->end = info->index + info->length;
-        paragraph->baseLevel = info->baseLevel;
-    }
-
-    return isAppended;
-}
-
-static TRBoolean ResolveParagraphs(TRTypesetter *typesetter)
-{
-    TRBoolean isResolved = TRFalse;
-    SBTextRef sbText = TRTextGetSheenBidiText(typesetter->text);
-    SBParagraphIteratorRef iterator = SBTextCreateParagraphIterator(sbText);
-
-    if (iterator) {
-        TRUInteger capacity = 0;
-
-        isResolved = TRTrue;
-
-        while (SBParagraphIteratorMoveNext(iterator)) {
-            isResolved = AppendParagraph(typesetter, &capacity,
-                SBParagraphIteratorGetCurrent(iterator));
-
-            if (!isResolved) {
-                break;
-            }
-        }
-
-        SBParagraphIteratorRelease(iterator);
+    while (isResolved && SBParagraphIteratorMoveNext(paragraphIterator)) {
+        isResolved = ResolveParagraph(context, runIterator,
+            SBParagraphIteratorGetCurrent(paragraphIterator));
     }
 
     return isResolved;
@@ -368,14 +329,17 @@ static TRBoolean ResolveParagraphs(TRTypesetter *typesetter)
 TR_INTERNAL TRBoolean ShapeResolverResolve(TRTypesetter *typesetter,
     const TRAttribute *defaultAttributes, TRUInteger defaultAttributeCount)
 {
-    TRBoolean isResolved = ResolveParagraphs(typesetter);
+    SBTextRef sbText = TRTextGetSheenBidiText(typesetter->text);
+    SBParagraphIteratorRef paragraphIterator = SBTextCreateParagraphIterator(sbText);
+    SBUniformRunIteratorRef runIterator = SBTextCreateUniformRunIterator(sbText);
+    TRShapingEngineRef engine = TRShapingEngineCreate();
+    TRBoolean isResolved = TRFalse;
 
-    if (isResolved) {
+    if (paragraphIterator && runIterator && engine) {
         ResolverContext context;
-        SBUniformRunIteratorRef iterator;
 
         context.typesetter = typesetter;
-        context.runCapacity = 0;
+        context.engine = engine;
         context.unitSize = (typesetter->buffer.encoding == TRStringEncodingUTF8 ? 1
                             : (typesetter->buffer.encoding == TRStringEncodingUTF16 ? 2 : 4));
 
@@ -384,21 +348,17 @@ TR_INTERNAL TRBoolean ShapeResolverResolve(TRTypesetter *typesetter,
             ApplyAttributes(&context.defaultStyle, defaultAttributes, defaultAttributeCount);
         }
 
-        context.engine = TRShapingEngineCreate();
-        iterator = SBTextCreateUniformRunIterator(TRTextGetSheenBidiText(typesetter->text));
+        isResolved = ResolveAllParagraphs(&context, runIterator, paragraphIterator);
+    }
 
-        if (!context.engine || !iterator) {
-            isResolved = TRFalse;
-        } else {
-            isResolved = ResolveAllParagraphs(&context, iterator);
-        }
-
-        if (iterator) {
-            SBUniformRunIteratorRelease(iterator);
-        }
-        if (context.engine) {
-            TRShapingEngineRelease(context.engine);
-        }
+    if (engine) {
+        TRShapingEngineRelease(engine);
+    }
+    if (runIterator) {
+        SBUniformRunIteratorRelease(runIterator);
+    }
+    if (paragraphIterator) {
+        SBParagraphIteratorRelease(paragraphIterator);
     }
 
     return isResolved;

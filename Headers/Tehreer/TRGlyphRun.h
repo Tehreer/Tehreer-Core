@@ -42,9 +42,10 @@ TR_EXTERN_C_BEGIN
 typedef const struct _TRGlyphRun *TRGlyphRunRef;
 
 /**
- * Returns the code units that the run covers.
+ * Returns the index of the first code unit that the run covers, and the index after the last one.
  */
-TR_PUBLIC TRRange TRGlyphRunGetCodeUnitRange(TRGlyphRunRef run);
+TR_PUBLIC TRUInteger TRGlyphRunGetCodeUnitStart(TRGlyphRunRef run);
+TR_PUBLIC TRUInteger TRGlyphRunGetCodeUnitEnd(TRGlyphRunRef run);
 
 /**
  * Returns how many code units of the cluster at the start of the run are before the run, and how
@@ -139,50 +140,60 @@ TR_PUBLIC TRUInteger TRGlyphRunGetClusterMapCount(TRGlyphRunRef run);
 
 /**
  * Returns the start and the end of the cluster that a code unit of the run is in.
+ *
+ * @param run
+ *      The run.
+ * @param codeUnitIndex
+ *      The index of a code unit of the run, which has to be within the range that it covers.
+ * @return
+ *      The index of the first code unit of the cluster, or the index after its last one, which can
+ *      be out of the run if the cluster is split by it. It is `TRInvalidIndex` if the code unit is
+ *      not within the run.
  */
-TR_PUBLIC TRUInteger TRGlyphRunGetClusterStart(TRGlyphRunRef run, TRUInteger index);
-TR_PUBLIC TRUInteger TRGlyphRunGetClusterEnd(TRGlyphRunRef run, TRUInteger index);
+TR_PUBLIC TRUInteger TRGlyphRunGetClusterStart(TRGlyphRunRef run, TRUInteger codeUnitIndex);
+TR_PUBLIC TRUInteger TRGlyphRunGetClusterEnd(TRGlyphRunRef run, TRUInteger codeUnitIndex);
 
 /**
- * Returns the first and the last glyph that a code unit of the run has, in the order of the
- * writing.
+ * Gets the distance from the start of the run to the boundary before a code unit, which can be the
+ * end of the run too. The distance grows to the right in left-to-right runs.
+ *
+ * The code unit can also be one of the clusters that are split by the start or the end of the run,
+ * counted by the extra lengths. The distance of such a code unit can be negative, or exceed the
+ * width of the run, as it is meant for drawing the parts of those clusters that are in the run.
+ *
+ * @param run
+ *      The run.
+ * @param codeUnitIndex
+ *      The index of the code unit, from the start of the run less its start extra length to the end
+ *      of the run plus its end extra length.
+ * @param distance
+ *      Receives the distance.
+ * @return
+ *      `TRTrue` if the distance was given, `TRFalse` if the code unit is out of the run and its
+ *      clusters.
  */
-TR_PUBLIC TRUInteger TRGlyphRunGetLeadingGlyphIndex(TRGlyphRunRef run, TRUInteger index);
-TR_PUBLIC TRUInteger TRGlyphRunGetTrailingGlyphIndex(TRGlyphRunRef run, TRUInteger index);
-
-/**
- * Returns the distance from the start of the run to the boundary before a code unit, which can be
- * the end of the run too. The distance grows to the right in left-to-right runs.
- */
-TR_PUBLIC TRFloat TRGlyphRunGetDistance(TRGlyphRunRef run, TRUInteger index);
-
-/**
- * Returns the distance from the start of the run to the boundary before a code unit, just like
- * `TRGlyphRunGetDistance`, but the code unit can also belong to the clusters that are split by
- * the start or the end of the run. So, the distance can be negative or exceed the extent of the
- * run. It is meant for drawing the parts of those clusters that are in the run.
- */
-TR_PUBLIC TRFloat TRGlyphRunGetClusterDistance(TRGlyphRunRef run, TRUInteger index);
+TR_PUBLIC TRBoolean TRGlyphRunGetCodeUnitDistance(TRGlyphRunRef run, TRUInteger codeUnitIndex,
+    TRFloat *distance);
 
 /**
  * Returns the code unit boundary that is closest to a distance from the start of the run.
  */
-TR_PUBLIC TRUInteger TRGlyphRunGetIndexOfCodeUnit(TRGlyphRunRef run, TRFloat distance);
+TR_PUBLIC TRUInteger TRGlyphRunGetCodeUnitIndex(TRGlyphRunRef run, TRFloat distance);
 
 /**
- * Returns the box around the glyphs of a range, in the coordinates of the run with the pen at the
- * origin and the y axis pointing down. The renderer is set up for the run: its typeface, type
- * size, scales and direction are changed.
+ * Returns the ink box of the glyphs of the run: the smallest box that holds what is drawn, which is
+ * not the box of the advances. It is in the coordinates of the run with the pen at the origin and
+ * the y axis pointing down.
+ *
+ * The renderer is set up for the run while it is measured, which is its typeface, type size,
+ * scales and direction, and it gets back what it had before.
  *
  * @param run
  *      The run.
- * @param glyphRange
- *      The glyphs to measure, which MUST be within the run.
  * @param renderer
  *      A renderer with the glyph cache to use, and with the settings that are not the run's.
  */
-TR_PUBLIC TRRect TRGlyphRunGetBoundingBox(TRGlyphRunRef run, TRRange glyphRange,
-    TRRendererRef renderer);
+TR_PUBLIC TRRect TRGlyphRunGetInkBox(TRGlyphRunRef run, TRRendererRef renderer);
 
 /**
  * Retains the run.

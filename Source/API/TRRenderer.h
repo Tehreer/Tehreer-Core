@@ -36,7 +36,7 @@ typedef struct _TRRenderer {
     TRFloat renderScale;
     TRWritingDirection writingDirection;
     TRColor foregroundColor;
-    TRFloat strokeWidth;
+    TRFloat strokeRadius;
     TRStrokeCap strokeCap;
     TRStrokeJoin strokeJoin;
     TRFloat strokeMiter;

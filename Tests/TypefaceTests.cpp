@@ -67,6 +67,7 @@ void TypefaceTests::run() {
     testGlyphIDs();
     testGlyphAdvance();
     testGlyphPath();
+    testBitmapTypeface();
 }
 
 static string toString(const TRStringView *view) {
@@ -237,13 +238,7 @@ void TypefaceTests::testRetainRelease() {
 }
 
 static TRTypefaceRef createTypeface(const char *fontName, TRUInteger faceIndex = 0) {
-    TRFontFileRef fontFile = TRFontFileCreateFromPath(testFontPath(fontName).c_str());
-    assert(fontFile != nullptr);
-
-    TRTypefaceRef typeface = TRTypefaceCreate(fontFile, faceIndex);
-    TRFontFileRelease(fontFile);
-
-    return typeface;
+    return createTestTypeface(fontName, nullptr, faceIndex);
 }
 
 void TypefaceTests::testCreate() {
@@ -263,14 +258,13 @@ void TypefaceTests::testCreate() {
 }
 
 void TypefaceTests::testCreateInvalid() {
-    TRFontFileRef fontFile = TRFontFileCreateFromPath(testFontPath("Roboto-Regular.abc.ttf").c_str());
+    /* A typeface comes from a font file, which is not made from what is not a font. */
+    assert(TRFontFileCreateFromPath(nullptr) == nullptr);
+    assert(TRFontFileCreateFromPath("/no/such/font.ttf") == nullptr);
+    assert(TRFontFileCreateFromMemory(nullptr, 10) == nullptr);
 
-    assert(TRFontFileGetFaceCount(fontFile) == 1);
-    assert(TRTypefaceCreate(fontFile, 1) == nullptr);
-    assert(TRTypefaceCreate(fontFile, 1000) == nullptr);
-    assert(TRTypefaceCreate(nullptr, 0) == nullptr);
-
-    TRFontFileRelease(fontFile);
+    const char garbage[] = "not a font";
+    assert(TRFontFileCreateFromMemory(garbage, sizeof(garbage)) == nullptr);
 }
 
 void TypefaceTests::testCreateWithVariation() {
@@ -479,18 +473,36 @@ void TypefaceTests::testTableData() {
     const TRTag head = TRTagMake('h', 'e', 'a', 'd');
 
     /* The head table is 54 bytes, and begins with the version 1.0. */
-    assert(TRTypefaceGetTableData(typeface, head, nullptr, 0) == 54);
+    assert(TRTypefaceGetTableSize(typeface, head) == 54);
 
     uint8_t buffer[54] = { 0 };
-    assert(TRTypefaceGetTableData(typeface, head, buffer, sizeof(buffer)) == 54);
+    assert(TRTypefaceGetTableData(typeface, head, 0, buffer, sizeof(buffer)) == 54);
     assert(buffer[0] == 0 && buffer[1] == 1 && buffer[2] == 0 && buffer[3] == 0);
 
     /* A table that does not fit is cut short, and the rest of the buffer is left alone. */
     uint8_t small[6] = { 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE };
-    assert(TRTypefaceGetTableData(typeface, head, small, 4) == 54);
+    assert(TRTypefaceGetTableData(typeface, head, 0, small, 4) == 4);
     assert(small[1] == 1 && small[4] == 0xEE && small[5] == 0xEE);
 
-    assert(TRTypefaceGetTableData(typeface, TRTagMake('Z', 'Z', 'Z', 'Z'), buffer, sizeof(buffer)) == 0);
+    /* A part from an offset is the same as that part of the whole table. */
+    uint8_t part[8] = { 0 };
+    assert(TRTypefaceGetTableData(typeface, head, 12, part, sizeof(part)) == 8);
+    assert(memcmp(part, buffer + 12, sizeof(part)) == 0);
+
+    /* The part is limited by the end of the table, not by FreeType reading past it. */
+    uint8_t tail[16] = { 0 };
+    assert(TRTypefaceGetTableData(typeface, head, 50, tail, sizeof(tail)) == 4);
+    assert(memcmp(tail, buffer + 50, 4) == 0);
+
+    /* Nothing is copied from the end of the table or past it, or without a buffer. */
+    assert(TRTypefaceGetTableData(typeface, head, 54, tail, sizeof(tail)) == 0);
+    assert(TRTypefaceGetTableData(typeface, head, 1000, tail, sizeof(tail)) == 0);
+    assert(TRTypefaceGetTableData(typeface, head, 0, nullptr, 10) == 0);
+    assert(TRTypefaceGetTableData(typeface, head, 0, tail, 0) == 0);
+
+    const TRTag missing = TRTagMake('Z', 'Z', 'Z', 'Z');
+    assert(TRTypefaceGetTableSize(typeface, missing) == 0);
+    assert(TRTypefaceGetTableData(typeface, missing, 0, buffer, sizeof(buffer)) == 0);
 
     TRTypefaceRelease(typeface);
 }
@@ -696,6 +708,42 @@ void TypefaceTests::testGlyphPath() {
     TRPathRelease(regularPath);
     TRTypefaceRelease(blackFace);
     TRTypefaceRelease(variable);
+}
+
+void TypefaceTests::testBitmapTypeface() {
+    /* An outline font is scalable, and has no strikes. */
+    TRTypefaceRef scalable = createTypeface("Roboto-Regular.abc.ttf");
+    assert(TRTypefaceIsScalable(scalable));
+    assert(TRTypefaceGetBitmapStrikeCount(scalable) == 0);
+    TRTypefaceRelease(scalable);
+
+    /* A font with only bitmaps can still be used, with its metrics taken from its tables. */
+    TRTypefaceRef typeface = createTypeface("NotoColorEmoji-CBDT.flags.ttf");
+    assert(!TRTypefaceIsScalable(typeface));
+    assert(TRTypefaceGetBitmapStrikeCount(typeface) == 1);
+
+    const TRBitmapStrike *strike = TRTypefaceGetBitmapStrikesPtr(typeface);
+    assert(strike != nullptr);
+    assert(strike->pixelWidth == 109.0f && strike->pixelHeight == 109.0f);
+
+    assert(TRTypefaceGetUnitsPerEM(typeface) == 2048);
+    assert(TRTypefaceGetAscent(typeface) > 0);
+    assert(TRTypefaceGetDescent(typeface) > 0);
+    assert(TRTypefaceGetGlyphCount(typeface) == 18);
+
+    TRRect box = TRTypefaceGetBoundingBox(typeface);
+    assert(box.size.width > 0.0f && box.size.height > 0.0f);
+
+    /* The advance is in the units of the font, so it follows the size without a strike. */
+    TRFloat small = TRTypefaceGetGlyphAdvance(typeface, 3, 32.0f, TRFalse);
+    TRFloat big = TRTypefaceGetGlyphAdvance(typeface, 3, 64.0f, TRFalse);
+    assert(small > 0.0f);
+    assert(fabsf(big - 2.0f * small) < 0.01f);
+
+    /* There are no outlines to make paths from. */
+    assert(TRTypefaceCreateGlyphPath(typeface, 3, 32.0f) == nullptr);
+
+    TRTypefaceRelease(typeface);
 }
 
 #ifdef STANDALONE_TESTING

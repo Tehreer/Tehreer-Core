@@ -123,7 +123,7 @@ TR_INTERNAL TRComposedLine *TokenResolverCreateTokenLine(TRTypesetterRef typeset
         TRAttribute attributes[2];
         TRUInt8 defaultToken[3 * sizeof(TRUInt32)];
 
-        suitableRun = typesetter->runs[runIndex];
+        suitableRun = TRTypesetterGetRun(typesetter, runIndex);
 
         if (!tokenString || tokenLength == 0) {
             /* The ellipsis character is used if the typeface has it, and three dots if not. */
@@ -139,8 +139,8 @@ TR_INTERNAL TRComposedLine *TokenResolverCreateTokenLine(TRTypesetterRef typeset
 
         attributes[0].type = TRAttributeTypeface;
         attributes[0].value.typeface = suitableRun->typeface;
-        attributes[1].type = TRAttributePointSize;
-        attributes[1].value.pointSize = suitableRun->typeSize;
+        attributes[1].type = TRAttributeTypeSize;
+        attributes[1].value.typeSize = suitableRun->typeSize;
 
         tokenText = TRTextCreate(tokenString, tokenLength, tokenEncoding);
 

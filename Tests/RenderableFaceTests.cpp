@@ -26,12 +26,12 @@
 #include FT_COLOR_H
 #include FT_FREETYPE_H
 
-#include <Tehreer/TRFontFile.h>
 #include <Tehreer/TRString.h>
 
 extern "C" {
 #include <Core/Allocator.h>
 #include <Font/FaceMetadata.h>
+#include <Font/FontData.h>
 #include <Graphics/GlyphBitmap.h>
 #include <Graphics/RenderableFace.h>
 #include <SFNT/Utilities.h>
@@ -71,19 +71,19 @@ class FontFileHolder {
 public:
     explicit FontFileHolder(const char *fontName) {
         m_path = testFontPath(fontName);
-        m_fontFile = TRFontFileCreateFromPath(m_path.c_str());
-        assert(m_fontFile != nullptr);
+        m_fontData = FontDataCreateFromPath(m_path.c_str());
+        assert(m_fontData != nullptr);
     }
 
     ~FontFileHolder() {
-        TRFontFileRelease(m_fontFile);
+        FontDataRelease(m_fontData);
     }
 
-    TRFontFileRef get() const { return m_fontFile; }
+    FontDataRef get() const { return m_fontData; }
 
 private:
     string m_path;
-    TRFontFileRef m_fontFile = nullptr;
+    FontDataRef m_fontData = nullptr;
 };
 
 static string toString(const TRStringView *view) {
@@ -453,6 +453,12 @@ void RenderableFaceTests::testGlyphType() {
     assert(RenderableFaceGetGlyphType(variableFace, 0) == GlyphTypeColor);
     assert(RenderableFaceGetGlyphType(variableFace, 4) == GlyphTypeMask);
     RenderableFaceRelease(variableFace);
+
+    /* The images of a font with only bitmaps do not depend on the foreground color. */
+    FontFileHolder bitmaps("NotoColorEmoji-CBDT.flags.ttf");
+    RenderableFaceRef bitmapFace = RenderableFaceCreate(bitmaps.get(), 0);
+    assert(RenderableFaceGetGlyphType(bitmapFace, 3) == GlyphTypeMask);
+    RenderableFaceRelease(bitmapFace);
 }
 
 void RenderableFaceTests::testRetainRelease() {

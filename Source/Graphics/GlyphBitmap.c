@@ -34,6 +34,25 @@
 #define BUFFER          1
 #define COUNT           2
 
+/* Calculates the size of a buffer, and tells if it is within what can be allocated. */
+static TRBoolean CalculateBufferSize(TRUInt32 width, TRUInt32 height, TRUInteger bytesPerPixel,
+    TRUInteger *bufferSize)
+{
+    const TRUInteger maxSize = (TRUInteger)(-1);
+    TRBoolean isCalculated = TRFalse;
+
+    if (width <= 0x7FFFFFFF && width <= maxSize / bytesPerPixel) {
+        TRUInteger rowSize = (TRUInteger)width * bytesPerPixel;
+
+        if (rowSize == 0 || height <= maxSize / rowSize) {
+            *bufferSize = rowSize * height;
+            isCalculated = TRTrue;
+        }
+    }
+
+    return isCalculated;
+}
+
 static GlyphBitmapRef AllocateGlyphBitmap(TRUInteger bufferSize)
 {
     void *pointers[COUNT] = { NULL };
@@ -86,7 +105,12 @@ static GlyphBitmapRef CreateFromMono(const FT_Bitmap *ftBitmap, TRInt32 left, TR
 {
     TRUInt32 width = ftBitmap->width;
     TRUInt32 height = ftBitmap->rows;
-    GlyphBitmapRef glyphBitmap = AllocateGlyphBitmap(width * height);
+    GlyphBitmapRef glyphBitmap = NULL;
+    TRUInteger bufferSize;
+
+    if (CalculateBufferSize(width, height, 1, &bufferSize)) {
+        glyphBitmap = AllocateGlyphBitmap(bufferSize);
+    }
 
     if (glyphBitmap) {
         const TRUInt8 *row = ftBitmap->buffer;
@@ -109,7 +133,12 @@ static GlyphBitmapRef CreateFromGray(const FT_Bitmap *ftBitmap, TRInt32 left, TR
 {
     TRUInt32 width = ftBitmap->width;
     TRUInt32 height = ftBitmap->rows;
-    GlyphBitmapRef glyphBitmap = AllocateGlyphBitmap(width * height);
+    GlyphBitmapRef glyphBitmap = NULL;
+    TRUInteger bufferSize;
+
+    if (CalculateBufferSize(width, height, 1, &bufferSize)) {
+        glyphBitmap = AllocateGlyphBitmap(bufferSize);
+    }
 
     if (glyphBitmap) {
         const TRUInt8 *row = ftBitmap->buffer;
@@ -134,7 +163,12 @@ static GlyphBitmapRef CreateFromBGRA(const FT_Bitmap *ftBitmap, TRInt32 left, TR
 {
     TRUInt32 width = ftBitmap->width;
     TRUInt32 height = ftBitmap->rows;
-    GlyphBitmapRef glyphBitmap = AllocateGlyphBitmap(width * height * 4);
+    GlyphBitmapRef glyphBitmap = NULL;
+    TRUInteger bufferSize;
+
+    if (CalculateBufferSize(width, height, 4, &bufferSize)) {
+        glyphBitmap = AllocateGlyphBitmap(bufferSize);
+    }
 
     if (glyphBitmap) {
         const TRUInt8 *row = ftBitmap->buffer;
@@ -184,6 +218,7 @@ static GlyphBitmapRef RenderStrokedOutline(FreeTypeRef freetype, FT_Outline *str
     if (box.xMax > box.xMin && box.yMax > box.yMin) {
         TRUInt32 width = (TRUInt32)((box.xMax - box.xMin) >> 6);
         TRUInt32 height = (TRUInt32)((box.yMax - box.yMin) >> 6);
+        TRUInteger bufferSize;
         FT_Bitmap bitmap;
 
         bitmap.width = width;
@@ -193,7 +228,11 @@ static GlyphBitmapRef RenderStrokedOutline(FreeTypeRef freetype, FT_Outline *str
         bitmap.num_grays = 256;
         bitmap.palette_mode = 0;
         bitmap.palette = NULL;
-        bitmap.buffer = AllocatorAllocateZeroedBlock(width * height);
+        bitmap.buffer = NULL;
+
+        if (CalculateBufferSize(width, height, 1, &bufferSize)) {
+            bitmap.buffer = AllocatorAllocateZeroedBlock(bufferSize);
+        }
 
         if (bitmap.buffer) {
             FT_Outline_Translate(stroked, -box.xMin, -box.yMin);

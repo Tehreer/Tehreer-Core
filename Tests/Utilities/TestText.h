@@ -30,7 +30,7 @@ namespace Tehreer {
 
 /* Creates a mutable UTF-16 text, with the typeface and the point size set on all of it. */
 inline TRMutableTextRef makeTestText(const std::u16string &string, TRTypefaceRef typeface = nullptr,
-    TRFloat pointSize = 0.0f) {
+    TRFloat typeSize = 0.0f) {
     TRMutableTextRef text = TRTextCreateMutable(TRStringEncodingUTF16);
     assert(text != nullptr);
 
@@ -43,10 +43,10 @@ inline TRMutableTextRef makeTestText(const std::u16string &string, TRTypefaceRef
             attribute.value.typeface = typeface;
             TRTextSetAttribute(text, 0, string.size(), &attribute);
         }
-        if (pointSize > 0.0f) {
+        if (typeSize > 0.0f) {
             TRAttribute attribute = {};
-            attribute.type = TRAttributePointSize;
-            attribute.value.pointSize = pointSize;
+            attribute.type = TRAttributeTypeSize;
+            attribute.value.typeSize = typeSize;
             TRTextSetAttribute(text, 0, string.size(), &attribute);
         }
     }
@@ -60,7 +60,7 @@ inline void setTestFloat(TRMutableTextRef text, size_t index, size_t length, TRA
     attribute.type = type;
 
     switch (type) {
-    case TRAttributePointSize: attribute.value.pointSize = value; break;
+    case TRAttributeTypeSize: attribute.value.typeSize = value; break;
     case TRAttributeScaleX: attribute.value.scaleX = value; break;
     case TRAttributeScaleY: attribute.value.scaleY = value; break;
     case TRAttributeBaselineOffset: attribute.value.baselineOffset = value; break;
