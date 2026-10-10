@@ -25,8 +25,8 @@ int main(void)
     TRTextAppendCodeUnits(text, string, strlen(string));
 
     TRAttribute size;
-    size.type = TRAttributePointSize;
-    size.value.pointSize = 18.0f;
+    size.type = TRAttributeTypeSize;
+    size.value.typeSize = 18.0f;
     TRTextSetAttribute(text, 0, 5, &size);
 
     TRTextRelease(text);

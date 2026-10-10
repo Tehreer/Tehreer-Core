@@ -31,6 +31,7 @@ private:
     void testCreateUTF32();
     void testCreateEmpty();
     void testGetCodeUnitsRange();
+    void testRangesAreChecked();
     void testSheenBidiText();
     void testCreateCopy();
     void testCreateMutable();

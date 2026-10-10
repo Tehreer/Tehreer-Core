@@ -26,12 +26,12 @@
 #include FT_COLOR_H
 #include FT_FREETYPE_H
 
-#include <Tehreer/TRFontFile.h>
 #include <Tehreer/TRString.h>
 
 extern "C" {
 #include <Core/Allocator.h>
 #include <Font/FaceMetadata.h>
+#include <Font/FontData.h>
 #include <Graphics/GlyphBitmap.h>
 #include <Graphics/RenderableFace.h>
 #include <SFNT/Utilities.h>
@@ -64,25 +64,26 @@ void RenderableFaceTests::run() {
     testConcurrentAccess();
     testConcurrentVariations();
     testRetainRelease();
+    testGlyphType();
 }
 
 class FontFileHolder {
 public:
     explicit FontFileHolder(const char *fontName) {
         m_path = testFontPath(fontName);
-        m_fontFile = TRFontFileCreateFromPath(m_path.c_str());
-        assert(m_fontFile != nullptr);
+        m_fontData = FontDataCreateFromPath(m_path.c_str());
+        assert(m_fontData != nullptr);
     }
 
     ~FontFileHolder() {
-        TRFontFileRelease(m_fontFile);
+        FontDataRelease(m_fontData);
     }
 
-    TRFontFileRef get() const { return m_fontFile; }
+    FontDataRef get() const { return m_fontData; }
 
 private:
     string m_path;
-    TRFontFileRef m_fontFile = nullptr;
+    FontDataRef m_fontData = nullptr;
 };
 
 static string toString(const TRStringView *view) {
@@ -428,6 +429,36 @@ void RenderableFaceTests::testConcurrentVariations() {
     }
 
     RenderableFaceRelease(face);
+}
+
+void RenderableFaceTests::testGlyphType() {
+    /* A font without colors only has mask glyphs. */
+    FontFileHolder plain("Roboto-Regular.abc.ttf");
+    RenderableFaceRef plainFace = RenderableFaceCreate(plain.get(), 0);
+    for (TRGlyphID glyph = 0; glyph < 4; glyph++) {
+        assert(RenderableFaceGetGlyphType(plainFace, glyph) == GlyphTypeMask);
+    }
+    assert(RenderableFaceGetGlyphType(plainFace, 100) == GlyphTypeMask);
+    RenderableFaceRelease(plainFace);
+
+    /* Only the glyph with color layers is a color glyph. */
+    FontFileHolder colored("COLRv0.extents.ttf");
+    RenderableFaceRef coloredFace = RenderableFaceCreate(colored.get(), 0);
+    assert(RenderableFaceGetGlyphType(coloredFace, 1) == GlyphTypeMask);
+    assert(RenderableFaceGetGlyphType(coloredFace, 13) == GlyphTypeColor);
+    RenderableFaceRelease(coloredFace);
+
+    FontFileHolder variableColor("RocherColorGX.abc.ttf");
+    RenderableFaceRef variableFace = RenderableFaceCreate(variableColor.get(), 0);
+    assert(RenderableFaceGetGlyphType(variableFace, 0) == GlyphTypeColor);
+    assert(RenderableFaceGetGlyphType(variableFace, 4) == GlyphTypeMask);
+    RenderableFaceRelease(variableFace);
+
+    /* The images of a font with only bitmaps do not depend on the foreground color. */
+    FontFileHolder bitmaps("NotoColorEmoji-CBDT.flags.ttf");
+    RenderableFaceRef bitmapFace = RenderableFaceCreate(bitmaps.get(), 0);
+    assert(RenderableFaceGetGlyphType(bitmapFace, 3) == GlyphTypeMask);
+    RenderableFaceRelease(bitmapFace);
 }
 
 void RenderableFaceTests::testRetainRelease() {

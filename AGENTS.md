@@ -16,7 +16,7 @@ Tehreer is a text engine whose aim is to provide core implementation for all maj
 | Path | Role |
 |------|------|
 | `Headers/Tehreer/` | Public, installable API headers |
-| `Source/API/` | Public API implementations + internal API headers |
+| `Source/API/` | Public API implementations + internal API headers; every internal function and struct of a public type lives here too, never in another folder |
 | `Source/Core/` | Memory, objects, atomics, Mutex |
 | `Source/Tehreer.c` | Unity-build aggregator |
 | `Tests/` | C++14 test harness |
@@ -69,7 +69,8 @@ No automated formatter is configured. Match the conventions below, derived from 
 | Public functions, types, macros | `TR` + PascalCase | `TRTextCreate`, `TRStringEncodingUTF8` |
 | Opaque references | `TR` + Name + `Ref` | `TRTypefaceRef` |
 | Internal structs | `_Tag` + short name + `Ref` | `AttributeRegistry`, `AttributeRegistryRef` |
-| Internal functions | PascalCase module prefix | `RenderableFaceCopyTable`, `GlyphBitmapCreateFromSlot` |
+| Structs behind a public object | `TR` + Name, used as `TRName *` to modify and `TRNameRef` otherwise; no internal alias | `TRComposedLine *`, `TRComposedLineRef` |
+| Internal functions | PascalCase module prefix; `TR` + class name when the class is public | `RenderableFaceCopyTable`, `GlyphBitmapCreateFromSlot`, `TRComposedLineCreate`, `TRTypesetterFindParagraph` |
 | Private struct fields | Leading `_` | `_base`, `_text` |
 | Local variables | camelCase | `isInitialized`, `dictIndex` |
 | Boolean locals | `is` prefix | `isAllocated`, `isEnsured` |
@@ -107,6 +108,18 @@ No automated formatter is configured. Match the conventions below, derived from 
 1. Standard headers (`<stddef.h>`, `<stdlib.h>`, …)
 2. Internal module headers via angle brackets: `<API/...>`, `<Core/...>`, `<Font/...>`, `<Graphics/...>`
 3. Quoted local companion: `#include "TRTypeface.h"`
+
+### Control Flow and Function Ordering
+
+Full rules and examples: `.claude/skills/code-style/SKILL.md`.
+
+- **No early exit from a function:** one `return` per function, as its last statement; no `goto`. Loops may use `break`/`continue` when that reads better than extra loop conditions or flags
+- **Result variable:** declare the returned variable at the top with its default value, set it inside `if` branches, return it last; name it after what it holds (`glyphImage`, `path`, `isFound`), not `result`
+- **Nesting:** at most 3 nested block levels in a function body; split into `static` helpers beyond that
+- **Declarations:** declare each variable in the innermost block that uses it (function level only when it is needed in several blocks); at the top of each block, variables with an initial value come first, those without come after
+- **No bare blocks:** every `{ }` block follows a keyword (`if`, `for`, `while`, `do`, `switch`, `case`)
+- **Order in a `.c` file:** private structs at the top, then private `static` functions (callees before callers, grouped under `/* ---------- Name ---------- */` markers in long files), then `TR_INTERNAL` functions in header order, then public API functions last in public header order
+- **Readable values:** name intermediate values (rects, derived numbers) in locals, read getters once, use `NumberMin`/`NumberMax`, allocate dependencies before the owning object, assert invariants with `TRAssert` instead of re-checking them, and use `Core/Array.h` for growable lists
 
 ### Comments
 
@@ -239,9 +252,12 @@ CMake build **one standalone executable per suite** (e.g. `AtomicTests`, `OnceTe
 - Keep changes minimal and focused on the task at hand
 - Update CMake file lists when files are added/removed/renamed
 - Base branch work on `develop`; use a `[scope]` commit tag matching the area touched
+- Follow the Create Rule of Core Foundation for ownership (`Create`/`Copy` return an owned reference, `Get` does not), and take an index and a length instead of a `TRRange` in the public API, returning `NULL`, `TRFalse` or `TRInvalidIndex` for what is not valid (see `.claude/skills/code-style/SKILL.md`, sections 15 to 17)
 
 ### Don't
+- Use `TRRange` in the public API, clamp a range that comes from outside, or leave it to `TRAssert`
 
 - Use `//` comments in C sources
+- Write early exits from a function (`return`, `goto`), nest blocks deeper than 3 levels, open a block with a bare `{`, declare uninitialized variables before initialized ones, declare variables far from where they are used, or place functions out of the static → internal → public order
 - Break C89 compatibility in library code
 - Expose internal struct layouts in public headers

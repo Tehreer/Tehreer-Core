@@ -17,6 +17,8 @@ project(Tehreer
 
 option(TR_CONFIG_UNITY "Build with a single unity source file" ON)
 option(ENABLE_COVERAGE "Enable code coverage instrumentation (only enabled with BUILD_TESTING)" OFF)
+set(TR_DEPS_DIR "" CACHE PATH "Directory with pre-fetched dependency sources (freetype, harfbuzz, libunibreak, SheenBidi) to use instead of fetching them")
+option(TR_BUILD_DEMO "Build the SDL demo application" OFF)
 option(ENABLE_ASAN "Enable address sanitizer" OFF)
 option(ENABLE_UBSAN "Enable undefined behavior sanitizer" OFF)
 
@@ -72,6 +74,19 @@ endfunction()
 
 include(FetchContent)
 
+# Embedding builds (SwiftPM, Gradle/NDK) cannot reach the network. When TR_DEPS_DIR is set, each
+# dependency is taken from the directory named after it instead of being fetched.
+if(TR_DEPS_DIR)
+  foreach(DEPENDENCY freetype harfbuzz libunibreak SheenBidi)
+    if(NOT IS_DIRECTORY "${TR_DEPS_DIR}/${DEPENDENCY}")
+      message(FATAL_ERROR "TR_DEPS_DIR is missing the '${DEPENDENCY}' directory: ${TR_DEPS_DIR}")
+    endif()
+    string(TOUPPER ${DEPENDENCY} DEPENDENCY_UPPER)
+    set(FETCHCONTENT_SOURCE_DIR_${DEPENDENCY_UPPER} "${TR_DEPS_DIR}/${DEPENDENCY}" CACHE PATH "" FORCE)
+  endforeach()
+  set(FETCHCONTENT_FULLY_DISCONNECTED ON CACHE BOOL "" FORCE)
+endif()
+
 set(SKIP_INSTALL_ALL ON CACHE BOOL "Skip installing bundled dependencies" FORCE)
 set(FT_DISABLE_BROTLI ON CACHE BOOL "Disable support of compressed WOFF2 fonts" FORCE)
 set(HB_HAVE_CORETEXT OFF CACHE BOOL "Disable the CoreText shaper backend" FORCE)
@@ -103,7 +118,7 @@ set(SB_CONFIG_UNITY ON CACHE BOOL "Enable SheenBidi unity mode" FORCE)
 FetchContent_Declare(
   SheenBidi
   GIT_REPOSITORY https://github.com/Tehreer/SheenBidi.git
-  GIT_TAG 8f12eb4020d0ab4012d081c1595e68ff73ddf37c
+  GIT_TAG db959420f1566d77ae877bd6d13a9ba258d5e466
 )
 FetchContent_MakeAvailable(SheenBidi)
 
@@ -203,28 +218,95 @@ if(BUILD_TESTS)
   )
 
   set(TEST_TARGETS
+    AdvanceCacheTests
     AllocatorTests
+    ArrayTests
     AtomicTests
     AttributeListTests
     AttributeRegistryTests
     BaseTests
+    BreakClassifierTests
+    BreakResolverTests
+    CaretEdgesBuilderTests
+    CaretUtilsTests
+    ComposedLineTests
+    DrawTests
     FaceMetadataTests
+    FontFeaturesTests
     FontFileTests
+    FrameTests
     FreeTypeTests
     GlyphBitmapTests
+    GlyphCacheTests
+    GlyphImageTests
     MemoryTests
     MutexTests
     NameWriterTests
     ObjectTests
     OnceTests
     RenderableFaceTests
+    RendererTests
+    ReplacementTests
+    PathTests
     SFNTUtilitiesTests
     ShapableFaceTests
+    ShapingEngineTests
     SpinOnceTests
+    TextBufferTests
     TextTests
+    TypefaceManagerTests
     TypefaceTests
+    TypesetterTests
   )
 
+  set(PathTests
+    Tests/PathTests.h
+    Tests/PathTests.cpp
+  )
+  set(AdvanceCacheTests
+    Tests/AdvanceCacheTests.h
+    Tests/AdvanceCacheTests.cpp
+  )
+  set(BreakResolverTests
+    Tests/BreakResolverTests.h
+    Tests/BreakResolverTests.cpp
+  )
+  set(BreakClassifierTests
+    Tests/BreakClassifierTests.h
+    Tests/BreakClassifierTests.cpp
+  )
+  set(FrameTests
+    Tests/FrameTests.h
+    Tests/FrameTests.cpp
+  )
+  set(ComposedLineTests
+    Tests/ComposedLineTests.h
+    Tests/ComposedLineTests.cpp
+  )
+  set(DrawTests
+    Tests/DrawTests.h
+    Tests/DrawTests.cpp
+  )
+  set(CaretUtilsTests
+    Tests/CaretUtilsTests.h
+    Tests/CaretUtilsTests.cpp
+  )
+  set(TypesetterTests
+    Tests/TypesetterTests.h
+    Tests/TypesetterTests.cpp
+  )
+  set(TextBufferTests
+    Tests/TextBufferTests.h
+    Tests/TextBufferTests.cpp
+  )
+  set(CaretEdgesBuilderTests
+    Tests/CaretEdgesBuilderTests.h
+    Tests/CaretEdgesBuilderTests.cpp
+  )
+  set(ArrayTests
+    Tests/ArrayTests.h
+    Tests/ArrayTests.cpp
+  )
   set(AtomicTests
     Tests/AtomicTests.h
     Tests/AtomicTests.cpp
@@ -249,6 +331,18 @@ if(BUILD_TESTS)
     Tests/ObjectTests.h
     Tests/ObjectTests.cpp
   )
+  set(RendererTests
+    Tests/RendererTests.h
+    Tests/RendererTests.cpp
+  )
+  set(ReplacementTests
+    Tests/ReplacementTests.h
+    Tests/ReplacementTests.cpp
+  )
+  set(ShapingEngineTests
+    Tests/ShapingEngineTests.h
+    Tests/ShapingEngineTests.cpp
+  )
   set(SFNTUtilitiesTests
     Tests/SFNTUtilitiesTests.h
     Tests/SFNTUtilitiesTests.cpp
@@ -264,6 +358,14 @@ if(BUILD_TESTS)
   set(GlyphBitmapTests
     Tests/GlyphBitmapTests.h
     Tests/GlyphBitmapTests.cpp
+  )
+  set(GlyphCacheTests
+    Tests/GlyphCacheTests.h
+    Tests/GlyphCacheTests.cpp
+  )
+  set(GlyphImageTests
+    Tests/GlyphImageTests.h
+    Tests/GlyphImageTests.cpp
   )
   set(RenderableFaceTests
     Tests/RenderableFaceTests.h
@@ -281,6 +383,10 @@ if(BUILD_TESTS)
     Tests/BaseTests.h
     Tests/BaseTests.cpp
   )
+  set(FontFeaturesTests
+    Tests/FontFeaturesTests.h
+    Tests/FontFeaturesTests.cpp
+  )
   set(FontFileTests
     Tests/FontFileTests.h
     Tests/FontFileTests.cpp
@@ -288,6 +394,10 @@ if(BUILD_TESTS)
   set(TypefaceTests
     Tests/TypefaceTests.h
     Tests/TypefaceTests.cpp
+  )
+  set(TypefaceManagerTests
+    Tests/TypefaceManagerTests.h
+    Tests/TypefaceManagerTests.cpp
   )
   set(TextTests
     Tests/TextTests.h
@@ -346,6 +456,14 @@ if(BUILD_TESTS)
       target_link_options(Tehreer PUBLIC --coverage)
     endif()
   endif()
+endif()
+
+# ------------------------------------------------------------------------------
+# Demo Application
+# ------------------------------------------------------------------------------
+
+if(TR_BUILD_DEMO)
+  add_subdirectory(Demo)
 endif()
 
 # ------------------------------------------------------------------------------

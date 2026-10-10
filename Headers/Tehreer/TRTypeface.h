@@ -18,8 +18,10 @@
 #define _TEHREER_TYPEFACE_H
 
 #include <Tehreer/TRBase.h>
+#include <Tehreer/TRGeometry.h>
 #include <Tehreer/TRNamedStyle.h>
 #include <Tehreer/TRPalette.h>
+#include <Tehreer/TRPath.h>
 #include <Tehreer/TRVariationAxis.h>
 
 TR_EXTERN_C_BEGIN
@@ -57,13 +59,32 @@ enum {
 };
 typedef TRUInt32 TRSlope;
 
+/**
+ * Flags of a variation axis.
+ */
+enum {
+    TRVariationAxisFlagHidden = 0x0001  /**< The axis should not be shown in user interfaces. */
+};
+
 typedef struct _TRVariationAxis {
     const TRStringView *name;
     TRTag tag;
+    TRUInt32 flags;
     TRFloat minValue;
     TRFloat maxValue;
     TRFloat defaultValue;
 } TRVariationAxis;
+
+/**
+ * A size at which a font has the images of its glyphs, such as the `CBDT` and `sbix` fonts of color
+ * emoji. The image of a glyph is not drawn from an outline, so it is picked from the strike whose
+ * size is the nearest to the one asked for, and the placement of the glyph tells how much it has to
+ * be scaled to match that size.
+ */
+typedef struct _TRBitmapStrike {
+    TRFloat pixelWidth;     /**< Number of pixels in the em square, horizontally. */
+    TRFloat pixelHeight;    /**< Number of pixels in the em square, vertically. */
+} TRBitmapStrike;
 
 typedef struct _TRNamedStyle {
     const TRStringView *subfamilyName;
@@ -117,9 +138,196 @@ TR_PUBLIC const TRPredefinedPalette *TRTypefaceGetPredefinedPalettesPtr(TRTypefa
 
 TR_PUBLIC TRUInteger TRTypefaceGetPredefinedPaletteCount(TRTypefaceRef typeface);
 
+/**
+ * Tells whether the glyphs of the typeface have outlines. The glyphs of a typeface that is not
+ * scalable, such as a `CBDT` color emoji font, only have images at the sizes of its bitmap strikes,
+ * so they have no paths and their images may need a scale to match the size that is asked for.
+ */
+TR_PUBLIC TRBoolean TRTypefaceIsScalable(TRTypefaceRef typeface);
+
+/**
+ * Returns the sizes at which the typeface has the images of its glyphs, which is empty for a
+ * typeface that has none.
+ */
+TR_PUBLIC const TRBitmapStrike *TRTypefaceGetBitmapStrikesPtr(TRTypefaceRef typeface);
+
+TR_PUBLIC TRUInteger TRTypefaceGetBitmapStrikeCount(TRTypefaceRef typeface);
+
 TR_PUBLIC const TRFloat *TRTypefaceGetVariationCoordinatesPtr(TRTypefaceRef typeface);
 
 TR_PUBLIC const TRColor *TRTypefaceGetAssociatedColorsPtr(TRTypefaceRef typeface);
+
+/**
+ * Creates a variation instance of a typeface. The new typeface shares the font data with the
+ * source and keeps its colors.
+ *
+ * @param typeface
+ *      Source typeface.
+ * @param coordinates
+ *      Coordinates in the order of the variation axes. Each one is clamped to the range of its
+ *      axis. Missing coordinates (when `count` is less than the axis count, or `coordinates` is
+ *      `NULL`) take the default values of their axes.
+ * @param count
+ *      Number of values in `coordinates`.
+ * @return
+ *      New typeface, or `NULL` if the typeface has no variation axes or on failure.
+ */
+TR_PUBLIC TRTypefaceRef TRTypefaceCreateWithVariation(TRTypefaceRef typeface,
+    const TRFloat *coordinates, TRUInteger count);
+
+/**
+ * Creates a color instance of a typeface. The new typeface shares the font data with the source
+ * and keeps its variation coordinates.
+ *
+ * @param typeface
+ *      Source typeface.
+ * @param colors
+ *      Colors for the palette entries, in order. Missing colors (when `count` is less than the
+ *      palette entry count, or `colors` is `NULL`) are opaque black.
+ * @param count
+ *      Number of values in `colors`.
+ * @return
+ *      New typeface, or `NULL` if the typeface has no palette entries or on failure.
+ */
+TR_PUBLIC TRTypefaceRef TRTypefaceCreateWithColors(TRTypefaceRef typeface, const TRColor *colors,
+    TRUInteger count);
+
+/**
+ * Returns the family name, or `NULL` if the font has none in a supported encoding.
+ */
+TR_PUBLIC const TRStringView *TRTypefaceGetFamilyName(TRTypefaceRef typeface);
+
+/**
+ * Returns the subfamily (style) name; it follows the variation coordinates when they match a named
+ * style. `NULL` if there is none.
+ */
+TR_PUBLIC const TRStringView *TRTypefaceGetSubfamilyName(TRTypefaceRef typeface);
+
+/**
+ * Returns the full name, or `NULL` if the font has none in a supported encoding.
+ */
+TR_PUBLIC const TRStringView *TRTypefaceGetFullName(TRTypefaceRef typeface);
+
+/**
+ * Returns the bounding box that contains all glyphs, in font units with the y axis pointing up.
+ */
+TR_PUBLIC TRRect TRTypefaceGetBoundingBox(TRTypefaceRef typeface);
+
+/**
+ * Returns the position of the underline relative to the baseline, in font units.
+ */
+TR_PUBLIC TRInt32 TRTypefaceGetUnderlinePosition(TRTypefaceRef typeface);
+
+/**
+ * Returns the thickness of the underline, in font units.
+ */
+TR_PUBLIC TRUInt32 TRTypefaceGetUnderlineThickness(TRTypefaceRef typeface);
+
+/**
+ * Returns the position of the strikeout relative to the baseline, in font units. It is zero if the
+ * font has no `OS/2` table.
+ */
+TR_PUBLIC TRInt32 TRTypefaceGetStrikeoutPosition(TRTypefaceRef typeface);
+
+/**
+ * Returns the thickness of the strikeout, in font units. It is zero if the font has no `OS/2`
+ * table.
+ */
+TR_PUBLIC TRInt32 TRTypefaceGetStrikeoutThickness(TRTypefaceRef typeface);
+
+/**
+ * Returns the glyph that represents a code point.
+ *
+ * @return
+ *      The glyph ID, or 0 (the missing glyph) if the typeface has no glyph for it.
+ */
+TR_PUBLIC TRGlyphID TRTypefaceGetGlyphID(TRTypefaceRef typeface, TRUInt32 codePoint);
+
+/**
+ * Returns the glyph that represents a code point followed by a variation selector.
+ *
+ * @return
+ *      The glyph ID, or 0 if the typeface has no such variant.
+ */
+TR_PUBLIC TRGlyphID TRTypefaceGetVariantGlyphID(TRTypefaceRef typeface, TRUInt32 codePoint,
+    TRUInt32 variantSelector);
+
+/**
+ * Returns the unhinted advance of a glyph at the given size, following the variation coordinates of
+ * the typeface.
+ *
+ * @param typeSize
+ *      Size of the em square, in the unit the caller wants the advance in.
+ * @param isVertical
+ *      `TRTrue` for the vertical advance.
+ */
+TR_PUBLIC TRFloat TRTypefaceGetGlyphAdvance(TRTypefaceRef typeface, TRGlyphID glyphID,
+    TRFloat typeSize, TRBoolean isVertical);
+
+/**
+ * Creates the outline of a glyph. The origin is at the glyph's pen position on the baseline, and
+ * the y axis points downward.
+ *
+ * @param typeSize
+ *      Size of the em square.
+ * @return
+ *      New path, empty for glyphs without an outline such as a space, or `NULL` on failure.
+ */
+TR_PUBLIC TRPathRef TRTypefaceCreateGlyphPath(TRTypefaceRef typeface, TRGlyphID glyphID,
+    TRFloat typeSize);
+
+/**
+ * Returns the size of a table of the font in bytes, without reading it.
+ *
+ * @param typeface
+ *      The typeface.
+ * @param tag
+ *      The tag of the table.
+ * @return
+ *      The size of the table, which is zero if the font has no such table.
+ */
+TR_PUBLIC TRUInteger TRTypefaceGetTableSize(TRTypefaceRef typeface, TRTag tag);
+
+/**
+ * Copies a part of the data of a table of the font. Only the part that is asked for is read from
+ * the font, so a part of a big table is cheap.
+ *
+ * @param typeface
+ *      The typeface.
+ * @param tag
+ *      The tag of the table.
+ * @param offset
+ *      The offset in the table from where to copy, in bytes.
+ * @param buffer
+ *      Receives the data of the table.
+ * @param capacity
+ *      The number of bytes that `buffer` can hold. A part that is bigger is cut short.
+ * @return
+ *      The number of bytes copied, which is zero if the font has no such table, the offset is not
+ *      within it, or the buffer is `NULL`.
+ */
+TR_PUBLIC TRUInteger TRTypefaceGetTableData(TRTypefaceRef typeface, TRTag tag, TRUInteger offset,
+    void *buffer, TRUInteger capacity);
+
+/**
+ * Copies the name of a glyph, as the font gives it in its post table, or its charset if it is a CFF
+ * font.
+ *
+ * @param typeface
+ *      The typeface.
+ * @param glyphID
+ *      The ID of the glyph.
+ * @param buffer
+ *      Receives the name as a null-terminated string of ASCII characters. A name that does not fit
+ *      is cut short.
+ * @param capacity
+ *      The number of bytes that `buffer` can hold, including the terminator.
+ * @return
+ *      The length of the name copied to `buffer`, not counting the terminator. It is zero if the
+ *      font has no name for the glyph, or `capacity` is zero.
+ */
+TR_PUBLIC TRUInteger TRTypefaceGetGlyphName(TRTypefaceRef typeface, TRGlyphID glyphID,
+    char *buffer, TRUInteger capacity);
 
 TR_PUBLIC TRTypefaceRef TRTypefaceRetain(TRTypefaceRef typeface);
 

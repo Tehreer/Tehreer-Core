@@ -19,6 +19,7 @@
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include FT_STROKER_H
 
 #include <API/TRBase.h>
 
@@ -37,7 +38,23 @@ typedef struct _GlyphBitmap {
     TRUInt8 *buffer;
 } GlyphBitmap, *GlyphBitmapRef;
 
+/*
+ * Creates a bitmap from a FreeType one, which can be in mono, gray or BGRA format, with its
+ * position relative to the origin. Returns NULL if it is empty or in an unsupported format.
+ */
+TR_INTERNAL GlyphBitmapRef GlyphBitmapCreateFromBitmap(const FT_Bitmap *ftBitmap, TRInt32 left,
+    TRInt32 top);
+
 TR_INTERNAL GlyphBitmapRef GlyphBitmapCreateFromSlot(FT_GlyphSlot slot);
+
+/*
+ * Strokes the outline, which MUST be in 26.6 format, and renders the result in an alpha bitmap.
+ * Returns NULL if the outline has no points or the result is empty.
+ */
+TR_INTERNAL GlyphBitmapRef GlyphBitmapCreateFromStroke(const FT_Outline *outline,
+    FT_Fixed lineRadius, FT_Stroker_LineCap lineCap, FT_Stroker_LineJoin lineJoin,
+    FT_Fixed miterLimit);
+
 TR_INTERNAL void GlyphBitmapDestroy(GlyphBitmapRef bitmap);
 
 #endif

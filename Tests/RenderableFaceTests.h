@@ -42,6 +42,7 @@ private:
     void testConcurrentAccess();
     void testConcurrentVariations();
     void testRetainRelease();
+    void testGlyphType();
 };
 
 }

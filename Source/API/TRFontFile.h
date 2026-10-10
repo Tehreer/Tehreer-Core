@@ -17,20 +17,21 @@
 #ifndef _TEHREER_API_FONT_FILE_H
 #define _TEHREER_API_FONT_FILE_H
 
-#include <ft2build.h>
-#include FT_FREETYPE_H
-
 #include <Tehreer/TRFontFile.h>
 
 #include <API/TRBase.h>
+#include <Core/Array.h>
 #include <Core/Object.h>
+#include <Font/FontData.h>
 
+/*
+ * A font file keeps the default typefaces that it made when it was created. The typefaces share the
+ * data of the file, and not the file itself, so they and the file do not hold each other alive.
+ */
 typedef struct _TRFontFile {
     ObjectBase _base;
-    FT_Open_Args _arguments;
-    TRUInteger numFaces;
+    FontDataRef _data;
+    Array _typefaces;
 } TRFontFile;
-
-TR_INTERNAL FT_Face TRFontFileCreateFTFace(TRFontFileRef fontFile, TRUInteger faceIndex);
 
 #endif

@@ -30,12 +30,13 @@
 
 #include <API/TRAssert.h>
 #include <API/TRBase.h>
-#include <API/TRFontFile.h>
+#include <API/TRPath.h>
 #include <Core/Allocator.h>
 #include <Core/AtomicUInt.h>
 #include <Core/Mutex.h>
 #include <Core/Once.h>
 #include <Font/FaceMetadata.h>
+#include <Font/FontData.h>
 #include <Graphics/FreeType.h>
 #include <SFNT/Utilities.h>
 
@@ -72,20 +73,16 @@ static FaceNodeRef DetachFaceNode(RenderableFaceRef renderableFace)
     FaceNodeRef faceNode;
     TRUInteger stack;
     TRUInteger expected;
-    TRUInteger index;
 
     do {
+        TRUInteger index;
+
         stack = AtomicUIntLoad(&renderableFace->_faceStack);
         expected = stack;
         index = FaceStackGetIndex(stack);
 
-        if (index == 0) {
-            faceNode = NULL;
-            break;
-        }
-
-        faceNode = &renderableFace->_facePool[index - 1];
-    } while (!AtomicUIntCompareAndSet(&renderableFace->_faceStack, &expected,
+        faceNode = (index == 0 ? NULL : &renderableFace->_facePool[index - 1]);
+    } while (faceNode && !AtomicUIntCompareAndSet(&renderableFace->_faceStack, &expected,
         FaceStackMake(FaceStackGetVersion(stack) + 1, AtomicUIntLoad(&faceNode->next))));
 
     return faceNode;
@@ -111,7 +108,7 @@ static void GetUsableFace(RenderableFaceRef renderableFace, UsableFace *usableFa
 
     if (faceNode) {
         if (!faceNode->ftFace) {
-            faceNode->ftFace = TRFontFileCreateFTFace(renderableFace->_fontFile,
+            faceNode->ftFace = FontDataCreateFTFace(renderableFace->_fontData,
                 renderableFace->faceIndex);
         }
 
@@ -123,7 +120,7 @@ static void GetUsableFace(RenderableFaceRef renderableFace, UsableFace *usableFa
         MutexLock(&renderableFace->_fallbackMutex);
 
         if (!renderableFace->_fallbackFace) {
-            renderableFace->_fallbackFace = TRFontFileCreateFTFace(renderableFace->_fontFile,
+            renderableFace->_fallbackFace = FontDataCreateFTFace(renderableFace->_fontData,
                 renderableFace->faceIndex);
         }
 
@@ -149,9 +146,49 @@ static void ActivateVariation(FT_Face ftFace, FT_Fixed *coordinatesPtr, FT_UInt 
     }
 }
 
-static void ActivateSize(FT_Face ftFace, FT_F26Dot6 pixelWidth, FT_F26Dot6 pixelHeight)
+/* Finds the smallest strike that is at least as tall as the size, or else the tallest one. */
+static FT_Int FindStrikeIndex(FT_Face ftFace, FT_F26Dot6 pixelHeight)
 {
-    FT_Set_Char_Size(ftFace, pixelWidth, pixelHeight, 0, 0);
+    FT_Int upperIndex = -1;
+    FT_Int lowerIndex = -1;
+    FT_Int index;
+
+    for (index = 0; index < ftFace->num_fixed_sizes; index++) {
+        FT_Pos height = ftFace->available_sizes[index].y_ppem;
+
+        if (height >= pixelHeight) {
+            if (upperIndex < 0 || height < ftFace->available_sizes[upperIndex].y_ppem) {
+                upperIndex = index;
+            }
+        } else if (lowerIndex < 0 || height > ftFace->available_sizes[lowerIndex].y_ppem) {
+            lowerIndex = index;
+        }
+    }
+
+    return (upperIndex >= 0 ? upperIndex : lowerIndex);
+}
+
+/*
+ * Sets the size of the face. A face without outlines can only have the size of one of its strikes,
+ * so the strike that is nearest to the size is picked, and it is the one of the size itself if the
+ * size is one of the strikes.
+ */
+static TRBoolean ActivateSize(FT_Face ftFace, const FontParams *fontParams)
+{
+    TRBoolean isActivated = TRFalse;
+
+    if (FT_IS_SCALABLE(ftFace)) {
+        FT_Error error = FT_Set_Char_Size(ftFace, fontParams->pixelWidth, fontParams->pixelHeight,
+            0, 0);
+
+        isActivated = (error == FT_Err_Ok);
+    } else if (ftFace->num_fixed_sizes > 0) {
+        FT_Int index = FindStrikeIndex(ftFace, fontParams->pixelHeight);
+
+        isActivated = (FT_Select_Size(ftFace, index) == FT_Err_Ok);
+    }
+
+    return isActivated;
 }
 
 static void ActivateTransform(FT_Face ftFace, FT_Matrix transform)
@@ -172,15 +209,24 @@ static void ActivatePalette(FT_Face ftFace, FT_Color *colorsPtr, FT_UInt colorCo
     }
 }
 
-static void ActivateFont(FT_Face ftFace, const FontParams *fontParams, TRBoolean needsPalette)
+static TRBoolean ActivateFont(FT_Face ftFace, const FontParams *fontParams,
+    TRBoolean needsPalette)
 {
-    ActivateVariation(ftFace, fontParams->coordinatesPtr, fontParams->coordinateCount);
-    ActivateSize(ftFace, fontParams->pixelWidth, fontParams->pixelHeight);
-    ActivateTransform(ftFace, fontParams->transform);
+    TRBoolean isActivated;
 
-    if (needsPalette) {
-        ActivatePalette(ftFace, fontParams->colorsPtr, fontParams->colorCount);
+    ActivateVariation(ftFace, fontParams->coordinatesPtr, fontParams->coordinateCount);
+    isActivated = ActivateSize(ftFace, fontParams);
+
+    /* A size that is refused leaves the one set before, which would render a wrong glyph. */
+    if (isActivated) {
+        ActivateTransform(ftFace, fontParams->transform);
+
+        if (needsPalette) {
+            ActivatePalette(ftFace, fontParams->colorsPtr, fontParams->colorCount);
+        }
     }
+
+    return isActivated;
 }
 
 static void FinalizeFreeTypeFaces(RenderableFaceRef renderableFace)
@@ -213,12 +259,141 @@ static void FinalizeRenderableFace(ObjectRef object)
 
     FaceMetadataRelease(renderableFace->metadata);
     FinalizeFreeTypeFaces(renderableFace);
-    TRFontFileRelease(renderableFace->_fontFile);
+    FontDataRelease(renderableFace->_fontData);
 }
 
-TR_INTERNAL RenderableFaceRef RenderableFaceCreate(TRFontFileRef fontFile, TRUInteger faceIndex)
+static TRBoolean AreCoordinatesEqual(const TRFloat *first, const TRFloat *second,
+    TRUInteger count)
 {
-    FT_Face ftFace = TRFontFileCreateFTFace(fontFile, faceIndex);
+    const TRFloat minValue = 1.0 / (TRFloat)0x10000;
+    TRBoolean areEqual = TRTrue;
+    TRUInteger index;
+
+    for (index = 0; areEqual && index < count; index++) {
+        if (fabs(first[index] - second[index]) >= minValue) {
+            areEqual = TRFalse;
+        }
+    }
+
+    return areEqual;
+}
+
+/* Returns the name of the first named style that has the coordinates, or `NULL` if none has. */
+static const TRStringView *FindStyleName(FaceMetadataRef metadata,
+    const TRFloat *variationCoordinates)
+{
+    const TRStringView *styleName = NULL;
+    TRUInteger axisCount = metadata->variationAxisCount;
+    TRUInteger styleCount = metadata->namedStyleCount;
+    TRUInteger styleIndex;
+
+    for (styleIndex = 0; styleIndex < styleCount; styleIndex++) {
+        const TRNamedStyle *namedStyle = &metadata->namedStylesPtr[styleIndex];
+
+        if (namedStyle->subfamilyName
+                && AreCoordinatesEqual(variationCoordinates, namedStyle->coordinatesPtr,
+                    axisCount)) {
+            styleName = namedStyle->subfamilyName;
+            break;
+        }
+    }
+
+    return styleName;
+}
+
+static void ApplyVariation(FaceDescription *description, FaceMetadataRef metadata,
+    const TRFloat *variationCoordinates)
+{
+    TRUInteger axisCount = metadata->variationAxisCount;
+    TRUInteger index;
+
+    for (index = 0; index < axisCount; index++) {
+        const TRVariationAxis *axis = &metadata->variationAxesPtr[index];
+        TRFloat coordinate = variationCoordinates[index];
+
+        switch (axis->tag) {
+        case TRTagMake('i', 't', 'a', 'l'):
+            description->slope = GetSlopeFromITALCoordinate(coordinate);
+            break;
+
+        case TRTagMake('s', 'l', 'n', 't'):
+            description->slope = GetSlopeFromSLNTCoordinate(coordinate);
+            break;
+
+        case TRTagMake('w', 'd', 't', 'h'):
+            description->width = GetWidthFromWDTHCoordinate(coordinate);
+            break;
+
+        case TRTagMake('w', 'g', 'h', 't'):
+            description->weight = GetWeightFromWGHTCoordinate(coordinate);
+            break;
+        }
+    }
+}
+
+static void ReadFaceMetrics(FT_Face ftFace, FaceMetrics *metrics)
+{
+    TRInt32 extent = ftFace->ascender - ftFace->descender;
+
+    metrics->unitsPerEM = ftFace->units_per_EM;
+    metrics->ascent = ftFace->ascender;
+    metrics->descent = -ftFace->descender;
+    metrics->leading = 0;
+    if (ftFace->height > extent) {
+        metrics->leading = ftFace->height - extent;
+    }
+    metrics->underlinePosition = ftFace->underline_position;
+    metrics->underlineThickness = ftFace->underline_thickness;
+
+    metrics->xMin = ftFace->bbox.xMin;
+    metrics->yMin = ftFace->bbox.yMin;
+    metrics->xMax = ftFace->bbox.xMax;
+    metrics->yMax = ftFace->bbox.yMax;
+}
+
+/* Reads the metrics from the tables of a face whose outlines are not there to give them. */
+static void ReadTableMetrics(FT_Face ftFace, FaceMetrics *metrics)
+{
+    const TT_Header *headTable = FT_Get_Sfnt_Table(ftFace, FT_SFNT_HEAD);
+    const TT_HoriHeader *hheaTable = FT_Get_Sfnt_Table(ftFace, FT_SFNT_HHEA);
+    const TT_Postscript *postTable = FT_Get_Sfnt_Table(ftFace, FT_SFNT_POST);
+
+    if (headTable) {
+        metrics->unitsPerEM = headTable->Units_Per_EM;
+        metrics->xMin = headTable->xMin;
+        metrics->yMin = headTable->yMin;
+        metrics->xMax = headTable->xMax;
+        metrics->yMax = headTable->yMax;
+    }
+
+    if (hheaTable) {
+        metrics->ascent = (hheaTable->Ascender > 0 ? hheaTable->Ascender : 0);
+        metrics->descent = (hheaTable->Descender < 0 ? -hheaTable->Descender : 0);
+        metrics->leading = (hheaTable->Line_Gap > 0 ? hheaTable->Line_Gap : 0);
+    }
+
+    if (postTable) {
+        metrics->underlinePosition = postTable->underlinePosition;
+        metrics->underlineThickness = postTable->underlineThickness;
+    }
+}
+
+static void ReadStrikeoutMetrics(FT_Face ftFace, FaceMetrics *metrics)
+{
+    const TT_OS2 *os2Table = FT_Get_Sfnt_Table(ftFace, FT_SFNT_OS2);
+
+    metrics->strikeoutPosition = 0;
+    metrics->strikeoutThickness = 0;
+
+    if (os2Table) {
+        metrics->strikeoutPosition = os2Table->yStrikeoutPosition;
+        metrics->strikeoutThickness = os2Table->yStrikeoutSize;
+    }
+}
+
+TR_INTERNAL RenderableFaceRef RenderableFaceCreate(FontDataRef fontData, TRUInteger faceIndex)
+{
+    FT_Face ftFace = FontDataCreateFTFace(fontData, faceIndex);
     RenderableFace *renderableFace = NULL;
 
     if (ftFace) {
@@ -228,7 +403,7 @@ TR_INTERNAL RenderableFaceRef RenderableFaceCreate(TRFontFileRef fontFile, TRUIn
         renderableFace = ObjectCreate(&size, 1, &pointer, FinalizeRenderableFace);
 
         if (renderableFace) {
-            renderableFace->_fontFile = TRFontFileRetain(fontFile);
+            renderableFace->_fontData = FontDataRetain(fontData);
             renderableFace->faceIndex = faceIndex;
 
             InitializeFacePool(renderableFace->_facePool, RawFacePoolSize);
@@ -274,6 +449,74 @@ TR_INTERNAL void RenderableFaceCopyTable(RenderableFaceRef renderableFace, TRTag
     YieldUsableFace(renderableFace, &usableFace);
 }
 
+TR_INTERNAL TRUInteger RenderableFaceGetTableSize(RenderableFaceRef renderableFace, TRTag tag)
+{
+    FT_ULong length = 0;
+    UsableFace usableFace;
+
+    GetUsableFace(renderableFace, &usableFace);
+
+    /* A zero length asks for the size of the table, without reading anything. */
+    if (FT_Load_Sfnt_Table(usableFace.ftFace, tag, 0, NULL, &length) != FT_Err_Ok) {
+        length = 0;
+    }
+
+    YieldUsableFace(renderableFace, &usableFace);
+
+    return length;
+}
+
+TR_INTERNAL TRUInteger RenderableFaceReadTable(RenderableFaceRef renderableFace, TRTag tag,
+    TRUInteger offset, void *buffer, TRUInteger capacity)
+{
+    FT_ULong size = 0;
+    TRUInteger count = 0;
+    UsableFace usableFace;
+
+    GetUsableFace(renderableFace, &usableFace);
+
+    if (buffer && FT_Load_Sfnt_Table(usableFace.ftFace, tag, 0, NULL, &size) == FT_Err_Ok
+            && offset < size) {
+        /* FreeType does not stop at the end of the table, so the count is limited here. */
+        FT_ULong length = (FT_ULong)NumberMin(capacity, size - offset);
+
+        if (length > 0 && FT_Load_Sfnt_Table(usableFace.ftFace, tag, (FT_Long)offset, buffer,
+                &length) == FT_Err_Ok) {
+            count = length;
+        }
+    }
+
+    YieldUsableFace(renderableFace, &usableFace);
+
+    return count;
+}
+
+TR_INTERNAL TRUInteger RenderableFaceCopyGlyphName(RenderableFaceRef renderableFace,
+    TRGlyphID glyphID, char *buffer, TRUInteger capacity)
+{
+    TRUInteger nameLength = 0;
+
+    if (capacity > 0) {
+        UsableFace usableFace;
+        FT_Error error;
+
+        GetUsableFace(renderableFace, &usableFace);
+
+        error = FT_Get_Glyph_Name(usableFace.ftFace, glyphID, buffer, (FT_UInt)capacity);
+
+        YieldUsableFace(renderableFace, &usableFace);
+
+        /* FreeType null-terminates the name, and leaves it empty if the font has none. */
+        if (error == FT_Err_Ok) {
+            nameLength = (TRUInteger)strlen(buffer);
+        } else {
+            buffer[0] = '\0';
+        }
+    }
+
+    return nameLength;
+}
+
 TR_INTERNAL TRBoolean RenderableFaceSearchEnglishName(RenderableFaceRef renderableFace,
     TRUInt16 nameID, NameString *nameString)
 {
@@ -293,69 +536,41 @@ TR_INTERNAL TRGlyphID RenderableFaceGetCodePointGlyphID(RenderableFaceRef render
     TRUInt32 codePoint)
 {
     UsableFace usableFace;
-    TRGlyphID glyphID;
+    FT_UInt index;
 
     GetUsableFace(renderableFace, &usableFace);
 
-    glyphID = FT_Get_Char_Index(usableFace.ftFace, codePoint);
+    index = FT_Get_Char_Index(usableFace.ftFace, codePoint);
 
     YieldUsableFace(renderableFace, &usableFace);
 
-    return glyphID;
+    return (index <= 0xFFFF ? (TRGlyphID)index : 0);
 }
 
 TR_INTERNAL TRGlyphID RenderableFaceGetVariantGlyphID(RenderableFaceRef renderableFace,
     TRUInt32 codePoint, TRUInt32 variantSelector)
 {
     UsableFace usableFace;
-    TRGlyphID glyphID;
+    FT_UInt index;
 
     GetUsableFace(renderableFace, &usableFace);
 
-    glyphID = FT_Face_GetCharVariantIndex(usableFace.ftFace, codePoint, variantSelector);
+    index = FT_Face_GetCharVariantIndex(usableFace.ftFace, codePoint, variantSelector);
 
     YieldUsableFace(renderableFace, &usableFace);
 
-    return glyphID;
+    return (index <= 0xFFFF ? (TRGlyphID)index : 0);
 }
 
 TR_INTERNAL void RenderableFaceGetDescription(RenderableFaceRef renderableFace,
     const TRFloat *variationCoordinates, const TRStringView **subfamilyName,
     FaceDescription *description)
 {
-    const TRFloat minValue = 1.0 / (TRFloat)0x10000;
     FaceMetadataRef metadata = renderableFace->metadata;
-    TRUInteger axisCount = metadata->variationAxisCount;
 
     if (subfamilyName) {
-        *subfamilyName = NULL;
-
         if (variationCoordinates) {
-            TRUInteger styleCount = metadata->namedStyleCount;
-            TRUInteger styleIndex;
-
-            for (styleIndex = 0; styleIndex < styleCount; styleIndex++) {
-                const TRNamedStyle *namedStyle = &metadata->namedStylesPtr[styleIndex];
-                const TRFloat *styleCoordinates = namedStyle->coordinatesPtr;
-                TRBoolean matched = TRTrue;
-                TRUInteger index;
-
-                if (!namedStyle->subfamilyName) {
-                    continue;
-                }
-
-                for (index = 0; index < axisCount; index++) {
-                    if (fabs(variationCoordinates[index] - styleCoordinates[index]) >= minValue) {
-                        matched = TRFalse;
-                        break;
-                    }
-                }
-
-                if (matched) {
-                    *subfamilyName = namedStyle->subfamilyName;
-                    break;
-                }
-            }
+            *subfamilyName = FindStyleName(metadata, variationCoordinates);
         } else {
             *subfamilyName = metadata->subfamilyName;
         }
@@ -367,30 +582,7 @@ TR_INTERNAL void RenderableFaceGetDescription(RenderableFaceRef renderableFace,
         description->slope = metadata->slope;
 
         if (variationCoordinates) {
-            TRUInteger index;
-
-            for (index = 0; index < axisCount; index++) {
-                const TRVariationAxis *axis = &metadata->variationAxesPtr[index];
-                TRFloat coordinate = variationCoordinates[index];
-
-                switch (axis->tag) {
-                case TRTagMake('i', 't', 'a', 'l'):
-                    description->slope = GetSlopeFromITALCoordinate(coordinate);
-                    break;
-
-                case TRTagMake('s', 'l', 'n', 't'):
-                    description->slope = GetSlopeFromSLNTCoordinate(coordinate);
-                    break;
-
-                case TRTagMake('w', 'd', 't', 'h'):
-                    description->width = GetWidthFromWDTHCoordinate(coordinate);
-                    break;
-
-                case TRTagMake('w', 'g', 'h', 't'):
-                    description->weight = GetWeightFromWGHTCoordinate(coordinate);
-                    break;
-                }
-            }
+            ApplyVariation(description, metadata, variationCoordinates);
         }
     }
 }
@@ -406,17 +598,18 @@ TR_INTERNAL void RenderableFaceGetMetrics(RenderableFaceRef renderableFace,
     ActivateVariation(usableFace.ftFace, variationCoordinates, axisCount);
 
     if (metrics) {
-        TRInt32 extent = usableFace.ftFace->ascender - usableFace.ftFace->descender;
+        FT_Face ftFace = usableFace.ftFace;
 
-        metrics->unitsPerEM = usableFace.ftFace->units_per_EM;
-        metrics->ascent = usableFace.ftFace->ascender;
-        metrics->descent = -usableFace.ftFace->descender;
-        metrics->leading = 0;
-        if (usableFace.ftFace->height > extent) {
-            metrics->leading = usableFace.ftFace->height - extent;
+        memset(metrics, 0, sizeof(FaceMetrics));
+
+        if (ftFace->units_per_EM > 0) {
+            ReadFaceMetrics(ftFace, metrics);
+        } else {
+            /* FreeType leaves the metrics of a face that has no outlines empty. */
+            ReadTableMetrics(ftFace, metrics);
         }
-        metrics->underlinePosition = usableFace.ftFace->underline_position;
-        metrics->underlineThickness = usableFace.ftFace->underline_thickness;
+
+        ReadStrikeoutMetrics(ftFace, metrics);
     }
 
     YieldUsableFace(renderableFace, &usableFace);
@@ -425,17 +618,85 @@ TR_INTERNAL void RenderableFaceGetMetrics(RenderableFaceRef renderableFace,
 TR_INTERNAL TRInt32 RenderableFaceGetGlyphAdvance(RenderableFaceRef renderableFace,
     const FontParams *fontParams, TRGlyphID glyphID)
 {
+    return RenderableFaceGetDirectionalAdvance(renderableFace, fontParams, glyphID, TRFalse);
+}
+
+TR_INTERNAL TRInt32 RenderableFaceGetDirectionalAdvance(RenderableFaceRef renderableFace,
+    const FontParams *fontParams, TRGlyphID glyphID, TRBoolean isVertical)
+{
+    FT_Int32 loadFlags = FT_LOAD_NO_SCALE;
     FT_Fixed advance = 0;
     UsableFace usableFace;
 
-    GetUsableFace(renderableFace, &usableFace);
-    ActivateFont(usableFace.ftFace, fontParams, TRFalse);
+    if (isVertical) {
+        loadFlags |= FT_LOAD_VERTICAL_LAYOUT;
+    }
 
-    FT_Get_Advance(usableFace.ftFace, glyphID, FT_LOAD_NO_SCALE, &advance);
+    GetUsableFace(renderableFace, &usableFace);
+
+    /* The advance is in font units, so only the variation of the font matters. */
+    ActivateVariation(usableFace.ftFace, fontParams->coordinatesPtr, fontParams->coordinateCount);
+
+    FT_Get_Advance(usableFace.ftFace, glyphID, loadFlags, &advance);
 
     YieldUsableFace(renderableFace, &usableFace);
 
     return advance;
+}
+
+TR_INTERNAL TRPathRef RenderableFaceCreateGlyphPath(RenderableFaceRef renderableFace,
+    const FontParams *fontParams, TRGlyphID glyphID)
+{
+    TRPathRef path = NULL;
+    UsableFace usableFace;
+
+    GetUsableFace(renderableFace, &usableFace);
+
+    if (ActivateFont(usableFace.ftFace, fontParams, TRFalse)
+            && FT_Load_Glyph(usableFace.ftFace, glyphID, FT_LOAD_NO_BITMAP) == FT_Err_Ok
+            && usableFace.ftFace->glyph->format == FT_GLYPH_FORMAT_OUTLINE) {
+        path = TRPathCreateFromOutline(&usableFace.ftFace->glyph->outline);
+    }
+
+    YieldUsableFace(renderableFace, &usableFace);
+
+    return path;
+}
+
+TR_INTERNAL GlyphType RenderableFaceGetGlyphType(RenderableFaceRef renderableFace, TRGlyphID glyphID)
+{
+    FT_UInt layerGlyphID = 0;
+    FT_UInt colorIndex = 0;
+    GlyphType glyphType = GlyphTypeMask;
+    TRBoolean isColored = TRFalse;
+    TRBoolean hasMask = TRFalse;
+    FT_LayerIterator iterator;
+    UsableFace usableFace;
+
+    GetUsableFace(renderableFace, &usableFace);
+
+    iterator.num_layers = 0;
+    iterator.layer = 0;
+    iterator.p = NULL;
+
+    while (FT_Get_Color_Glyph_Layer(usableFace.ftFace, glyphID, &layerGlyphID, &colorIndex,
+            &iterator)) {
+        isColored = TRTrue;
+
+        /* A layer with this color index is painted with the foreground color. */
+        if (colorIndex == 0xFFFF) {
+            hasMask = TRTrue;
+            break;
+        }
+    }
+
+    YieldUsableFace(renderableFace, &usableFace);
+
+    if (isColored) {
+        glyphType = (hasMask ? GlyphTypeMixed : GlyphTypeColor);
+    }
+
+    return glyphType;
 }
 
 TR_INTERNAL GlyphBitmapRef RenderableFaceRasterizeGlyph(RenderableFaceRef renderableFace,
@@ -443,16 +704,18 @@ TR_INTERNAL GlyphBitmapRef RenderableFaceRasterizeGlyph(RenderableFaceRef render
 {
     GlyphBitmapRef bitmap = NULL;
     UsableFace usableFace;
-    FT_Error error;
 
     GetUsableFace(renderableFace, &usableFace);
-    ActivateFont(usableFace.ftFace, fontParams, TRTrue);
 
-    FT_Palette_Set_Foreground_Color(usableFace.ftFace, foregroundColor);
+    if (ActivateFont(usableFace.ftFace, fontParams, TRTrue)) {
+        FT_Error error;
 
-    error = FT_Load_Glyph(usableFace.ftFace, glyphID, FT_LOAD_COLOR | FT_LOAD_RENDER);
-    if (error == FT_Err_Ok) {
-        bitmap = GlyphBitmapCreateFromSlot(usableFace.ftFace->glyph);
+        FT_Palette_Set_Foreground_Color(usableFace.ftFace, foregroundColor);
+
+        error = FT_Load_Glyph(usableFace.ftFace, glyphID, FT_LOAD_COLOR | FT_LOAD_RENDER);
+        if (error == FT_Err_Ok) {
+            bitmap = GlyphBitmapCreateFromSlot(usableFace.ftFace->glyph);
+        }
     }
 
     YieldUsableFace(renderableFace, &usableFace);

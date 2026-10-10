@@ -31,6 +31,7 @@ void BaseTests::run() {
     testTagMakeHighBytes();
     testColorMake();
     testInvalidIndex();
+    testIndexAndRangeValidity();
     testTypeSizes();
 }
 
@@ -52,6 +53,22 @@ void BaseTests::testColorMake() {
     assert(TRColorMake(0xFF, 0x00, 0x00, 0x00) == 0xFF000000);
     assert(TRColorMake(0xFF, 0xFF, 0xFF, 0xFF) == 0xFFFFFFFF);
     assert(TRColorMake(0x00, 0x00, 0x00, 0x00) == 0);
+}
+
+void BaseTests::testIndexAndRangeValidity() {
+    const TRUInteger max = TRInvalidIndex;
+
+    assert(IndexIsValid(0, 1) && IndexIsValid(4, 5));
+    assert(!IndexIsValid(5, 5) && !IndexIsValid(max, 5) && !IndexIsValid(0, 0));
+
+    /* A range is valid if it ends within the count, which is not told by adding them up. */
+    assert(RangeIsValid(2, 3, 10) && RangeIsValid(0, 10, 10) && RangeIsValid(10, 0, 10));
+    assert(!RangeIsValid(8, 5, 10) && !RangeIsValid(0, 11, 10) && !RangeIsValid(11, 0, 10));
+    assert(RangeIsValid(0, 0, 0) && !RangeIsValid(1, 0, 0));
+
+    /* The index and the length that would wrap around are not valid. */
+    assert(!RangeIsValid(2, max, 10) && !RangeIsValid(max, 2, 10) && !RangeIsValid(max, max, 10));
+    assert(!RangeIsValid(max - 1, 5, 10) && !RangeIsValid(max, 0, 10));
 }
 
 void BaseTests::testInvalidIndex() {

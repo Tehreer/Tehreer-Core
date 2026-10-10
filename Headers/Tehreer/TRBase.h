@@ -106,6 +106,18 @@ typedef TRUInt8                     TRBoolean;
  */
 typedef TRUInt32                    TRTag;
 
+/**
+ * Makes a tag from four characters, e.g. `TRTagMake('h', 'e', 'a', 'd')`.
+ */
+#define TRTagMake(a, b, c, d)       \
+(TRTag)                             \
+(                                   \
+    ((TRUInt32)(TRUInt8)(a) << 24)  \
+  | ((TRUInt32)(TRUInt8)(b) << 16)  \
+  | ((TRUInt32)(TRUInt8)(c) << 8)   \
+  | ((TRUInt32)(TRUInt8)(d))        \
+)
+
 typedef TRUInt16                    TRGlyphID;
 
 typedef TRUInt32                    TRColor;

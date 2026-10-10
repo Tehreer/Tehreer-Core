@@ -30,6 +30,8 @@ private:
     void testUnknownAttributeType();
     void testDefaultConfig();
     void testRegisteredAttributeInfo();
+    void testAllAttributeTypes();
+    void testParagraphScopes();
     void testEqualValuesMergeRuns();
     void testConcurrentAccess();
 };

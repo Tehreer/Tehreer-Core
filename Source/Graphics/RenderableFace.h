@@ -21,16 +21,18 @@
 #include FT_COLOR_H
 #include FT_FREETYPE_H
 
+#include <Tehreer/TRGeometry.h>
+#include <Tehreer/TRPath.h>
 #include <Tehreer/TRString.h>
 #include <Tehreer/TRTypeface.h>
 
 #include <API/TRBase.h>
-#include <API/TRFontFile.h>
 #include <Core/AtomicUInt.h>
 #include <Core/Data.h>
 #include <Core/Mutex.h>
 #include <Core/Object.h>
 #include <Font/FaceMetadata.h>
+#include <Font/FontData.h>
 #include <Graphics/GlyphBitmap.h>
 #include <SFNT/Utilities.h>
 
@@ -44,7 +46,7 @@ typedef struct _FaceNode {
 typedef struct _RenderableFace {
     ObjectBase _base;
 
-    TRFontFileRef _fontFile;
+    FontDataRef _fontData;
     TRUInteger faceIndex;
 
     FaceNode _facePool[RawFacePoolSize];
@@ -56,6 +58,19 @@ typedef struct _RenderableFace {
     FaceMetadataRef metadata;
     TRUInteger glyphCount;
 } RenderableFace, *RenderableFaceRef;
+
+/*
+ * How the image of a glyph depends on the foreground color. A mask glyph is painted only with the
+ * foreground color, a color glyph never uses it, and a mixed one has layers of both kinds. The
+ * type is unknown until it is looked up.
+ */
+enum {
+    GlyphTypeUnknown,
+    GlyphTypeMask,
+    GlyphTypeColor,
+    GlyphTypeMixed
+};
+typedef TRUInt32 GlyphType;
 
 typedef struct _FaceDescription {
     TRWeight weight;
@@ -70,6 +85,12 @@ typedef struct _FaceMetrics {
     TRUInt32 leading;
     TRInt32 underlinePosition;
     TRUInt32 underlineThickness;
+    TRInt32 strikeoutPosition;
+    TRInt32 strikeoutThickness;
+    TRInt32 xMin;
+    TRInt32 yMin;
+    TRInt32 xMax;
+    TRInt32 yMax;
 } FaceMetrics;
 
 typedef struct _FontParams {
@@ -82,10 +103,18 @@ typedef struct _FontParams {
     FT_Matrix transform;
 } FontParams;
 
-TR_INTERNAL RenderableFaceRef RenderableFaceCreate(TRFontFileRef fontFile, TRUInteger faceIndex);
+TR_INTERNAL RenderableFaceRef RenderableFaceCreate(FontDataRef fontData, TRUInteger faceIndex);
 
 TR_INTERNAL void RenderableFaceCopyTable(RenderableFaceRef renderableFace, TRTag tag,
     void **buffer, TRUInteger *size);
+
+TR_INTERNAL TRUInteger RenderableFaceGetTableSize(RenderableFaceRef renderableFace, TRTag tag);
+
+TR_INTERNAL TRUInteger RenderableFaceReadTable(RenderableFaceRef renderableFace, TRTag tag,
+    TRUInteger offset, void *buffer, TRUInteger capacity);
+
+TR_INTERNAL TRUInteger RenderableFaceCopyGlyphName(RenderableFaceRef renderableFace,
+    TRGlyphID glyphID, char *buffer, TRUInteger capacity);
 
 TR_INTERNAL TRBoolean RenderableFaceSearchEnglishName(RenderableFaceRef renderableFace,
     TRUInt16 nameID, NameString *nameString);
@@ -103,6 +132,21 @@ TR_INTERNAL void RenderableFaceGetMetrics(RenderableFaceRef renderableFace,
 
 TR_INTERNAL TRInt32 RenderableFaceGetGlyphAdvance(RenderableFaceRef renderableFace,
     const FontParams *fontParams, TRGlyphID glyphID);
+
+/*
+ * Returns the advance of a glyph in font units, along the vertical axis if `isVertical` is true.
+ */
+TR_INTERNAL TRInt32 RenderableFaceGetDirectionalAdvance(RenderableFaceRef renderableFace,
+    const FontParams *fontParams, TRGlyphID glyphID, TRBoolean isVertical);
+
+/*
+ * Creates the outline of a glyph at the size given in `fontParams`, in 26.6 fixed point format.
+ * Returns NULL if the glyph has no outline or cannot be loaded.
+ */
+TR_INTERNAL TRPathRef RenderableFaceCreateGlyphPath(RenderableFaceRef renderableFace,
+    const FontParams *fontParams, TRGlyphID glyphID);
+
+TR_INTERNAL GlyphType RenderableFaceGetGlyphType(RenderableFaceRef renderableFace, TRGlyphID glyphID);
 
 TR_INTERNAL GlyphBitmapRef RenderableFaceRasterizeGlyph(RenderableFaceRef renderableFace,
     const FontParams *fontParams, TRGlyphID glyphID, FT_Color foregroundColor);

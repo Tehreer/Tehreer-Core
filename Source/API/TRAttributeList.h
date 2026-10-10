@@ -1,0 +1,32 @@
+/*
+ * Copyright (C) 2026 Muhammad Tayyab Akram
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef _TEHREER_API_ATTRIBUTE_LIST_H
+#define _TEHREER_API_ATTRIBUTE_LIST_H
+
+#include <SheenBidi/SBAttributeList.h>
+
+#include <Tehreer/TRAttributeList.h>
+
+#include <API/TRBase.h>
+
+/*
+ * An attribute list is a list of SheenBidi whose items hold attributes of Core, so a list of
+ * SheenBidi is a list of Core and the other way round. The reference is only converted.
+ */
+TR_INTERNAL TRAttributeListRef TRAttributeListMake(SBAttributeListRef sbList);
+
+#endif

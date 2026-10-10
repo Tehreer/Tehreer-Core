@@ -29,20 +29,19 @@ TR_INTERNAL void NameWriterInitialize(NameWriterRef writer, TRStringView *views,
 
 TR_INTERNAL TRStringView *NameWriterWrite(NameWriterRef writer, NameString *name)
 {
-    TRStringView *view = writer->views;
+    TRStringView *view = NULL;
 
-    if (name->length == 0) {
-        return NULL;
+    if (name->length > 0) {
+        view = writer->views;
+        view->buffer = writer->codeUnits;
+
+        if (NameStringToStringView(name, view)) {
+            writer->views += 1;
+            writer->codeUnits += view->length;
+        } else {
+            view = NULL;
+        }
     }
-
-    view->buffer = writer->codeUnits;
-
-    if (!NameStringToStringView(name, view)) {
-        return NULL;
-    }
-
-    writer->views += 1;
-    writer->codeUnits += view->length;
 
     return view;
 }

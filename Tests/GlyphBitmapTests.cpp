@@ -17,9 +17,11 @@
 #include <cassert>
 #include <cstdint>
 #include <cstring>
+#include <initializer_list>
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include FT_STROKER_H
 
 extern "C" {
 #include <Graphics/GlyphBitmap.h>
@@ -37,6 +39,12 @@ void GlyphBitmapTests::run() {
     testNegativePitch();
     testEmptyBitmap();
     testUnsupportedPixelMode();
+    testCreateFromBitmap();
+    testStrokeSquare();
+    testStrokeJoins();
+    testStrokeCaps();
+    testStrokeRadius();
+    testStrokeEmptyOutline();
 }
 
 static FT_GlyphSlotRec makeSlot(unsigned char pixelMode, unsigned int width, unsigned int rows,
@@ -157,6 +165,153 @@ void GlyphBitmapTests::testUnsupportedPixelMode() {
 
     FT_GlyphSlotRec lcd = makeSlot(FT_PIXEL_MODE_LCD, 6, 2, 6, pixels, 0, 0);
     assert(GlyphBitmapCreateFromSlot(&lcd) == nullptr);
+}
+
+void GlyphBitmapTests::testCreateFromBitmap() {
+    /* The same conversion as for a slot, with the position given directly. */
+    unsigned char pixels[] = { 9, 8, 7, 6 };
+    FT_Bitmap ftBitmap = {};
+    ftBitmap.pixel_mode = FT_PIXEL_MODE_GRAY;
+    ftBitmap.width = 2;
+    ftBitmap.rows = 2;
+    ftBitmap.pitch = 2;
+    ftBitmap.buffer = pixels;
+
+    GlyphBitmapRef bitmap = GlyphBitmapCreateFromBitmap(&ftBitmap, -3, 5);
+    assert(bitmap != nullptr);
+    assert(bitmap->left == -3 && bitmap->top == 5);
+    assert(bitmap->width == 2 && bitmap->height == 2);
+    assert(bitmap->format == BitmapFormatAlpha);
+    assert(memcmp(bitmap->buffer, pixels, 4) == 0);
+    GlyphBitmapDestroy(bitmap);
+
+    ftBitmap.width = 0;
+    assert(GlyphBitmapCreateFromBitmap(&ftBitmap, 0, 0) == nullptr);
+}
+
+/* A square of 10 by 10 pixels, with the corners in 26.6 format, as FreeType keeps them. */
+struct SquareOutline {
+    FT_Vector points[4];
+    unsigned char tags[4];
+    unsigned short contours[1];
+    FT_Outline outline;
+
+    SquareOutline() {
+        const FT_Pos size = 10 * 64;
+        points[0] = { 0, 0 };
+        points[1] = { size, 0 };
+        points[2] = { size, size };
+        points[3] = { 0, size };
+        for (auto &tag : tags) {
+            tag = FT_CURVE_TAG_ON;
+        }
+        contours[0] = 3;
+
+        outline = {};
+        outline.n_points = 4;
+        outline.n_contours = 1;
+        outline.points = points;
+        outline.tags = reinterpret_cast<unsigned char *>(tags);
+        outline.contours = contours;
+    }
+};
+
+static unsigned char pixelAt(GlyphBitmapRef bitmap, unsigned x, unsigned y) {
+    return bitmap->buffer[y * bitmap->width + x];
+}
+
+void GlyphBitmapTests::testStrokeSquare() {
+    SquareOutline square;
+
+    /* A line of one pixel wide has a radius of half a pixel. */
+    GlyphBitmapRef bitmap = GlyphBitmapCreateFromStroke(&square.outline, 32,
+        FT_STROKER_LINECAP_BUTT, FT_STROKER_LINEJOIN_MITER, 4 * 0x10000);
+
+    assert(bitmap != nullptr);
+    assert(bitmap->format == BitmapFormatAlpha);
+
+    /* The stroke goes half a pixel out of the outline, which rounds up to a whole pixel. */
+    assert(bitmap->left == -1);
+    assert(bitmap->top == 11);
+    assert(bitmap->width == 12);
+    assert(bitmap->height == 12);
+
+    /* The inside is empty, while the lines have ink. */
+    assert(pixelAt(bitmap, 6, 6) == 0);
+    assert(pixelAt(bitmap, 6, 0) > 0);
+    assert(pixelAt(bitmap, 6, 11) > 0);
+    assert(pixelAt(bitmap, 0, 6) > 0);
+    assert(pixelAt(bitmap, 11, 6) > 0);
+
+    GlyphBitmapDestroy(bitmap);
+
+    /* The input is not changed. */
+    assert(square.outline.n_points == 4);
+    assert(square.points[1].x == 640);
+}
+
+void GlyphBitmapTests::testStrokeJoins() {
+    SquareOutline square;
+
+    GlyphBitmapRef miter = GlyphBitmapCreateFromStroke(&square.outline, 128,
+        FT_STROKER_LINECAP_BUTT, FT_STROKER_LINEJOIN_MITER, 4 * 0x10000);
+    GlyphBitmapRef bevel = GlyphBitmapCreateFromStroke(&square.outline, 128,
+        FT_STROKER_LINECAP_BUTT, FT_STROKER_LINEJOIN_BEVEL, 4 * 0x10000);
+    GlyphBitmapRef round = GlyphBitmapCreateFromStroke(&square.outline, 128,
+        FT_STROKER_LINECAP_BUTT, FT_STROKER_LINEJOIN_ROUND, 4 * 0x10000);
+
+    assert(miter && bevel && round);
+
+    /* The sharp corner is only fully covered with a miter. */
+    assert(pixelAt(miter, 0, 0) == 255);
+    assert(pixelAt(bevel, 0, 0) < pixelAt(miter, 0, 0));
+    assert(pixelAt(round, 0, 0) < pixelAt(miter, 0, 0));
+
+    GlyphBitmapDestroy(round);
+    GlyphBitmapDestroy(bevel);
+    GlyphBitmapDestroy(miter);
+}
+
+void GlyphBitmapTests::testStrokeCaps() {
+    /* The caps only matter for open lines, so this uses a closed square as a smoke test. */
+    SquareOutline square;
+
+    for (FT_Stroker_LineCap cap : { FT_STROKER_LINECAP_BUTT, FT_STROKER_LINECAP_ROUND,
+                                    FT_STROKER_LINECAP_SQUARE }) {
+        GlyphBitmapRef bitmap = GlyphBitmapCreateFromStroke(&square.outline, 64, cap,
+            FT_STROKER_LINEJOIN_ROUND, 0x10000);
+
+        assert(bitmap != nullptr);
+        assert(bitmap->width == 12 && bitmap->height == 12);
+
+        GlyphBitmapDestroy(bitmap);
+    }
+}
+
+void GlyphBitmapTests::testStrokeRadius() {
+    SquareOutline square;
+
+    GlyphBitmapRef thin = GlyphBitmapCreateFromStroke(&square.outline, 32,
+        FT_STROKER_LINECAP_BUTT, FT_STROKER_LINEJOIN_MITER, 4 * 0x10000);
+    GlyphBitmapRef thick = GlyphBitmapCreateFromStroke(&square.outline, 3 * 64,
+        FT_STROKER_LINECAP_BUTT, FT_STROKER_LINEJOIN_MITER, 4 * 0x10000);
+
+    /* A radius of three pixels reaches three pixels out, and has a smaller hole. */
+    assert(thick->left == -3);
+    assert(thick->width == 16 && thick->height == 16);
+    assert(thick->width > thin->width);
+    assert(pixelAt(thick, 8, 8) == 0);
+    assert(pixelAt(thick, 8, 1) == 255);
+
+    GlyphBitmapDestroy(thick);
+    GlyphBitmapDestroy(thin);
+}
+
+void GlyphBitmapTests::testStrokeEmptyOutline() {
+    FT_Outline outline = {};
+
+    assert(GlyphBitmapCreateFromStroke(&outline, 64, FT_STROKER_LINECAP_BUTT,
+        FT_STROKER_LINEJOIN_ROUND, 0x10000) == nullptr);
 }
 
 #ifdef STANDALONE_TESTING

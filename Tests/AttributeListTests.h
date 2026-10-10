@@ -27,7 +27,7 @@ public:
 
 private:
     void testNoAttributes();
-    void testPointSizeAttribute();
+    void testTypeSizeAttribute();
     void testRunLengths();
     void testRemoveAttribute();
     void testOverwriteAttribute();
@@ -36,6 +36,15 @@ private:
     void testTypefaceRetainBalance();
     void testUnknownAttributeType();
     void testListOutlivesText();
+    void testRunAttributeValues();
+    void testParagraphAttributeValues();
+    void testParagraphAttributesCoverParagraphs();
+    void testEqualParagraphAttributesMerge();
+    void testReplacementAttribute();
+    void testReplacementRetainBalance();
+    void testForegroundColorAttribute();
+    void testDecorationAttributes();
+    void testUserDataAttribute();
 };
 
 }

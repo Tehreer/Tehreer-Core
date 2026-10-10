@@ -41,25 +41,28 @@ void AttributeRegistryTests::run() {
     testUnknownAttributeType();
     testDefaultConfig();
     testRegisteredAttributeInfo();
+    testAllAttributeTypes();
+    testParagraphScopes();
     testEqualValuesMergeRuns();
     testConcurrentAccess();
 }
 
 void AttributeRegistryTests::testAttributeIDs() {
     SBAttributeID typefaceID = AttributeRegistryGetAttributeID(TRAttributeTypeface);
-    SBAttributeID pointSizeID = AttributeRegistryGetAttributeID(TRAttributePointSize);
+    SBAttributeID pointSizeID = AttributeRegistryGetAttributeID(TRAttributeTypeSize);
 
     assert(typefaceID != SBAttributeIDNone);
     assert(pointSizeID != SBAttributeIDNone);
     assert(typefaceID != pointSizeID);
 
     assert(AttributeRegistryGetAttributeID(TRAttributeTypeface) == typefaceID);
-    assert(AttributeRegistryGetAttributeID(TRAttributePointSize) == pointSizeID);
+    assert(AttributeRegistryGetAttributeID(TRAttributeTypeSize) == pointSizeID);
 }
 
 void AttributeRegistryTests::testUnknownAttributeType() {
     assert(AttributeRegistryGetAttributeID(0) == SBAttributeIDNone);
-    assert(AttributeRegistryGetAttributeID(3) == SBAttributeIDNone);
+    assert(AttributeRegistryGetAttributeID(27) == SBAttributeIDNone);
+    assert(AttributeRegistryGetAttributeID(100) == SBAttributeIDNone);
     assert(AttributeRegistryGetAttributeID(0xFFFF) == SBAttributeIDNone);
 }
 
@@ -75,22 +78,123 @@ void AttributeRegistryTests::testRegisteredAttributeInfo() {
         AttributeRegistryGetDefaultConfig());
     SBAttributeRegistryRef registry = SBTextGetAttributeRegistry(text);
     SBAttributeID typefaceID = AttributeRegistryGetAttributeID(TRAttributeTypeface);
-    SBAttributeID pointSizeID = AttributeRegistryGetAttributeID(TRAttributePointSize);
+    SBAttributeID pointSizeID = AttributeRegistryGetAttributeID(TRAttributeTypeSize);
     SBAttributeInfo info;
 
     assert(SBAttributeRegistryGetAttributeID(registry, "Typeface") == typefaceID);
-    assert(SBAttributeRegistryGetAttributeID(registry, "PointSize") == pointSizeID);
+    assert(SBAttributeRegistryGetAttributeID(registry, "TypeSize") == pointSizeID);
     assert(SBAttributeRegistryGetAttributeID(registry, "Unknown") == SBAttributeIDNone);
 
     assert(SBAttributeRegistryGetAttributeInfo(registry, typefaceID, &info) == SBTrue);
     assert(strcmp(info.name, "Typeface") == 0);
-    assert(info.group == SBAttributeGroupNone);
+    assert(info.group == AttributeGroupShaping);
     assert(info.scope == SBAttributeScopeCharacter);
 
     assert(SBAttributeRegistryGetAttributeInfo(registry, pointSizeID, &info) == SBTrue);
-    assert(strcmp(info.name, "PointSize") == 0);
-    assert(info.group == SBAttributeGroupNone);
+    assert(strcmp(info.name, "TypeSize") == 0);
+    assert(info.group == AttributeGroupShaping);
     assert(info.scope == SBAttributeScopeCharacter);
+
+    SBTextRelease(text);
+}
+
+struct AttributeSpec {
+    TRAttributeType type;
+    const char *name;
+    SBAttributeGroup group;
+    SBAttributeScope scope;
+};
+
+constexpr SBAttributeGroup Shaping = AttributeGroupShaping;
+constexpr SBAttributeGroup None = SBAttributeGroupNone;
+
+static const AttributeSpec Specs[] = {
+    { TRAttributeTypeface, "Typeface", Shaping, SBAttributeScopeCharacter },
+    { TRAttributeTypeSize, "TypeSize", Shaping, SBAttributeScopeCharacter },
+    { TRAttributeScaleX, "ScaleX", Shaping, SBAttributeScopeCharacter },
+    { TRAttributeScaleY, "ScaleY", Shaping, SBAttributeScopeCharacter },
+    { TRAttributeBaselineOffset, "BaselineOffset", Shaping, SBAttributeScopeCharacter },
+    { TRAttributeObliqueness, "Obliqueness", Shaping, SBAttributeScopeCharacter },
+    { TRAttributeReplacement, "Replacement", Shaping, SBAttributeScopeCharacter },
+    { TRAttributeTextAlignment, "TextAlignment", None, SBAttributeScopeParagraph },
+    { TRAttributeFirstLineHeadIndent, "FirstLineHeadIndent", None, SBAttributeScopeParagraph },
+    { TRAttributeHeadIndent, "HeadIndent", None, SBAttributeScopeParagraph },
+    { TRAttributeTailIndent, "TailIndent", None, SBAttributeScopeParagraph },
+    { TRAttributeFirstIndentLineCount, "FirstIndentLineCount", None, SBAttributeScopeParagraph },
+    { TRAttributeParagraphSpacingBefore, "ParagraphSpacingBefore", None, SBAttributeScopeParagraph },
+    { TRAttributeParagraphSpacing, "ParagraphSpacing", None, SBAttributeScopeParagraph },
+    { TRAttributeLineHeightMultiple, "LineHeightMultiple", None, SBAttributeScopeParagraph },
+    { TRAttributeMinimumLineHeight, "MinimumLineHeight", None, SBAttributeScopeParagraph },
+    { TRAttributeMaximumLineHeight, "MaximumLineHeight", None, SBAttributeScopeParagraph },
+    { TRAttributeLineSpacing, "LineSpacing", None, SBAttributeScopeParagraph },
+    { TRAttributeForegroundColor, "ForegroundColor", None, SBAttributeScopeCharacter },
+    { TRAttributeUserData, "UserData", None, SBAttributeScopeCharacter },
+    { TRAttributeLanguage, "Language", Shaping, SBAttributeScopeCharacter },
+    { TRAttributeFontFeatures, "FontFeatures", Shaping, SBAttributeScopeCharacter },
+    { TRAttributeBackgroundColor, "BackgroundColor", None, SBAttributeScopeCharacter },
+    { TRAttributeUnderline, "Underline", None, SBAttributeScopeCharacter },
+    { TRAttributeStrikethrough, "Strikethrough", None, SBAttributeScopeCharacter },
+    { TRAttributeDecorationColor, "DecorationColor", None, SBAttributeScopeCharacter }
+};
+constexpr size_t SpecCount = sizeof(Specs) / sizeof(Specs[0]);
+
+void AttributeRegistryTests::testAllAttributeTypes() {
+    /* The types are numbered from one without gaps. */
+    for (size_t i = 0; i < SpecCount; i++) {
+        assert(Specs[i].type == i + 1);
+    }
+
+    SBMutableTextRef text = SBTextCreateMutable(SBStringEncodingUTF8,
+        AttributeRegistryGetDefaultConfig());
+    SBAttributeRegistryRef registry = SBTextGetAttributeRegistry(text);
+    vector<SBAttributeID> ids;
+
+    for (const AttributeSpec &spec : Specs) {
+        SBAttributeID id = AttributeRegistryGetAttributeID(spec.type);
+        SBAttributeInfo info;
+
+        assert(id != SBAttributeIDNone);
+        assert(SBAttributeRegistryGetAttributeID(registry, spec.name) == id);
+        assert(SBAttributeRegistryGetAttributeInfo(registry, id, &info) == SBTrue);
+        assert(strcmp(info.name, spec.name) == 0);
+        assert(info.group == spec.group);
+        assert(info.scope == spec.scope);
+
+        for (SBAttributeID other : ids) {
+            assert(other != id);
+        }
+        ids.push_back(id);
+    }
+
+    SBTextRelease(text);
+}
+
+void AttributeRegistryTests::testParagraphScopes() {
+    /* A paragraph attribute that is set on a part of a paragraph covers all of it. */
+    SBMutableTextRef text = SBTextCreateMutable(SBStringEncodingUTF8,
+        AttributeRegistryGetDefaultConfig());
+    SBTextAppendCodeUnits(text, "ab\ncd\nef", 8);
+
+    TRAttribute attribute = {};
+    attribute.type = TRAttributeHeadIndent;
+    attribute.value.headIndent = 20.0f;
+    SBTextSetAttribute(text, 4, 1, AttributeRegistryGetAttributeID(TRAttributeHeadIndent), &attribute);
+
+    SBUInteger length = 0;
+    SBAttributeListRef list = SBTextGetAttributes(text, SBAttributeFilterMakeAny(), 0, &length);
+    assert(SBAttributeListGetCount(list) == 0);
+    assert(length == 3);
+    SBAttributeListRelease(list);
+
+    list = SBTextGetAttributes(text, SBAttributeFilterMakeAny(), 3, &length);
+    assert(SBAttributeListGetCount(list) == 1);
+    assert(length == 3);
+    SBAttributeListRelease(list);
+
+    list = SBTextGetAttributes(text, SBAttributeFilterMakeAny(), 6, &length);
+    assert(SBAttributeListGetCount(list) == 0);
+    assert(length == 2);
+    SBAttributeListRelease(list);
 
     SBTextRelease(text);
 }
@@ -106,11 +210,11 @@ static SBMutableTextRef createText() {
 
 static void setPointSize(SBMutableTextRef text, SBUInteger index, SBUInteger length, TRFloat size) {
     TRAttribute attribute = {};
-    attribute.type = TRAttributePointSize;
-    attribute.value.pointSize = size;
+    attribute.type = TRAttributeTypeSize;
+    attribute.value.typeSize = size;
 
     SBTextSetAttribute(text, index, length,
-        AttributeRegistryGetAttributeID(TRAttributePointSize), &attribute);
+        AttributeRegistryGetAttributeID(TRAttributeTypeSize), &attribute);
 }
 
 static SBUInteger firstRunLength(SBMutableTextRef text) {
@@ -142,7 +246,7 @@ void AttributeRegistryTests::testConcurrentAccess() {
     for (size_t i = 0; i < NumThreads; i++) {
         threads.emplace_back([&typefaceIDs, &pointSizeIDs, i]() {
             typefaceIDs[i] = AttributeRegistryGetAttributeID(TRAttributeTypeface);
-            pointSizeIDs[i] = AttributeRegistryGetAttributeID(TRAttributePointSize);
+            pointSizeIDs[i] = AttributeRegistryGetAttributeID(TRAttributeTypeSize);
         });
     }
 

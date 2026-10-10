@@ -50,6 +50,7 @@ void SFNTUtilitiesTests::run() {
     testNameStringToStringView();
     testNameStringToStringViewOddLength();
     testNameStringToStringViewInvalid();
+    testMacRomanNames();
     testSearchEnglishName();
     testSearchEnglishNameMissing();
     testSearchEnglishNameMacintosh();
@@ -78,7 +79,8 @@ void SFNTUtilitiesTests::testGetNameEncoding() {
     assert(SFNTGetNameEncoding(SFNTPlatformIDWindows, 1) == SFNTEncodingUTF16BE);
     assert(SFNTGetNameEncoding(SFNTPlatformIDWindows, 10) == SFNTEncodingUTF16BE);
     assert(SFNTGetNameEncoding(SFNTPlatformIDWindows, 2) == SFNTEncodingUnknown);
-    assert(SFNTGetNameEncoding(SFNTPlatformIDMacintosh, 0) == SFNTEncodingUnknown);
+    assert(SFNTGetNameEncoding(SFNTPlatformIDMacintosh, 0) == SFNTEncodingMacRoman);
+    assert(SFNTGetNameEncoding(SFNTPlatformIDMacintosh, 1) == SFNTEncodingUnknown);
     assert(SFNTGetNameEncoding(2, 0) == SFNTEncodingUnknown);
 }
 
@@ -186,6 +188,30 @@ void SFNTUtilitiesTests::testNameStringToStringViewOddLength() {
     assert(buffer[2] == 0xFFFF);
 }
 
+void SFNTUtilitiesTests::testMacRomanNames() {
+    /* The bytes are 'C', 'a', 'f', then e acute, en dash, euro, Apple logo, and caron. */
+    const vector<uint8_t> bytes = { 0x43, 0x61, 0x66, 0x8E, 0xD0, 0xDB, 0xF0, 0xFF };
+    NameString nameString = makeNameString(bytes, SFNTEncodingMacRoman);
+    uint16_t buffer[8] = { 0 };
+    TRStringView view = { buffer, 0, TRStringEncodingUTF8 };
+
+    /* Each byte takes a code unit, which is two bytes. */
+    assert(NameStringGetCapacity(&nameString) == 16);
+    assert(NameStringToStringView(&nameString, &view) == TRTrue);
+    assert(view.length == 8);
+    assert(view.encoding == TRStringEncodingUTF16);
+
+    const uint16_t expected[8] = { 0x0043, 0x0061, 0x0066, 0x00E9, 0x2013, 0x20AC, 0xF8FF, 0x02C7 };
+    for (size_t index = 0; index < 8; index++) {
+        assert(buffer[index] == expected[index]);
+    }
+
+    /* A name in UTF-16 takes as many bytes as it has. */
+    const vector<uint8_t> wide = { 0x00, 0x52, 0x00, 0x6F };
+    NameString wideName = makeNameString(wide, SFNTEncodingUTF16BE);
+    assert(NameStringGetCapacity(&wideName) == 4);
+}
+
 void SFNTUtilitiesTests::testNameStringToStringViewInvalid() {
     const vector<uint8_t> bytes = { 0x00, 0x52 };
     uint16_t buffer[1] = { 0 };
@@ -253,13 +279,15 @@ void SFNTUtilitiesTests::testSearchEnglishNameMacintosh() {
     NameString nameString;
 
     assert(SearchEnglishName(face.get(), SFNTNameIDFontFamily, &nameString) == TRTrue);
-    assert(nameString.encoding == SFNTEncodingUnknown);
+    assert(nameString.encoding == SFNTEncodingMacRoman);
     assert(nameString.length == 6);
     assert(memcmp(nameString.bytes, "Roboto", 6) == 0);
 
     uint16_t buffer[8];
     TRStringView view = { buffer, 0, TRStringEncodingUTF8 };
-    assert(NameStringToStringView(&nameString, &view) == TRFalse);
+    assert(NameStringToStringView(&nameString, &view) == TRTrue);
+    assert(view.length == 6);
+    assert(buffer[0] == 'R' && buffer[5] == 'o');
 }
 
 void SFNTUtilitiesTests::testSearchFamilyAndSubfamilyName() {

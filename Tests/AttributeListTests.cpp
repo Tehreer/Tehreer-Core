@@ -21,10 +21,12 @@
 
 #include <Tehreer/TRAttribute.h>
 #include <Tehreer/TRAttributeList.h>
+#include <Tehreer/TRReplacement.h>
 #include <Tehreer/TRText.h>
 #include <Tehreer/TRTypeface.h>
 
 extern "C" {
+#include <API/TRReplacement.h>
 #include <API/TRTypeface.h>
 #include <Core/AtomicUInt.h>
 }
@@ -38,7 +40,7 @@ using namespace Tehreer;
 
 void AttributeListTests::run() {
     testNoAttributes();
-    testPointSizeAttribute();
+    testTypeSizeAttribute();
     testRunLengths();
     testRemoveAttribute();
     testOverwriteAttribute();
@@ -47,12 +49,21 @@ void AttributeListTests::run() {
     testTypefaceRetainBalance();
     testUnknownAttributeType();
     testListOutlivesText();
+    testRunAttributeValues();
+    testParagraphAttributeValues();
+    testParagraphAttributesCoverParagraphs();
+    testEqualParagraphAttributesMerge();
+    testReplacementAttribute();
+    testReplacementRetainBalance();
+    testForegroundColorAttribute();
+    testDecorationAttributes();
+    testUserDataAttribute();
 }
 
-static TRAttribute makePointSize(TRFloat size) {
+static TRAttribute makeTypeSize(TRFloat size) {
     TRAttribute attribute = {};
-    attribute.type = TRAttributePointSize;
-    attribute.value.pointSize = size;
+    attribute.type = TRAttributeTypeSize;
+    attribute.value.typeSize = size;
 
     return attribute;
 }
@@ -84,104 +95,104 @@ void AttributeListTests::testNoAttributes() {
     TRMutableTextRef text = createText();
     TRUInteger length = 0;
 
-    TRAttributeListRef list = TRTextGetAttributes(text, 0, &length);
+    TRAttributeListRef list = TRTextCopyAttributes(text, 0, &length);
 
     assert(list != nullptr);
     assert(TRAttributeListGetCount(list) == 0);
     assert(length == 6);
 
-    SBAttributeListRelease(list);
+    TRAttributeListRelease(list);
     TRTextRelease(text);
 }
 
-void AttributeListTests::testPointSizeAttribute() {
+void AttributeListTests::testTypeSizeAttribute() {
     TRMutableTextRef text = createText();
-    TRAttribute attribute = makePointSize(12.5f);
+    TRAttribute attribute = makeTypeSize(12.5f);
     TRUInteger length = 0;
 
     TRTextSetAttribute(text, 1, 3, &attribute);
 
-    TRAttributeListRef list = TRTextGetAttributes(text, 2, &length);
+    TRAttributeListRef list = TRTextCopyAttributes(text, 2, &length);
 
     assert(TRAttributeListGetCount(list) == 1);
-    assert(readItem(list, 0).type == TRAttributePointSize);
-    assert(readItem(list, 0).value.pointSize == 12.5f);
+    assert(readItem(list, 0).type == TRAttributeTypeSize);
+    assert(readItem(list, 0).value.typeSize == 12.5f);
 
-    SBAttributeListRelease(list);
+    TRAttributeListRelease(list);
     TRTextRelease(text);
 }
 
 void AttributeListTests::testRunLengths() {
     TRMutableTextRef text = createText();
-    TRAttribute attribute = makePointSize(10.0f);
+    TRAttribute attribute = makeTypeSize(10.0f);
     TRUInteger length = 0;
 
     TRTextSetAttribute(text, 1, 3, &attribute);
 
-    TRAttributeListRef before = TRTextGetAttributes(text, 0, &length);
+    TRAttributeListRef before = TRTextCopyAttributes(text, 0, &length);
     assert(TRAttributeListGetCount(before) == 0);
     assert(length == 1);
-    SBAttributeListRelease(before);
+    TRAttributeListRelease(before);
 
-    TRAttributeListRef inside = TRTextGetAttributes(text, 1, &length);
+    TRAttributeListRef inside = TRTextCopyAttributes(text, 1, &length);
     assert(TRAttributeListGetCount(inside) == 1);
     assert(length == 3);
-    SBAttributeListRelease(inside);
+    TRAttributeListRelease(inside);
 
-    TRAttributeListRef after = TRTextGetAttributes(text, 4, &length);
+    TRAttributeListRef after = TRTextCopyAttributes(text, 4, &length);
     assert(TRAttributeListGetCount(after) == 0);
     assert(length == 2);
-    SBAttributeListRelease(after);
+    TRAttributeListRelease(after);
 
     TRTextRelease(text);
 }
 
 void AttributeListTests::testRemoveAttribute() {
     TRMutableTextRef text = createText();
-    TRAttribute attribute = makePointSize(10.0f);
+    TRAttribute attribute = makeTypeSize(10.0f);
     TRUInteger length = 0;
 
     TRTextSetAttribute(text, 0, 6, &attribute);
-    TRTextRemoveAttribute(text, 2, 2, TRAttributePointSize);
+    TRTextRemoveAttribute(text, 2, 2, TRAttributeTypeSize);
 
-    TRAttributeListRef first = TRTextGetAttributes(text, 0, &length);
+    TRAttributeListRef first = TRTextCopyAttributes(text, 0, &length);
     assert(TRAttributeListGetCount(first) == 1);
     assert(length == 2);
-    SBAttributeListRelease(first);
+    TRAttributeListRelease(first);
 
-    TRAttributeListRef removed = TRTextGetAttributes(text, 2, &length);
+    TRAttributeListRef removed = TRTextCopyAttributes(text, 2, &length);
     assert(TRAttributeListGetCount(removed) == 0);
     assert(length == 2);
-    SBAttributeListRelease(removed);
+    TRAttributeListRelease(removed);
 
-    TRTextRemoveAttribute(text, 0, 6, TRAttributePointSize);
+    TRTextRemoveAttribute(text, 0, 6, TRAttributeTypeSize);
 
-    TRAttributeListRef cleared = TRTextGetAttributes(text, 0, &length);
+    TRAttributeListRef cleared = TRTextCopyAttributes(text, 0, &length);
     assert(TRAttributeListGetCount(cleared) == 0);
     assert(length == 6);
-    SBAttributeListRelease(cleared);
+    TRAttributeListRelease(cleared);
 
     TRTextRelease(text);
 }
 
 void AttributeListTests::testOverwriteAttribute() {
     TRMutableTextRef text = createText();
-    TRAttribute small = makePointSize(8.0f);
-    TRAttribute large = makePointSize(20.0f);
+    TRAttribute small = makeTypeSize(8.0f);
+    TRAttribute large = makeTypeSize(20.0f);
     TRUInteger length = 0;
 
     TRTextSetAttribute(text, 0, 6, &small);
     TRTextSetAttribute(text, 2, 2, &large);
 
-    TRAttributeListRef list = TRTextGetAttributes(text, 3, &length);
-    assert(readItem(list, 0).value.pointSize == 20.0f);
+    TRAttributeListRef list = TRTextCopyAttributes(text, 3, &length);
+    assert(readItem(list, 0).value.typeSize == 20.0f);
     assert(length == 1);
-    SBAttributeListRelease(list);
+    TRAttributeListRelease(list);
 
-    list = TRTextGetAttributes(text, 4, &length);
-    assert(readItem(list, 0).value.pointSize == 8.0f);
+    list = TRTextCopyAttributes(text, 4, &length);
+    assert(readItem(list, 0).value.typeSize == 8.0f);
     assert(length == 2);
-    SBAttributeListRelease(list);
+    TRAttributeListRelease(list);
 
     TRTextRelease(text);
 }
@@ -189,34 +200,34 @@ void AttributeListTests::testOverwriteAttribute() {
 void AttributeListTests::testMultipleAttributes() {
     TRTypefaceRef typeface = createTestTypeface("Roboto-Regular.abc.ttf");
     TRMutableTextRef text = createText();
-    TRAttribute pointSize = makePointSize(16.0f);
+    TRAttribute typeSize = makeTypeSize(16.0f);
     TRAttribute typefaceAttribute = makeTypeface(typeface);
     TRUInteger length = 0;
 
-    TRTextSetAttribute(text, 0, 4, &pointSize);
+    TRTextSetAttribute(text, 0, 4, &typeSize);
     TRTextSetAttribute(text, 2, 4, &typefaceAttribute);
 
-    TRAttributeListRef list = TRTextGetAttributes(text, 2, &length);
+    TRAttributeListRef list = TRTextCopyAttributes(text, 2, &length);
     assert(TRAttributeListGetCount(list) == 2);
     assert(length == 2);
 
-    bool hasPointSize = false;
+    bool hasTypeSize = false;
     bool hasTypeface = false;
 
     for (TRUInteger i = 0; i < 2; i++) {
         TRAttribute item = readItem(list, i);
 
-        if (item.type == TRAttributePointSize) {
-            hasPointSize = (item.value.pointSize == 16.0f);
+        if (item.type == TRAttributeTypeSize) {
+            hasTypeSize = (item.value.typeSize == 16.0f);
         } else if (item.type == TRAttributeTypeface) {
             hasTypeface = (item.value.typeface == typeface);
         }
     }
 
-    assert(hasPointSize);
+    assert(hasTypeSize);
     assert(hasTypeface);
 
-    SBAttributeListRelease(list);
+    TRAttributeListRelease(list);
     TRTextRelease(text);
     TRTypefaceRelease(typeface);
 }
@@ -229,13 +240,13 @@ void AttributeListTests::testTypefaceAttribute() {
 
     TRTextSetAttribute(text, 0, 6, &attribute);
 
-    TRAttributeListRef list = TRTextGetAttributes(text, 0, &length);
+    TRAttributeListRef list = TRTextCopyAttributes(text, 0, &length);
     assert(TRAttributeListGetCount(list) == 1);
     assert(length == 6);
     assert(readItem(list, 0).type == TRAttributeTypeface);
     assert(readItem(list, 0).value.typeface == typeface);
 
-    SBAttributeListRelease(list);
+    TRAttributeListRelease(list);
     TRTextRelease(text);
     TRTypefaceRelease(typeface);
 }
@@ -252,10 +263,10 @@ void AttributeListTests::testTypefaceRetainBalance() {
     size_t storedCount = retainCount(typeface);
     assert(storedCount > 1);
 
-    TRAttributeListRef list = TRTextGetAttributes(text, 0, &length);
+    TRAttributeListRef list = TRTextCopyAttributes(text, 0, &length);
     assert(retainCount(typeface) == storedCount + 1);
 
-    SBAttributeListRelease(list);
+    TRAttributeListRelease(list);
     assert(retainCount(typeface) == storedCount);
 
     TRTextRemoveAttribute(text, 0, 6, TRAttributeTypeface);
@@ -271,18 +282,18 @@ void AttributeListTests::testTypefaceRetainBalance() {
 
 void AttributeListTests::testUnknownAttributeType() {
     TRMutableTextRef text = createText();
-    TRAttribute attribute = makePointSize(10.0f);
+    TRAttribute attribute = makeTypeSize(10.0f);
     TRUInteger length = 0;
 
     attribute.type = 99;
     TRTextSetAttribute(text, 0, 6, &attribute);
     TRTextRemoveAttribute(text, 0, 6, 99);
 
-    TRAttributeListRef list = TRTextGetAttributes(text, 0, &length);
+    TRAttributeListRef list = TRTextCopyAttributes(text, 0, &length);
     assert(TRAttributeListGetCount(list) == 0);
     assert(length == 6);
 
-    SBAttributeListRelease(list);
+    TRAttributeListRelease(list);
     TRTextRelease(text);
 }
 
@@ -294,17 +305,511 @@ void AttributeListTests::testListOutlivesText() {
 
     TRTextSetAttribute(text, 0, 6, &attribute);
 
-    TRAttributeListRef list = TRTextGetAttributes(text, 0, &length);
+    TRAttributeListRef list = TRTextCopyAttributes(text, 0, &length);
     TRTextRelease(text);
 
     assert(TRAttributeListGetCount(list) == 1);
     assert(readItem(list, 0).value.typeface == typeface);
     assert(retainCount(typeface) > 1);
 
-    SBAttributeListRelease(list);
+    TRAttributeListRelease(list);
     assert(retainCount(typeface) == 1);
 
     TRTypefaceRelease(typeface);
+}
+
+static TRMutableTextRef createParagraphText() {
+    TRMutableTextRef text = TRTextCreateMutable(TRStringEncodingUTF8);
+    TRTextAppendCodeUnits(text, "ab\ncd\nef", 8);
+
+    return text;
+}
+
+static TRAttribute makeFloat(TRAttributeType type, TRFloat value) {
+    TRAttribute attribute = {};
+    attribute.type = type;
+
+    switch (type) {
+    case TRAttributeScaleX: attribute.value.scaleX = value; break;
+    case TRAttributeScaleY: attribute.value.scaleY = value; break;
+    case TRAttributeBaselineOffset: attribute.value.baselineOffset = value; break;
+    case TRAttributeObliqueness: attribute.value.obliqueness = value; break;
+    case TRAttributeFirstLineHeadIndent: attribute.value.firstLineHeadIndent = value; break;
+    case TRAttributeHeadIndent: attribute.value.headIndent = value; break;
+    case TRAttributeTailIndent: attribute.value.tailIndent = value; break;
+    case TRAttributeParagraphSpacingBefore: attribute.value.paragraphSpacingBefore = value; break;
+    case TRAttributeParagraphSpacing: attribute.value.paragraphSpacing = value; break;
+    case TRAttributeLineHeightMultiple: attribute.value.lineHeightMultiple = value; break;
+    case TRAttributeMinimumLineHeight: attribute.value.minimumLineHeight = value; break;
+    case TRAttributeMaximumLineHeight: attribute.value.maximumLineHeight = value; break;
+    case TRAttributeLineSpacing: attribute.value.lineSpacing = value; break;
+    default: assert(false);
+    }
+
+    return attribute;
+}
+
+static TRFloat readFloat(const TRAttribute &attribute) {
+    switch (attribute.type) {
+    case TRAttributeScaleX: return attribute.value.scaleX;
+    case TRAttributeScaleY: return attribute.value.scaleY;
+    case TRAttributeBaselineOffset: return attribute.value.baselineOffset;
+    case TRAttributeObliqueness: return attribute.value.obliqueness;
+    case TRAttributeFirstLineHeadIndent: return attribute.value.firstLineHeadIndent;
+    case TRAttributeHeadIndent: return attribute.value.headIndent;
+    case TRAttributeTailIndent: return attribute.value.tailIndent;
+    case TRAttributeParagraphSpacingBefore: return attribute.value.paragraphSpacingBefore;
+    case TRAttributeParagraphSpacing: return attribute.value.paragraphSpacing;
+    case TRAttributeLineHeightMultiple: return attribute.value.lineHeightMultiple;
+    case TRAttributeMinimumLineHeight: return attribute.value.minimumLineHeight;
+    case TRAttributeMaximumLineHeight: return attribute.value.maximumLineHeight;
+    case TRAttributeLineSpacing: return attribute.value.lineSpacing;
+    default: assert(false);
+    }
+
+    return 0.0f;
+}
+
+void AttributeListTests::testRunAttributeValues() {
+    const TRAttributeType types[] = {
+        TRAttributeScaleX, TRAttributeScaleY, TRAttributeBaselineOffset, TRAttributeObliqueness
+    };
+
+    for (TRAttributeType type : types) {
+        TRMutableTextRef text = createText();
+        TRAttribute attribute = makeFloat(type, 1.5f);
+        TRUInteger length = 0;
+
+        TRTextSetAttribute(text, 1, 3, &attribute);
+
+        TRAttributeListRef list = TRTextCopyAttributes(text, 1, &length);
+        assert(TRAttributeListGetCount(list) == 1);
+        assert(length == 3);
+        assert(readItem(list, 0).type == type);
+        assert(readFloat(readItem(list, 0)) == 1.5f);
+        TRAttributeListRelease(list);
+
+        /* Outside of the range there is nothing, as these attributes apply to the exact range. */
+        list = TRTextCopyAttributes(text, 0, &length);
+        assert(TRAttributeListGetCount(list) == 0);
+        assert(length == 1);
+        TRAttributeListRelease(list);
+
+        TRTextRemoveAttribute(text, 0, 6, type);
+        list = TRTextCopyAttributes(text, 2, &length);
+        assert(TRAttributeListGetCount(list) == 0);
+        TRAttributeListRelease(list);
+
+        TRTextRelease(text);
+    }
+
+    /* Each of them has an identity of its own, so they do not replace each other. */
+    TRMutableTextRef text = createText();
+    for (TRAttributeType type : types) {
+        TRAttribute attribute = makeFloat(type, 2.0f);
+        TRTextSetAttribute(text, 0, 6, &attribute);
+    }
+
+    TRUInteger length = 0;
+    TRAttributeListRef list = TRTextCopyAttributes(text, 0, &length);
+    assert(TRAttributeListGetCount(list) == 4);
+    assert(length == 6);
+    TRAttributeListRelease(list);
+
+    TRTextRelease(text);
+}
+
+void AttributeListTests::testParagraphAttributeValues() {
+    const TRAttributeType types[] = {
+        TRAttributeFirstLineHeadIndent, TRAttributeHeadIndent, TRAttributeTailIndent,
+        TRAttributeParagraphSpacingBefore, TRAttributeParagraphSpacing,
+        TRAttributeLineHeightMultiple, TRAttributeMinimumLineHeight,
+        TRAttributeMaximumLineHeight, TRAttributeLineSpacing
+    };
+
+    for (TRAttributeType type : types) {
+        TRMutableTextRef text = createParagraphText();
+        TRAttribute attribute = makeFloat(type, -4.25f);
+        TRUInteger length = 0;
+
+        TRTextSetAttribute(text, 0, 2, &attribute);
+
+        TRAttributeListRef list = TRTextCopyAttributes(text, 0, &length);
+        assert(TRAttributeListGetCount(list) == 1);
+        assert(readItem(list, 0).type == type);
+        assert(readFloat(readItem(list, 0)) == -4.25f);
+        TRAttributeListRelease(list);
+
+        TRTextRemoveAttribute(text, 0, 8, type);
+        list = TRTextCopyAttributes(text, 0, &length);
+        assert(TRAttributeListGetCount(list) == 0);
+        TRAttributeListRelease(list);
+
+        TRTextRelease(text);
+    }
+
+    /* The alignment and the line count are not floating-point values. */
+    TRMutableTextRef text = createParagraphText();
+    TRAttribute alignment = {};
+    alignment.type = TRAttributeTextAlignment;
+    alignment.value.textAlignment = TRTextAlignmentTrailing;
+
+    TRAttribute lineCount = {};
+    lineCount.type = TRAttributeFirstIndentLineCount;
+    lineCount.value.firstIndentLineCount = 3;
+
+    TRTextSetAttribute(text, 0, 2, &alignment);
+    TRTextSetAttribute(text, 0, 2, &lineCount);
+
+    TRUInteger length = 0;
+    TRAttributeListRef list = TRTextCopyAttributes(text, 0, &length);
+    assert(TRAttributeListGetCount(list) == 2);
+
+    bool hasAlignment = false;
+    bool hasLineCount = false;
+    for (TRUInteger i = 0; i < 2; i++) {
+        TRAttribute item = readItem(list, i);
+
+        if (item.type == TRAttributeTextAlignment) {
+            assert(item.value.textAlignment == TRTextAlignmentTrailing);
+            hasAlignment = true;
+        } else if (item.type == TRAttributeFirstIndentLineCount) {
+            assert(item.value.firstIndentLineCount == 3);
+            hasLineCount = true;
+        }
+    }
+    assert(hasAlignment && hasLineCount);
+
+    TRAttributeListRelease(list);
+    TRTextRelease(text);
+}
+
+void AttributeListTests::testParagraphAttributesCoverParagraphs() {
+    TRMutableTextRef text = createParagraphText();
+    TRAttribute attribute = makeFloat(TRAttributeHeadIndent, 12.0f);
+    TRUInteger length = 0;
+
+    /* A range inside of the second paragraph covers the whole paragraph, including its newline. */
+    TRTextSetAttribute(text, 4, 1, &attribute);
+
+    TRAttributeListRef list = TRTextCopyAttributes(text, 0, &length);
+    assert(TRAttributeListGetCount(list) == 0);
+    assert(length == 3);
+    TRAttributeListRelease(list);
+
+    list = TRTextCopyAttributes(text, 3, &length);
+    assert(TRAttributeListGetCount(list) == 1);
+    assert(length == 3);
+    TRAttributeListRelease(list);
+
+    list = TRTextCopyAttributes(text, 5, &length);
+    assert(TRAttributeListGetCount(list) == 1);
+    assert(readFloat(readItem(list, 0)) == 12.0f);
+    TRAttributeListRelease(list);
+
+    list = TRTextCopyAttributes(text, 6, &length);
+    assert(TRAttributeListGetCount(list) == 0);
+    assert(length == 2);
+    TRAttributeListRelease(list);
+
+    /* A range across two paragraphs covers both of them. */
+    TRAttribute spacing = makeFloat(TRAttributeParagraphSpacing, 6.0f);
+    TRTextSetAttribute(text, 2, 3, &spacing);
+
+    list = TRTextCopyAttributes(text, 0, &length);
+    assert(TRAttributeListGetCount(list) == 1);
+    assert(length == 3);
+    TRAttributeListRelease(list);
+
+    list = TRTextCopyAttributes(text, 3, &length);
+    assert(TRAttributeListGetCount(list) == 2);
+    TRAttributeListRelease(list);
+
+    list = TRTextCopyAttributes(text, 6, &length);
+    assert(TRAttributeListGetCount(list) == 0);
+    TRAttributeListRelease(list);
+
+    TRTextRelease(text);
+}
+
+void AttributeListTests::testEqualParagraphAttributesMerge() {
+    TRMutableTextRef text = createParagraphText();
+    TRAttribute attribute = makeFloat(TRAttributeLineSpacing, 3.0f);
+    TRUInteger length = 0;
+
+    TRTextSetAttribute(text, 0, 1, &attribute);
+    TRTextSetAttribute(text, 3, 1, &attribute);
+    TRTextSetAttribute(text, 6, 1, &attribute);
+
+    TRAttributeListRef list = TRTextCopyAttributes(text, 0, &length);
+    assert(TRAttributeListGetCount(list) == 1);
+    assert(length == 8);
+    TRAttributeListRelease(list);
+
+    TRAttribute other = makeFloat(TRAttributeLineSpacing, 4.0f);
+    TRTextSetAttribute(text, 3, 1, &other);
+
+    list = TRTextCopyAttributes(text, 0, &length);
+    assert(length == 3);
+    TRAttributeListRelease(list);
+
+    TRTextRelease(text);
+}
+
+namespace {
+
+struct ReplacementState {
+    int roomCalls = 0;
+    int finalizeCalls = 0;
+    TRFloat lastWidth = -1.0f;
+};
+
+void computeTestRoom(void *userData, TRFloat layoutWidth, TRReplacementRoom *room) {
+    auto *state = static_cast<ReplacementState *>(userData);
+    state->roomCalls++;
+    state->lastWidth = layoutWidth;
+
+    room->ascent = 10.0f;
+    room->descent = 2.0f;
+    room->extent = layoutWidth + 5.0f;
+}
+
+void finalizeTestReplacement(void *userData) {
+    static_cast<ReplacementState *>(userData)->finalizeCalls++;
+}
+
+TRReplacementRef createReplacement(ReplacementState *state, bool isBlock = false) {
+    TRReplacementCallbacks callbacks = { computeTestRoom, finalizeTestReplacement };
+    return TRReplacementCreate(&callbacks, state,
+        isBlock ? TRReplacementKindBlock : TRReplacementKindInline);
+}
+
+}
+
+void AttributeListTests::testReplacementAttribute() {
+    ReplacementState state;
+    TRReplacementRef replacement = createReplacement(&state);
+    TRMutableTextRef text = createText();
+    TRAttribute attribute = {};
+    TRUInteger length = 0;
+
+    attribute.type = TRAttributeReplacement;
+    attribute.value.replacement = replacement;
+    TRTextSetAttribute(text, 2, 1, &attribute);
+
+    TRAttributeListRef list = TRTextCopyAttributes(text, 2, &length);
+    assert(TRAttributeListGetCount(list) == 1);
+    assert(length == 1);
+    assert(readItem(list, 0).type == TRAttributeReplacement);
+    assert(readItem(list, 0).value.replacement == replacement);
+
+    /* The replacement that is read back is still usable. */
+    TRReplacementRoom room;
+    TRReplacementComputeRoom(readItem(list, 0).value.replacement, 20.0f, &room);
+    assert(room.extent == 25.0f);
+
+    TRAttributeListRelease(list);
+
+    /* The same replacement on adjacent characters is one run, a different one is not. */
+    TRTextSetAttribute(text, 3, 1, &attribute);
+    list = TRTextCopyAttributes(text, 2, &length);
+    assert(length == 2);
+    TRAttributeListRelease(list);
+
+    ReplacementState otherState;
+    TRReplacementRef other = createReplacement(&otherState);
+    attribute.value.replacement = other;
+    TRTextSetAttribute(text, 4, 1, &attribute);
+
+    list = TRTextCopyAttributes(text, 3, &length);
+    assert(length == 1);
+    TRAttributeListRelease(list);
+
+    TRTextRelease(text);
+    TRReplacementRelease(other);
+    TRReplacementRelease(replacement);
+
+    assert(state.finalizeCalls == 1);
+    assert(otherState.finalizeCalls == 1);
+}
+
+void AttributeListTests::testReplacementRetainBalance() {
+    ReplacementState state;
+    TRReplacementRef replacement = createReplacement(&state);
+    TRMutableTextRef text = createText();
+    TRAttribute attribute = {};
+    TRUInteger length = 0;
+
+    attribute.type = TRAttributeReplacement;
+    attribute.value.replacement = replacement;
+    assert(AtomicUIntLoad(&replacement->_base.retainCount) == 1);
+
+    /* The text holds on to the replacement, however many references it takes for that. */
+    TRTextSetAttribute(text, 0, 2, &attribute);
+    size_t storedCount = AtomicUIntLoad(&replacement->_base.retainCount);
+    assert(storedCount > 1);
+
+    TRAttributeListRef list = TRTextCopyAttributes(text, 0, &length);
+    assert(AtomicUIntLoad(&replacement->_base.retainCount) == storedCount + 1);
+    TRAttributeListRelease(list);
+    assert(AtomicUIntLoad(&replacement->_base.retainCount) == storedCount);
+
+    /* The text may keep unused values around, but never takes more references by removing. */
+    TRTextRemoveAttribute(text, 0, 2, TRAttributeReplacement);
+    assert(AtomicUIntLoad(&replacement->_base.retainCount) <= storedCount);
+
+    /* The text lets go of everything when it is destroyed. */
+    TRTextSetAttribute(text, 0, 2, &attribute);
+    TRTextSetAttribute(text, 3, 2, &attribute);
+    assert(AtomicUIntLoad(&replacement->_base.retainCount) > 1);
+    assert(state.finalizeCalls == 0);
+
+    TRTextRelease(text);
+    assert(AtomicUIntLoad(&replacement->_base.retainCount) == 1);
+    assert(state.finalizeCalls == 0);
+
+    TRReplacementRelease(replacement);
+    assert(state.finalizeCalls == 1);
+}
+
+void AttributeListTests::testForegroundColorAttribute() {
+    TRMutableTextRef text = createText();
+    TRAttribute red = {};
+    TRUInteger length = 0;
+
+    red.type = TRAttributeForegroundColor;
+    red.value.foregroundColor = TRColorMake(0xFF, 0xFF, 0x00, 0x00);
+
+    TRTextSetAttribute(text, 1, 3, &red);
+
+    TRAttributeListRef list = TRTextCopyAttributes(text, 1, &length);
+    assert(TRAttributeListGetCount(list) == 1);
+    assert(length == 3);
+    assert(readItem(list, 0).type == TRAttributeForegroundColor);
+    assert(readItem(list, 0).value.foregroundColor == TRColorMake(0xFF, 0xFF, 0x00, 0x00));
+    TRAttributeListRelease(list);
+
+    /* Equal colors of neighbors are one run, and different ones are not. */
+    TRTextSetAttribute(text, 4, 1, &red);
+    list = TRTextCopyAttributes(text, 1, &length);
+    assert(length == 4);
+    TRAttributeListRelease(list);
+
+    TRAttribute blue = red;
+    blue.value.foregroundColor = TRColorMake(0xFF, 0x00, 0x00, 0xFF);
+    TRTextSetAttribute(text, 4, 1, &blue);
+    list = TRTextCopyAttributes(text, 1, &length);
+    assert(length == 3);
+    TRAttributeListRelease(list);
+
+    TRTextRemoveAttribute(text, 0, 6, TRAttributeForegroundColor);
+    list = TRTextCopyAttributes(text, 0, &length);
+    assert(TRAttributeListGetCount(list) == 0 && length == 6);
+    TRAttributeListRelease(list);
+
+    TRTextRelease(text);
+}
+
+void AttributeListTests::testDecorationAttributes() {
+    TRMutableTextRef text = createText();
+    TRUInteger length = 0;
+
+    TRAttribute background = {};
+    background.type = TRAttributeBackgroundColor;
+    background.value.backgroundColor = TRColorMake(0xFF, 0x10, 0x20, 0x30);
+    TRTextSetAttribute(text, 0, 6, &background);
+
+    TRAttribute underline = {};
+    underline.type = TRAttributeUnderline;
+    underline.value.underline = TRTrue;
+    TRTextSetAttribute(text, 0, 3, &underline);
+    TRTextSetAttribute(text, 3, 3, &underline);
+
+    TRAttribute strikethrough = {};
+    strikethrough.type = TRAttributeStrikethrough;
+    strikethrough.value.strikethrough = TRTrue;
+    TRTextSetAttribute(text, 2, 2, &strikethrough);
+
+    TRAttribute decoration = {};
+    decoration.type = TRAttributeDecorationColor;
+    decoration.value.decorationColor = TRColorMake(0xFF, 0x40, 0x50, 0x60);
+    TRTextSetAttribute(text, 2, 2, &decoration);
+
+    /* Equal values of neighbors are one run, and the attributes of a range are all kept. */
+    TRAttributeListRef list = TRTextCopyAttributes(text, 0, &length);
+    assert(TRAttributeListGetCount(list) == 2);
+    assert(length == 2);
+    assert(readItem(list, 0).type == TRAttributeBackgroundColor);
+    assert(readItem(list, 0).value.backgroundColor == TRColorMake(0xFF, 0x10, 0x20, 0x30));
+    assert(readItem(list, 1).type == TRAttributeUnderline);
+    assert(readItem(list, 1).value.underline == TRTrue);
+    TRAttributeListRelease(list);
+
+    list = TRTextCopyAttributes(text, 2, &length);
+    assert(TRAttributeListGetCount(list) == 4);
+    assert(length == 2);
+    TRAttributeListRelease(list);
+
+    list = TRTextCopyAttributes(text, 4, &length);
+    assert(TRAttributeListGetCount(list) == 2);
+    assert(length == 2);
+    TRAttributeListRelease(list);
+
+    /* A different value is not the same run, and an attribute can be removed on its own. */
+    underline.value.underline = TRFalse;
+    TRTextSetAttribute(text, 4, 2, &underline);
+    list = TRTextCopyAttributes(text, 4, &length);
+    assert(length == 2);
+    assert(readItem(list, 1).value.underline == TRFalse);
+    TRAttributeListRelease(list);
+
+    TRTextRemoveAttribute(text, 0, 6, TRAttributeUnderline);
+    TRTextRemoveAttribute(text, 0, 6, TRAttributeStrikethrough);
+    TRTextRemoveAttribute(text, 0, 6, TRAttributeDecorationColor);
+    TRTextRemoveAttribute(text, 0, 6, TRAttributeBackgroundColor);
+    list = TRTextCopyAttributes(text, 0, &length);
+    assert(TRAttributeListGetCount(list) == 0 && length == 6);
+    TRAttributeListRelease(list);
+
+    TRTextRelease(text);
+}
+
+void AttributeListTests::testUserDataAttribute() {
+    TRMutableTextRef text = createText();
+    int first = 1;
+    int second = 2;
+    TRUInteger length = 0;
+
+    TRAttribute attribute = {};
+    attribute.type = TRAttributeUserData;
+    attribute.value.userData = &first;
+
+    TRTextSetAttribute(text, 0, 3, &attribute);
+    TRTextSetAttribute(text, 3, 3, &attribute);
+
+    /* The same pointer on neighbors is one run. */
+    TRAttributeListRef list = TRTextCopyAttributes(text, 0, &length);
+    assert(TRAttributeListGetCount(list) == 1);
+    assert(readItem(list, 0).value.userData == &first);
+    assert(length == 6);
+    TRAttributeListRelease(list);
+
+    /* Another pointer splits it, even if what it points to is equal. */
+    int copyOfFirst = 1;
+    attribute.value.userData = &copyOfFirst;
+    TRTextSetAttribute(text, 3, 3, &attribute);
+    list = TRTextCopyAttributes(text, 0, &length);
+    assert(length == 3);
+    TRAttributeListRelease(list);
+
+    attribute.value.userData = &second;
+    TRTextSetAttribute(text, 3, 3, &attribute);
+    list = TRTextCopyAttributes(text, 3, &length);
+    assert(readItem(list, 0).value.userData == &second);
+    assert(length == 3);
+    TRAttributeListRelease(list);
+
+    TRTextRelease(text);
 }
 
 #ifdef STANDALONE_TESTING

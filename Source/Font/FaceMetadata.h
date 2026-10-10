@@ -30,10 +30,16 @@ typedef struct _FaceMetadata {
 
     TRStringView *familyName;
     TRStringView *subfamilyName;
+    TRStringView *fullName;
 
     TRWeight weight;
     TRWidth width;
     TRSlope slope;
+
+    TRBoolean isScalable;
+
+    TRBitmapStrike *bitmapStrikesPtr;
+    TRUInteger bitmapStrikeCount;
 
     TRVariationAxis *variationAxesPtr;
     TRUInteger variationAxisCount;
@@ -49,6 +55,13 @@ typedef struct _FaceMetadata {
 } FaceMetadata, *FaceMetadataRef;
 
 TR_INTERNAL FaceMetadataRef FaceMetadataCreate(FT_Face ftFace);
+
+/*
+ * Finds the bitmap strike that suits a pixel height in 26.6 format: the smallest one that is at
+ * least as tall, or the tallest one if there is none. The face MUST have strikes.
+ */
+TR_INTERNAL TRUInteger FaceMetadataFindBitmapStrike(FaceMetadataRef faceMetadata,
+    TRInt32 pixelHeight);
 
 TR_INTERNAL FaceMetadataRef FaceMetadataRetain(FaceMetadataRef faceMetadata);
 TR_INTERNAL void FaceMetadataRelease(FaceMetadataRef faceMetadata);

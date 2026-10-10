@@ -44,6 +44,7 @@ void FaceMetadataTests::run() {
     testNamelessFace();
     testFaceWithoutOS2Table();
     testVariableFace();
+    testAxisFlags();
     testNamedStyles();
     testVariableColorFace();
     testPalettes();
@@ -163,6 +164,7 @@ void FaceMetadataTests::testVariableFace() {
     assert(weight.minValue == 100.0f);
     assert(weight.defaultValue == 400.0f);
     assert(weight.maxValue == 900.0f);
+    assert(weight.flags == 0);
 
     const TRVariationAxis &width = metadata->variationAxesPtr[1];
     assert(width.tag == TRTagMake('w', 'd', 't', 'h'));
@@ -170,6 +172,20 @@ void FaceMetadataTests::testVariableFace() {
     assert(width.minValue == 75.0f);
     assert(width.defaultValue == 100.0f);
     assert(width.maxValue == 100.0f);
+
+    FaceMetadataRelease(metadata);
+}
+
+void FaceMetadataTests::testAxisFlags() {
+    DefaultFace face("Roboto-Variable.hidden.ttf");
+    FaceMetadataRef metadata = FaceMetadataCreate(face.get());
+
+    assert(metadata != nullptr);
+    assert(metadata->variationAxisCount == 2);
+
+    /* Only the first axis is hidden. */
+    assert(metadata->variationAxesPtr[0].flags == TRVariationAxisFlagHidden);
+    assert(metadata->variationAxesPtr[1].flags == 0);
 
     FaceMetadataRelease(metadata);
 }
@@ -208,15 +224,19 @@ void FaceMetadataTests::testVariableColorFace() {
     assert(metadata->variationAxesPtr[1].tag == TRTagMake('S', 'H', 'D', 'W'));
     assert(metadata->variationAxesPtr[1].name == nullptr);
 
+    /* The font has four instances, but none for its default coordinates, which come first. */
     assert(metadata->namedStyleCount == 5);
-    assert(metadata->namedStylesPtr[0].subfamilyName == nullptr);
-    assert(metadata->namedStylesPtr[0].postScriptName == nullptr);
-    assert(metadata->namedStylesPtr[0].coordinatesPtr[0] == 100.0f);
-    assert(metadata->namedStylesPtr[0].coordinatesPtr[1] == 50.0f);
 
-    const TRNamedStyle &regular = metadata->namedStylesPtr[4];
+    const TRNamedStyle &regular = metadata->namedStylesPtr[0];
     assert(toString(regular.subfamilyName) == "Regular");
-    assert(toString(regular.postScriptName) == "RocherColor-Regular");
+    assert(regular.postScriptName == nullptr);
+    assert(regular.coordinatesPtr[0] == 100.0f);
+    assert(regular.coordinatesPtr[1] == 100.0f);
+
+    assert(metadata->namedStylesPtr[1].subfamilyName == nullptr);
+    assert(metadata->namedStylesPtr[1].postScriptName == nullptr);
+    assert(metadata->namedStylesPtr[1].coordinatesPtr[0] == 100.0f);
+    assert(metadata->namedStylesPtr[1].coordinatesPtr[1] == 50.0f);
 
     FaceMetadataRelease(metadata);
 }

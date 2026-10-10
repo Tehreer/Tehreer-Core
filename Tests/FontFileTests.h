@@ -26,14 +26,22 @@ public:
     void run();
 
 private:
-    void testCreateFromPath();
+    void testDataFromPath();
     void testPathIsCopied();
-    void testCreateFromMemory();
+    void testDataFromMemory();
     void testMemoryIsCopied();
-    void testInvalidInput();
+    void testInvalidDataInput();
     void testCreateFTFace();
-    void testRetainRelease();
+    void testDataRetainRelease();
     void testConcurrentFaceCreation();
+    void testCreateFromPath();
+    void testCreateFromMemory();
+    void testInvalidInput();
+    void testDefaultTypefaces();
+    void testNamedStyleTypefaces();
+    void testBitmapFontFile();
+    void testTypefaceOutlivesFontFile();
+    void testRetainRelease();
 };
 
 }

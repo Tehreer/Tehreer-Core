@@ -30,6 +30,7 @@ private:
     void testTagMakeHighBytes();
     void testColorMake();
     void testInvalidIndex();
+    void testIndexAndRangeValidity();
     void testTypeSizes();
 };
 

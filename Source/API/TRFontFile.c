@@ -15,177 +15,166 @@
  */
 
 #include <stddef.h>
-#include <stdlib.h>
-#include <string.h>
 
-#include <ft2build.h>
-#include FT_FREETYPE_H
+#include <Tehreer/TRTypeface.h>
 
 #include <API/TRBase.h>
 #include <API/TRTypeface.h>
-#include <Core/Mutex.h>
+#include <Core/Array.h>
 #include <Core/Object.h>
 #include <Font/FaceMetadata.h>
-#include <Graphics/FreeType.h>
+#include <Font/FontData.h>
 #include <Graphics/RenderableFace.h>
+#include <Graphics/ShapableFace.h>
 
 #include "TRFontFile.h"
 
-static TRUInteger GetFaceCountInFontFile(const FT_Open_Args *args)
-{
-    FreeTypeRef freetype = FreeTypeGetDefault();
-    FT_Face rawFace = NULL;
-    FT_Long numFaces = 0;
-    FT_Error error;
-
-    MutexLock(&freetype->mutex);
-
-    error = FT_Open_Face(freetype->library, args, -1, &rawFace);
-    if (error == FT_Err_Ok) {
-        numFaces = rawFace->num_faces;
-        FT_Done_Face(rawFace);
-    }
-
-    MutexUnlock(&freetype->mutex);
-
-    return numFaces;
-}
-
 static void FinalizeFontFile(ObjectRef object)
 {
-    TRFontFileRef fontFile = object;
-    const FT_Open_Args *arguments = &fontFile->_arguments;
-    void *buffer = (void *)arguments->memory_base;
-    void *pathname = arguments->pathname;
+    TRFontFile *fontFile = object;
+    TRUInteger count = ArrayGetCount(&fontFile->_typefaces);
+    TRUInteger index;
 
-    if (buffer) {
-        free(buffer);
+    for (index = 0; index < count; index++) {
+        TRTypefaceRelease(*(TRTypefaceRef *)ArrayGetItem(&fontFile->_typefaces, index));
     }
-    if (pathname) {
-        free(pathname);
-    }
+
+    ArrayFinalize(&fontFile->_typefaces);
+    FontDataRelease(fontFile->_data);
 }
 
-static TRFontFileRef CreateFontFileWithArguments(const FT_Open_Args *arguments)
+/* Creates the typeface of a face, which has the default coordinates and colors of the font. */
+static TRTypefaceRef CreateFaceTypeface(FontDataRef fontData, TRUInteger faceIndex)
 {
-    const TRUInteger size = sizeof(TRFontFile);
-    void *pointer = NULL;
-    TRFontFile *fontFile;
+    RenderableFaceRef renderableFace = RenderableFaceCreate(fontData, faceIndex);
+    TRTypefaceRef typeface = NULL;
 
-    fontFile = ObjectCreate(&size, 1, &pointer, FinalizeFontFile);
+    if (renderableFace) {
+        ShapableFaceRef shapableFace = ShapableFaceCreate(renderableFace);
 
-    if (fontFile) {
-        fontFile->_arguments = *arguments;
-        fontFile->numFaces = GetFaceCountInFontFile(arguments);
+        if (shapableFace) {
+            typeface = TRTypefaceCreateDefault(renderableFace, shapableFace, NULL);
 
-        if (fontFile->numFaces == 0) {
-            ObjectRelease(fontFile);
-            fontFile = NULL;
+            ShapableFaceRelease(shapableFace);
         }
-    } else {
-        free((void *)arguments->memory_base);
-        free(arguments->pathname);
+
+        RenderableFaceRelease(renderableFace);
+    }
+
+    return typeface;
+}
+
+/* Keeps a typeface in the font file, which takes over the reference that the caller has. */
+static TRBoolean AppendTypeface(TRFontFile *fontFile, TRTypefaceRef typeface)
+{
+    TRBoolean isAppended = (typeface && ArrayAppend(&fontFile->_typefaces, &typeface));
+
+    if (!isAppended && typeface) {
+        TRTypefaceRelease(typeface);
+    }
+
+    return isAppended;
+}
+
+/*
+ * Adds the default typefaces of a face: one for each of its named styles, or the face itself if it
+ * has none. A face that cannot be loaded adds none, and it does not fail the other faces.
+ */
+static TRBoolean AddFaceTypefaces(TRFontFile *fontFile, TRUInteger faceIndex)
+{
+    TRTypefaceRef faceTypeface = CreateFaceTypeface(fontFile->_data, faceIndex);
+    TRBoolean isAdded = TRTrue;
+
+    if (faceTypeface) {
+        TRUInteger styleCount = TRTypefaceGetNamedStyleCount(faceTypeface);
+
+        if (styleCount == 0) {
+            isAdded = AppendTypeface(fontFile, TRTypefaceRetain(faceTypeface));
+        } else {
+            const TRNamedStyle *styles = TRTypefaceGetNamedStylesPtr(faceTypeface);
+            TRUInteger styleIndex;
+
+            for (styleIndex = 0; isAdded && styleIndex < styleCount; styleIndex++) {
+                const TRNamedStyle *style = &styles[styleIndex];
+
+                isAdded = AppendTypeface(fontFile, TRTypefaceCreateWithVariation(faceTypeface,
+                    style->coordinatesPtr, style->coordinateCount));
+            }
+        }
+
+        TRTypefaceRelease(faceTypeface);
+    }
+
+    return isAdded;
+}
+
+/* Takes over the data, even if the font file cannot be created. */
+static TRFontFileRef CreateFontFileWithData(FontDataRef fontData)
+{
+    TRFontFile *fontFile = NULL;
+
+    if (fontData) {
+        const TRUInteger size = sizeof(TRFontFile);
+        void *pointer = NULL;
+
+        fontFile = ObjectCreate(&size, 1, &pointer, FinalizeFontFile);
+
+        if (fontFile) {
+            TRBoolean isLoaded = TRTrue;
+            TRUInteger faceIndex;
+
+            fontFile->_data = fontData;
+            ArrayInitialize(&fontFile->_typefaces, sizeof(TRTypefaceRef));
+
+            for (faceIndex = 0; isLoaded && faceIndex < fontData->faceCount; faceIndex++) {
+                isLoaded = AddFaceTypefaces(fontFile, faceIndex);
+            }
+
+            /* A font file with no typeface cannot be used, so it is not made. */
+            if (!isLoaded || ArrayGetCount(&fontFile->_typefaces) == 0) {
+                ObjectRelease(fontFile);
+                fontFile = NULL;
+            }
+        } else {
+            FontDataRelease(fontData);
+        }
     }
 
     return fontFile;
 }
 
-static void LoadDefaultTypefaces(TRFontFileRef fontFile)
+TRFontFileRef TRFontFileCreateFromPath(const char *path)
 {
-    TRUInteger faceCount = fontFile->numFaces;
-    TRUInteger faceIndex;
-
-    for (faceIndex = 0; faceIndex < faceCount; faceIndex++) {
-        RenderableFaceRef renderableFace = RenderableFaceCreate(fontFile, faceIndex);
-        FaceMetadataRef metadata = renderableFace->metadata;
-        TRNamedStyle *stylesPtr = metadata->namedStylesPtr;
-        TRUInteger styleCount = metadata->namedStyleCount;
-        TRUInteger styleIndex;
-
-        for (styleIndex = 0; styleIndex < styleCount; styleIndex++) {
-            TRNamedStyle *currentStyle = &stylesPtr[styleIndex];
-
-        }
-    }
+    return CreateFontFileWithData(FontDataCreateFromPath(path));
 }
 
-TR_INTERNAL FT_Face TRFontFileCreateFTFace(TRFontFileRef fontFile, TRUInteger faceIndex)
+TRFontFileRef TRFontFileCreateFromMemory(const void *memory, TRUInteger size)
 {
-    FreeTypeRef freetype = FreeTypeGetDefault();
-    FT_Face face = NULL;
-    FT_Error error;
-
-    MutexLock(&freetype->mutex);
-
-    error = FT_Open_Face(freetype->library, &fontFile->_arguments, (FT_Long)faceIndex, &face);
-    if (error == FT_Err_Ok) {
-        if (!FT_IS_SCALABLE(face)) {
-            FT_Done_Face(face);
-            face = NULL;
-        }
-    }
-
-    MutexUnlock(&freetype->mutex);
-
-    return face;
+    return CreateFontFileWithData(FontDataCreateFromMemory(memory, size));
 }
 
-TR_PUBLIC TRFontFileRef TRFontFileCreateFromPath(const char *path)
+TRUInteger TRFontFileGetTypefaceCount(TRFontFileRef fontFile)
 {
-    FT_Open_Args arguments;
-    TRUInteger length;
-    char *pathCopy;
-
-    if (!path) {
-        return NULL;
-    }
-
-    length = strlen(path) + 1;
-    pathCopy = malloc(length);
-    if (!pathCopy) {
-        return NULL;
-    }
-    memcpy(pathCopy, path, length);
-
-    arguments.flags = FT_OPEN_PATHNAME;
-    arguments.memory_base = NULL;
-    arguments.memory_size = 0;
-    arguments.pathname = pathCopy;
-    arguments.stream = NULL;
-
-    return CreateFontFileWithArguments(&arguments);
+    return ArrayGetCount(&fontFile->_typefaces);
 }
 
-TR_PUBLIC TRFontFileRef TRFontFileCreateFromMemory(const void *memory, TRUInteger size)
+TRTypefaceRef TRFontFileGetTypeface(TRFontFileRef fontFile, TRUInteger index)
 {
-    FT_Open_Args arguments;
-    void *memoryCopy;
+    TRTypefaceRef typeface = NULL;
 
-    if (!memory || size == 0) {
-        return NULL;
+    if (IndexIsValid(index, ArrayGetCount(&fontFile->_typefaces))) {
+        typeface = *(TRTypefaceRef *)ArrayGetItem(&fontFile->_typefaces, index);
     }
 
-    memoryCopy = malloc(size);
-    if (!memoryCopy) {
-        return NULL;
-    }
-    memcpy(memoryCopy, memory, size);
-
-    arguments.flags = FT_OPEN_MEMORY;
-    arguments.memory_base = memoryCopy;
-    arguments.memory_size = (FT_Long)size;
-    arguments.pathname = NULL;
-    arguments.stream = NULL;
-
-    return CreateFontFileWithArguments(&arguments);
+    return typeface;
 }
 
-TR_PUBLIC TRFontFileRef TRFontFileRetain(TRFontFileRef fontFile)
+TRFontFileRef TRFontFileRetain(TRFontFileRef fontFile)
 {
     return ObjectRetain((ObjectRef)fontFile);
 }
 
-TR_PUBLIC void TRFontFileRelease(TRFontFileRef fontFile)
+void TRFontFileRelease(TRFontFileRef fontFile)
 {
     ObjectRelease((ObjectRef)fontFile);
 }

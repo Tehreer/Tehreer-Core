@@ -15,7 +15,6 @@
  */
 
 #include <stddef.h>
-#include <stdlib.h>
 
 #include <API/TRAssert.h>
 #include <API/TRBase.h>
@@ -104,7 +103,7 @@ TR_INTERNAL void MemoryFinalize(MemoryRef memory)
         while (block) {
             MemoryBlockRef next = block->next;
             /* Deallocate the block along with its data as they were allocated together. */
-            free(block);
+            AllocatorDeallocateBlock(block);
 
             block = next;
         }

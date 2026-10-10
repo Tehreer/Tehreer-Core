@@ -104,13 +104,39 @@
  */
 #define TRInvalidIndex  (TRUInteger)(-1)
 
-#define TRTagMake(a, b, c, d)   \
-(TRTag)                         \
-(                               \
-   ((TRUInt32)(TRUInt8)(a) << 24)   \
- | ((TRUInt32)(TRUInt8)(b) << 16)   \
- | ((TRUInt32)(TRUInt8)(c) << 8)    \
- | ((TRUInt32)(TRUInt8)(d))         \
-)
+/**
+ * A range of code units, which starts at `index` and has `length` code units. The public interface
+ * takes the index and the length as they are, so a range is only made inside of the library.
+ */
+typedef struct _TRRange {
+    TRUInteger index;
+    TRUInteger length;
+} TRRange;
+
+/**
+ * Tells if an index is a position of a sequence that has the count, which is less than the count.
+ * The arguments are evaluated more than once.
+ */
+#define IndexIsValid(index_, count_)    ((index_) < (count_))
+
+/**
+ * Tells if the range that starts at the index, and has the length, is within a sequence that has
+ * the count. An empty range is within it if it does not start past its end. It can be told for any
+ * index and length, as the end of the range is never added up, which could overflow. The arguments
+ * are evaluated more than once.
+ */
+#define RangeIsValid(index_, length_, count_) \
+    ((index_) <= (count_) && (length_) <= (count_) - (index_))
+
+/**
+ * Returns the smaller of two numbers. The arguments are evaluated more than once.
+ */
+#define NumberMin(a_, b_)   ((a_) < (b_) ? (a_) : (b_))
+
+/**
+ * Returns the larger of two numbers. The arguments are evaluated more than once.
+ */
+#define NumberMax(a_, b_)   ((a_) > (b_) ? (a_) : (b_))
+
 
 #endif

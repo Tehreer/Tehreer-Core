@@ -32,6 +32,12 @@ private:
     void testNegativePitch();
     void testEmptyBitmap();
     void testUnsupportedPixelMode();
+    void testCreateFromBitmap();
+    void testStrokeSquare();
+    void testStrokeJoins();
+    void testStrokeCaps();
+    void testStrokeRadius();
+    void testStrokeEmptyOutline();
 };
 
 }

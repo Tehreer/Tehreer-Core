@@ -35,6 +35,20 @@ private:
     void testNamesAndMetadata();
     void testOutlivesFaces();
     void testRetainRelease();
+    void testCreate();
+    void testCreateInvalid();
+    void testCreateWithVariation();
+    void testCreateWithVariationClamping();
+    void testCreateWithColors();
+    void testDerivedKeepsOtherTraits();
+    void testDerivedOutlivesSource();
+    void testNamesAndMetrics();
+    void testTableData();
+    void testGlyphName();
+    void testGlyphIDs();
+    void testGlyphAdvance();
+    void testGlyphPath();
+    void testBitmapTypeface();
 };
 
 }
