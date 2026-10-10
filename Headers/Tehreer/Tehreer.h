@@ -39,6 +39,7 @@
 #include <Tehreer/TRString.h>
 #include <Tehreer/TRText.h>
 #include <Tehreer/TRTypeface.h>
+#include <Tehreer/TRTypefaceManager.h>
 #include <Tehreer/TRTypesetter.h>
 #include <Tehreer/TRVariationAxis.h>
 #include <Tehreer/TRVersion.h>

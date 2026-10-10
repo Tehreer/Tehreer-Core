@@ -35,6 +35,7 @@
 #include <API/TRText.c>
 #include <API/TRTypesetter.c>
 #include <API/TRTypeface.c>
+#include <API/TRTypefaceManager.c>
 #include <Core/Allocator.c>
 #include <Core/Array.c>
 #include <Core/Memory.c>
