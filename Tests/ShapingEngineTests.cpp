@@ -314,6 +314,15 @@ void ShapingEngineTests::testBackwardOrder() {
     assert((clusterMap(result) == vector<TRUInteger>{ 2, 1, 0 }));
     TRShapingResultRelease(result);
 
+    /*
+     * A trailing code unit that shapes to no glyph joins the cluster of the code unit before it,
+     * which is the first glyph here, and not the glyph that its own code unit index happens to be.
+     */
+    result = shape16(engine, u"abc\u202C", 4);
+    assert((glyphIDs(result) == vector<TRGlyphID>{ 3, 2, 1 }));
+    assert((clusterMap(result) == vector<TRUInteger>{ 2, 1, 0, 0 }));
+    TRShapingResultRelease(result);
+
     /* With right-to-left direction it is the other way round. */
     TRShapingEngineSetWritingDirection(engine, TRWritingDirectionRightToLeft);
     result = shape16(engine, u"abc", 3);

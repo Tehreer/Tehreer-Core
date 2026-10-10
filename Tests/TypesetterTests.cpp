@@ -286,7 +286,27 @@ void TypesetterTests::testPaintAttributesDoNotSplitRuns() {
     userData.value.userData = &second;
     TRTextSetAttribute(text, 3, 3, &userData);
 
-    /* The text is shaped as a whole, since colors and user data do not change glyphs. */
+    TRAttribute background = {};
+    background.type = TRAttributeBackgroundColor;
+    background.value.backgroundColor = TRColorMake(0xFF, 0x00, 0xFF, 0x00);
+    TRTextSetAttribute(text, 0, 2, &background);
+
+    TRAttribute underline = {};
+    underline.type = TRAttributeUnderline;
+    underline.value.underline = TRTrue;
+    TRTextSetAttribute(text, 2, 2, &underline);
+
+    TRAttribute strikethrough = {};
+    strikethrough.type = TRAttributeStrikethrough;
+    strikethrough.value.strikethrough = TRTrue;
+    TRTextSetAttribute(text, 4, 1, &strikethrough);
+
+    TRAttribute decoration = {};
+    decoration.type = TRAttributeDecorationColor;
+    decoration.value.decorationColor = TRColorMake(0xFF, 0x00, 0x00, 0xFF);
+    TRTextSetAttribute(text, 3, 3, &decoration);
+
+    /* The text is shaped as a whole, since colors, decorations and user data do not change glyphs. */
     TRTypesetterRef typesetter = create(text);
     assert(TRTypesetterGetRunCount(typesetter) == 1);
     assert(TRTypesetterGetRun(typesetter, 0)->codeUnitStart == 0 && TRTypesetterGetRun(typesetter, 0)->codeUnitEnd == 6);

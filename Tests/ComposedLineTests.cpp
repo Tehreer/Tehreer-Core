@@ -61,6 +61,7 @@ void ComposedLineTests::run() {
     testEnumerationCanStop();
     testPenOffset();
     testPaintAttributesSplitRuns();
+    testDecorationAttributesSplitRuns();
     testMixedDirections();
     testRightToLeftParagraph();
     testRunsAreRelativeToTheirRange();
@@ -568,6 +569,77 @@ void ComposedLineTests::testPaintAttributesSplitRuns() {
     line = f.line(1, 3);
     assert(TRComposedLineGetGlyphRunCount(line) == 2);
     assert(TRGlyphRunGetCodeUnitStart(TRComposedLineGetGlyphRun(line, 0)) == 1);
+    TRComposedLineRelease(line);
+}
+
+void ComposedLineTests::testDecorationAttributesSplitRuns() {
+    Fixture f(u"abc");
+
+    TRAttribute background = {};
+    background.type = TRAttributeBackgroundColor;
+    background.value.backgroundColor = TRColorMake(0xFF, 0x01, 0x02, 0x03);
+    TRTextSetAttribute(f.text, 0, 2, &background);
+
+    TRAttribute underline = {};
+    underline.type = TRAttributeUnderline;
+    underline.value.underline = TRTrue;
+    TRTextSetAttribute(f.text, 1, 1, &underline);
+
+    TRAttribute strikethrough = {};
+    strikethrough.type = TRAttributeStrikethrough;
+    strikethrough.value.strikethrough = TRTrue;
+    TRTextSetAttribute(f.text, 1, 2, &strikethrough);
+
+    TRAttribute decoration = {};
+    decoration.type = TRAttributeDecorationColor;
+    decoration.value.decorationColor = TRColorMake(0xFF, 0x04, 0x05, 0x06);
+    TRTextSetAttribute(f.text, 2, 1, &decoration);
+
+    TRComposedLineRef line = f.line(0, 3);
+
+    /* Every change of them makes a run of its own, though the text is shaped as a whole. */
+    assert(TRComposedLineGetGlyphRunCount(line) == 3);
+
+    TRGlyphRunRef first = TRComposedLineGetGlyphRun(line, 0);
+    TRGlyphRunRef second = TRComposedLineGetGlyphRun(line, 1);
+    TRGlyphRunRef third = TRComposedLineGetGlyphRun(line, 2);
+    assert(TRGlyphRunGetCodeUnitStart(second) == 1 && TRGlyphRunGetCodeUnitStart(third) == 2);
+
+    const TRColor firstColor = TRColorMake(0xFF, 0x01, 0x02, 0x03);
+    const TRColor decorationColor = TRColorMake(0xFF, 0x04, 0x05, 0x06);
+    TRColor color = 0;
+    bool isSet = TRGlyphRunGetBackgroundColor(first, &color);
+    assert(isSet == true && color == firstColor);
+    isSet = TRGlyphRunGetBackgroundColor(second, &color);
+    assert(isSet == true && color == firstColor);
+    isSet = TRGlyphRunGetBackgroundColor(third, &color);
+    assert(isSet == false);
+
+    assert(!TRGlyphRunHasUnderline(first) && TRGlyphRunHasUnderline(second) && !TRGlyphRunHasUnderline(third));
+    assert(!TRGlyphRunHasStrikethrough(first) && TRGlyphRunHasStrikethrough(second));
+    assert(TRGlyphRunHasStrikethrough(third));
+
+    isSet = TRGlyphRunGetDecorationColor(first, &color);
+    assert(isSet == false);
+    isSet = TRGlyphRunGetDecorationColor(second, &color);
+    assert(isSet == false);
+    isSet = TRGlyphRunGetDecorationColor(third, &color);
+    assert(isSet == true && color == decorationColor);
+
+    /* A copy and a justified copy keep them. */
+    TRGlyphRunRef copy = TRGlyphRunCreateCopy(second);
+    assert(TRGlyphRunHasUnderline(copy) && TRGlyphRunHasStrikethrough(copy));
+    isSet = TRGlyphRunGetBackgroundColor(copy, &color);
+    assert(isSet == true && color == firstColor);
+    TRGlyphRunRelease(copy);
+
+    const TRFloat wider[] = { B + 10.0f };
+    TRGlyphRunRef justified = TRGlyphRunCreateJustified(third, wider);
+    assert(TRGlyphRunHasStrikethrough(justified));
+    isSet = TRGlyphRunGetDecorationColor(justified, &color);
+    assert(isSet == true && color == decorationColor);
+    TRGlyphRunRelease(justified);
+
     TRComposedLineRelease(line);
 }
 

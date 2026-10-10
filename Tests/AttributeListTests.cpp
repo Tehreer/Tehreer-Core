@@ -56,6 +56,7 @@ void AttributeListTests::run() {
     testReplacementAttribute();
     testReplacementRetainBalance();
     testForegroundColorAttribute();
+    testDecorationAttributes();
     testUserDataAttribute();
 }
 
@@ -702,6 +703,70 @@ void AttributeListTests::testForegroundColorAttribute() {
     TRAttributeListRelease(list);
 
     TRTextRemoveAttribute(text, 0, 6, TRAttributeForegroundColor);
+    list = TRTextCopyAttributes(text, 0, &length);
+    assert(TRAttributeListGetCount(list) == 0 && length == 6);
+    TRAttributeListRelease(list);
+
+    TRTextRelease(text);
+}
+
+void AttributeListTests::testDecorationAttributes() {
+    TRMutableTextRef text = createText();
+    TRUInteger length = 0;
+
+    TRAttribute background = {};
+    background.type = TRAttributeBackgroundColor;
+    background.value.backgroundColor = TRColorMake(0xFF, 0x10, 0x20, 0x30);
+    TRTextSetAttribute(text, 0, 6, &background);
+
+    TRAttribute underline = {};
+    underline.type = TRAttributeUnderline;
+    underline.value.underline = TRTrue;
+    TRTextSetAttribute(text, 0, 3, &underline);
+    TRTextSetAttribute(text, 3, 3, &underline);
+
+    TRAttribute strikethrough = {};
+    strikethrough.type = TRAttributeStrikethrough;
+    strikethrough.value.strikethrough = TRTrue;
+    TRTextSetAttribute(text, 2, 2, &strikethrough);
+
+    TRAttribute decoration = {};
+    decoration.type = TRAttributeDecorationColor;
+    decoration.value.decorationColor = TRColorMake(0xFF, 0x40, 0x50, 0x60);
+    TRTextSetAttribute(text, 2, 2, &decoration);
+
+    /* Equal values of neighbors are one run, and the attributes of a range are all kept. */
+    TRAttributeListRef list = TRTextCopyAttributes(text, 0, &length);
+    assert(TRAttributeListGetCount(list) == 2);
+    assert(length == 2);
+    assert(readItem(list, 0).type == TRAttributeBackgroundColor);
+    assert(readItem(list, 0).value.backgroundColor == TRColorMake(0xFF, 0x10, 0x20, 0x30));
+    assert(readItem(list, 1).type == TRAttributeUnderline);
+    assert(readItem(list, 1).value.underline == TRTrue);
+    TRAttributeListRelease(list);
+
+    list = TRTextCopyAttributes(text, 2, &length);
+    assert(TRAttributeListGetCount(list) == 4);
+    assert(length == 2);
+    TRAttributeListRelease(list);
+
+    list = TRTextCopyAttributes(text, 4, &length);
+    assert(TRAttributeListGetCount(list) == 2);
+    assert(length == 2);
+    TRAttributeListRelease(list);
+
+    /* A different value is not the same run, and an attribute can be removed on its own. */
+    underline.value.underline = TRFalse;
+    TRTextSetAttribute(text, 4, 2, &underline);
+    list = TRTextCopyAttributes(text, 4, &length);
+    assert(length == 2);
+    assert(readItem(list, 1).value.underline == TRFalse);
+    TRAttributeListRelease(list);
+
+    TRTextRemoveAttribute(text, 0, 6, TRAttributeUnderline);
+    TRTextRemoveAttribute(text, 0, 6, TRAttributeStrikethrough);
+    TRTextRemoveAttribute(text, 0, 6, TRAttributeDecorationColor);
+    TRTextRemoveAttribute(text, 0, 6, TRAttributeBackgroundColor);
     list = TRTextCopyAttributes(text, 0, &length);
     assert(TRAttributeListGetCount(list) == 0 && length == 6);
     TRAttributeListRelease(list);

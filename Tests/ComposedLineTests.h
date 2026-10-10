@@ -38,6 +38,7 @@ private:
     void testEnumerationCanStop();
     void testPenOffset();
     void testPaintAttributesSplitRuns();
+    void testDecorationAttributesSplitRuns();
     void testMixedDirections();
     void testRightToLeftParagraph();
     void testRunsAreRelativeToTheirRange();

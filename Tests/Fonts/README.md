@@ -15,8 +15,9 @@ fetched dependency.
 | `nameID.dup.expected.ttf` | Font with Macintosh-only English names (Mac Roman) |
 | `varc-6868.ttf` | Font without an OS/2 table |
 | `NotoColorEmoji-CBDT.flags.ttf` | Bitmap-only color font (`CBDT`/`CBLC`, one strike of 109 pixels, no outlines) with 18 glyphs, among them the flags of the United States and the United Kingdom |
+| `NotoNastaliqUrdu-Regular.ttf` | Right-to-left script (Urdu) with real glyph images, for the draw tests. Unmodified, 176,600 bytes; Noto Nastaliq Urdu v4.000, `unhinted/ttf/NotoNastaliqUrdu-Regular.ttf` of https://github.com/notofonts/nastaliq/releases/download/NotoNastaliqUrdu-v4.000/NotoNastaliqUrdu-v4.000.zip (SIL Open Font License 1.1) |
 
 The Roboto subsets derive from Roboto (Apache License 2.0), and `RocherColorGX` and the Noto Color
 Emoji subset (https://github.com/googlefonts/noto-emoji, subset with the HarfBuzz subsetter) are
-licensed under the SIL Open Font License; the remaining fonts are HarfBuzz test data. Check the upstream license
+licensed under the SIL Open Font License, as is Noto Nastaliq Urdu (copyright The Noto Project Authors); the remaining fonts are HarfBuzz test data. Check the upstream license
 terms before redistributing these files outside the repository's tests.

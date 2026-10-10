@@ -24,6 +24,7 @@
 #include <vector>
 
 #include <Tehreer/TRBase.h>
+#include <Tehreer/TRDrawCallbacks.h>
 #include <Tehreer/TRGeometry.h>
 #include <Tehreer/TRGlyphCache.h>
 #include <Tehreer/TRGlyphImage.h>
@@ -101,6 +102,7 @@ void RendererTests::run() {
     testRunBoundingBox();
     testRunBoundingBoxRightToLeft();
     testEmptyRuns();
+    testPathPlacements();
     testEnumerateGlyphPaths();
     testEnumerateGlyphPathsRightToLeft();
     testEnumerateWithRenderScale();
@@ -170,6 +172,13 @@ void RendererTests::testDefaults() {
     assert(renderer->strokeCap == TRStrokeCapButt);
     assert(renderer->strokeJoin == TRStrokeJoinRound);
     assert(renderer->strokeMiter == 1.0f);
+    assert(renderer->strokeColor == TRColorMake(0xFF, 0, 0, 0));
+    assert(renderer->drawStyle == TRDrawStyleFill);
+    assert(renderer->drawCallbacks.drawGlyphImage == nullptr);
+    assert(renderer->drawCallbacks.drawGlyphPath == nullptr);
+    assert(renderer->drawCallbacks.fillRect == nullptr);
+    assert(renderer->drawCallbacks.drawReplacement == nullptr);
+    assert(renderer->drawUserData == nullptr);
 
     TRRendererSetTypeSize(renderer, 20.0f);
     TRRendererSetScaleX(renderer, 2.0f);
@@ -182,6 +191,13 @@ void RendererTests::testDefaults() {
     TRRendererSetStrokeCap(renderer, TRStrokeCapSquare);
     TRRendererSetStrokeJoin(renderer, TRStrokeJoinBevel);
     TRRendererSetStrokeMiter(renderer, 9.0f);
+    TRRendererSetStrokeColor(renderer, 0x87654321);
+    TRRendererSetDrawStyle(renderer, TRDrawStyleFillStroke);
+
+    int token = 0;
+    TRDrawCallbacks callbacks = {};
+    callbacks.fillRect = [](void *, TRRect, TRColor) {};
+    TRRendererSetDrawCallbacks(renderer, &callbacks, &token);
 
     assert(renderer->typeSize == 20.0f);
     assert(renderer->scaleX == 2.0f && renderer->scaleY == 3.0f);
@@ -193,6 +209,17 @@ void RendererTests::testDefaults() {
     assert(renderer->strokeCap == TRStrokeCapSquare);
     assert(renderer->strokeJoin == TRStrokeJoinBevel);
     assert(renderer->strokeMiter == 9.0f);
+    assert(renderer->strokeColor == 0x87654321);
+    assert(renderer->drawStyle == TRDrawStyleFillStroke);
+    assert(renderer->drawCallbacks.fillRect == callbacks.fillRect);
+    assert(renderer->drawUserData == &token);
+
+    /* The callbacks are copied, and NULL clears them. */
+    callbacks.fillRect = nullptr;
+    assert(renderer->drawCallbacks.fillRect != nullptr);
+    TRRendererSetDrawCallbacks(renderer, nullptr, nullptr);
+    assert(renderer->drawCallbacks.fillRect == nullptr);
+    assert(renderer->drawUserData == nullptr);
 
     TRRendererRelease(renderer);
 }
@@ -605,6 +632,53 @@ static void assertSameEvents(const vector<PathEvent> &actual, const vector<PathE
             assert(near(actual[i].points[j].y, expected[i].points[j].y, 1e-3f));
         }
     }
+}
+
+void RendererTests::testPathPlacements() {
+    Fixture f;
+    const TRPoint offsets[] = { { 0, 0 }, { 2.0f, 5.0f }, { 0, 0 } };
+    const TRGlyphID withMissing[] = { GlyphA, 500, GlyphC };
+
+    struct Placed {
+        TRUInteger index;
+        TRPoint origin;
+        bool hasPath;
+    };
+    vector<Placed> placed;
+
+    auto collect = [](void *userData, TRUInteger index, TRPathRef path, TRPoint origin, TRBoolean *) {
+        static_cast<vector<Placed> *>(userData)->push_back({ index, origin, path != nullptr });
+    };
+
+    /* The positions are in pixels, not rounded, and follow the pen as the placements of images do. */
+    TRRendererSetRenderScale(f.renderer, 1.5f);
+    TRRendererEnumeratePathPlacements(f.renderer, Run, offsets, RunAdvances, 3, collect, &placed);
+    assert(placed.size() == 3);
+    assert(placed[0].index == 0 && placed[0].origin.x == 0.0f && placed[0].origin.y == 0.0f);
+    assert(near(placed[1].origin.x, 20.0f * 1.5f + 2.0f * 1.5f) && near(placed[1].origin.y, -5.0f * 1.5f));
+    assert(near(placed[2].origin.x, 42.0f * 1.5f) && placed[2].hasPath);
+
+    /* A glyph without an outline is skipped. */
+    placed.clear();
+    TRRendererEnumeratePathPlacements(f.renderer, withMissing, NoOffsets, RunAdvances, 3, collect, &placed);
+    assert(placed.size() == 2 && placed[0].index == 0 && placed[1].index == 2);
+
+    /* The pen of a right-to-left run moves to the left before each glyph. */
+    placed.clear();
+    TRRendererSetWritingDirection(f.renderer, TRWritingDirectionRightToLeft);
+    TRRendererEnumeratePathPlacements(f.renderer, Run, NoOffsets, RunAdvances, 3, collect, &placed);
+    assert(placed.size() == 3);
+    assert(near(placed[0].origin.x, -20.0f * 1.5f) && near(placed[1].origin.x, -42.0f * 1.5f));
+    assert(near(placed[2].origin.x, -60.0f * 1.5f));
+
+    /* It stops when the function says so. */
+    size_t calls = 0;
+    TRRendererEnumeratePathPlacements(f.renderer, Run, NoOffsets, RunAdvances, 3,
+        [](void *userData, TRUInteger, TRPathRef, TRPoint, TRBoolean *stop) {
+            *static_cast<size_t *>(userData) += 1;
+            *stop = TRTrue;
+        }, &calls);
+    assert(calls == 1);
 }
 
 void RendererTests::testEnumerateGlyphPaths() {

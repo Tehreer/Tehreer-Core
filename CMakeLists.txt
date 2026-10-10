@@ -230,6 +230,7 @@ if(BUILD_TESTS)
     CaretEdgesBuilderTests
     CaretUtilsTests
     ComposedLineTests
+    DrawTests
     FaceMetadataTests
     FontFeaturesTests
     FontFileTests
@@ -281,6 +282,10 @@ if(BUILD_TESTS)
   set(ComposedLineTests
     Tests/ComposedLineTests.h
     Tests/ComposedLineTests.cpp
+  )
+  set(DrawTests
+    Tests/DrawTests.h
+    Tests/DrawTests.cpp
   )
   set(CaretUtilsTests
     Tests/CaretUtilsTests.h

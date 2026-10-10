@@ -42,6 +42,7 @@ private:
     void testRunBoundingBox();
     void testRunBoundingBoxRightToLeft();
     void testEmptyRuns();
+    void testPathPlacements();
     void testEnumerateGlyphPaths();
     void testEnumerateGlyphPathsRightToLeft();
     void testEnumerateWithRenderScale();

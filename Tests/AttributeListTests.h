@@ -43,6 +43,7 @@ private:
     void testReplacementAttribute();
     void testReplacementRetainBalance();
     void testForegroundColorAttribute();
+    void testDecorationAttributes();
     void testUserDataAttribute();
 };
 
