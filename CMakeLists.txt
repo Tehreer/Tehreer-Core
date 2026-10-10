@@ -253,6 +253,7 @@ if(BUILD_TESTS)
     SpinOnceTests
     TextBufferTests
     TextTests
+    TypefaceManagerTests
     TypefaceTests
     TypesetterTests
   )
@@ -388,6 +389,10 @@ if(BUILD_TESTS)
   set(TypefaceTests
     Tests/TypefaceTests.h
     Tests/TypefaceTests.cpp
+  )
+  set(TypefaceManagerTests
+    Tests/TypefaceManagerTests.h
+    Tests/TypefaceManagerTests.cpp
   )
   set(TextTests
     Tests/TextTests.h
