@@ -40,6 +40,29 @@ typedef struct _TRRenderer {
     TRStrokeCap strokeCap;
     TRStrokeJoin strokeJoin;
     TRFloat strokeMiter;
+    TRColor strokeColor;
+    TRDrawStyle drawStyle;
+    TRDrawCallbacks drawCallbacks;
+    void *drawUserData;
 } TRRenderer;
+
+/* Rounds half up, which does not depend on the sign as the truncation of a cast does. */
+TR_INTERNAL TRFloat TRRendererRoundPixel(TRFloat value);
+
+/*
+ * Called for the outline of a glyph, which is in pixels. The origin is where the pen position of
+ * the glyph goes, relative to the start of the run and not rounded.
+ */
+typedef void (*TRPathPlacementFunc)(void *userData, TRUInteger glyphIndex, TRPathRef path,
+    TRPoint origin, TRBoolean *stop);
+
+/*
+ * Passes the outline of each glyph of a run to a function, with its position in pixels, which
+ * follows the pen in the same way as `TRRendererEnumerateGlyphPlacements()`. Glyphs without an
+ * outline are skipped.
+ */
+TR_INTERNAL void TRRendererEnumeratePathPlacements(TRRendererRef renderer,
+    const TRGlyphID *glyphIDs, const TRPoint *offsets, const TRFloat *advances, TRUInteger count,
+    TRPathPlacementFunc func, void *userData);
 
 #endif

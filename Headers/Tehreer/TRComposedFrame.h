@@ -21,6 +21,7 @@
 #include <Tehreer/TRBase.h>
 #include <Tehreer/TRComposedLine.h>
 #include <Tehreer/TRGeometry.h>
+#include <Tehreer/TRRenderer.h>
 
 TR_EXTERN_C_BEGIN
 
@@ -105,6 +106,23 @@ TR_PUBLIC TRUInteger TRComposedFrameGetIndexOfLineAtPosition(TRComposedFrameRef 
  */
 TR_PUBLIC TRBoolean TRComposedFrameEnumerateSelection(TRComposedFrameRef frame, TRUInteger index,
     TRUInteger length, TRSelectionFunc func, void *userData);
+
+/**
+ * Draws the lines of the frame through the draw callbacks of a renderer, in the order of the text,
+ * as `TRComposedLineDraw()` does. Selections and carets are not drawn: a wrapper fills the
+ * rectangles of `TRComposedFrameEnumerateSelection()` before or after it draws the frame.
+ *
+ * @param frame
+ *      The frame.
+ * @param renderer
+ *      A renderer that has the draw callbacks. Nothing is drawn if it is `NULL`. It is set up for
+ *      each run while it is drawn, and gets back what it had.
+ * @param origin
+ *      The position of the top left of the frame, in the user space with the y axis pointing
+ *      downward.
+ */
+TR_PUBLIC void TRComposedFrameDraw(TRComposedFrameRef frame, TRRendererRef renderer,
+    TRPoint origin);
 
 /**
  * Increments the reference count of a frame.

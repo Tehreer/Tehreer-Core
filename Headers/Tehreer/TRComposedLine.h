@@ -174,6 +174,22 @@ TR_PUBLIC TRFloat TRComposedLineGetPenOffset(TRComposedLineRef line, TRFloat flu
 TR_PUBLIC TRRect TRComposedLineGetInkBox(TRComposedLineRef line, TRRendererRef renderer);
 
 /**
+ * Draws the runs of the line through the draw callbacks of a renderer, one after another in their
+ * visual order, as `TRGlyphRunDraw()` does: the background, the glyphs and then the decorations
+ * of a run, before those of the next one. The backgrounds are as tall as the line.
+ *
+ * @param line
+ *      The line.
+ * @param renderer
+ *      A renderer that has the draw callbacks. Nothing is drawn if it is `NULL`. It is set up for
+ *      each run while it is drawn, and gets back what it had.
+ * @param origin
+ *      The position of the origin of the container of the line, in the user space with the y axis
+ *      pointing downward. The origin of the line, and those of its runs, are added to it.
+ */
+TR_PUBLIC void TRComposedLineDraw(TRComposedLineRef line, TRRendererRef renderer, TRPoint origin);
+
+/**
  * Retains the line.
  */
 TR_PUBLIC TRComposedLineRef TRComposedLineRetain(TRComposedLineRef line);

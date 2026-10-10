@@ -26,6 +26,19 @@
 #include <Layout/TextRun.h>
 
 /*
+ * The paint attributes that a run has. A color is only meaningful when its flag is set, and the
+ * underline and the strikethrough are on when theirs are.
+ */
+enum {
+    TRGlyphRunFlagForegroundColor = 1 << 0,
+    TRGlyphRunFlagBackgroundColor = 1 << 1,
+    TRGlyphRunFlagUnderline = 1 << 2,
+    TRGlyphRunFlagStrikethrough = 1 << 3,
+    TRGlyphRunFlagDecorationColor = 1 << 4
+};
+typedef TRUInt8 TRGlyphRunFlags;
+
+/*
  * A glyph run looks at a range of a text run, which it keeps alive. It shares the glyphs of the text
  * run, and has the cluster map and the caret edges of its own range, which start at the first
  * cluster that the range touches. Only a justified run has advances of its own.
@@ -43,15 +56,19 @@ typedef struct _TRGlyphRun {
     TRUInteger *clusterMap;
     TRFloat *caretEdges;
     TRPoint origin;
-    TRBoolean hasForegroundColor;
+    TRGlyphRunFlags flags;
     TRColor foregroundColor;
+    TRColor backgroundColor;
+    TRColor decorationColor;
     const void *userData;
 } TRGlyphRun;
 
 /* What a run is painted with. */
 typedef struct _GlyphRunPaint {
-    TRBoolean hasForegroundColor;
+    TRGlyphRunFlags flags;
     TRColor foregroundColor;
+    TRColor backgroundColor;
+    TRColor decorationColor;
     const void *userData;
 } GlyphRunPaint;
 
@@ -86,5 +103,14 @@ TR_INTERNAL TRFloat TRGlyphRunGetCaretEdge(TRGlyphRunRef glyphRun, TRUInteger co
 /* The extent of a range of code units of the run, which MAY be empty. */
 TR_INTERNAL TRFloat TRGlyphRunGetDistanceInRange(TRGlyphRunRef glyphRun, TRUInteger start,
     TRUInteger end);
+
+/*
+ * Draws a run with its baseline origin at a point, as `TRGlyphRunDraw()` does, but with the
+ * backgrounds filled between a top and a bottom that the caller gives, which are in the same
+ * space as the origin. A line passes its own, so that the backgrounds of its runs are as tall as
+ * the line.
+ */
+TR_INTERNAL void TRGlyphRunDrawInExtent(TRGlyphRunRef glyphRun, TRRendererRef renderer,
+    TRPoint origin, TRFloat top, TRFloat bottom);
 
 #endif

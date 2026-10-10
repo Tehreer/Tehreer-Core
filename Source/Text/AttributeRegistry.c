@@ -26,7 +26,7 @@
 
 #include "AttributeRegistry.h"
 
-#define AttributeCount  22
+#define AttributeCount  26
 
 typedef struct _AttributeDescription {
     const char *name;
@@ -57,7 +57,11 @@ static const AttributeDescription AttributeDescriptions[AttributeCount] = {
     { "ForegroundColor",        SBAttributeGroupNone,   SBAttributeScopeCharacter },
     { "UserData",               SBAttributeGroupNone,   SBAttributeScopeCharacter },
     { "Language",               AttributeGroupShaping,  SBAttributeScopeCharacter },
-    { "FontFeatures",           AttributeGroupShaping,  SBAttributeScopeCharacter }
+    { "FontFeatures",           AttributeGroupShaping,  SBAttributeScopeCharacter },
+    { "BackgroundColor",        SBAttributeGroupNone,   SBAttributeScopeCharacter },
+    { "Underline",              SBAttributeGroupNone,   SBAttributeScopeCharacter },
+    { "Strikethrough",          SBAttributeGroupNone,   SBAttributeScopeCharacter },
+    { "DecorationColor",        SBAttributeGroupNone,   SBAttributeScopeCharacter }
 };
 
 static AttributeRegistry GlobalAttributeRegistry;
@@ -132,6 +136,18 @@ static SBBoolean EqualAttributeItem(const void *firstPtr, const void *secondPtr)
             break;
         case TRAttributeForegroundColor:
             isEqual = firstItem->value.foregroundColor == secondItem->value.foregroundColor;
+            break;
+        case TRAttributeBackgroundColor:
+            isEqual = firstItem->value.backgroundColor == secondItem->value.backgroundColor;
+            break;
+        case TRAttributeUnderline:
+            isEqual = firstItem->value.underline == secondItem->value.underline;
+            break;
+        case TRAttributeStrikethrough:
+            isEqual = firstItem->value.strikethrough == secondItem->value.strikethrough;
+            break;
+        case TRAttributeDecorationColor:
+            isEqual = firstItem->value.decorationColor == secondItem->value.decorationColor;
             break;
         case TRAttributeUserData:
             isEqual = firstItem->value.userData == secondItem->value.userData;

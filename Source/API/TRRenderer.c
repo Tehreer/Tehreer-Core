@@ -16,6 +16,7 @@
 
 #include <math.h>
 #include <stddef.h>
+#include <string.h>
 
 #include <ft2build.h>
 #include FT_STROKER_H
@@ -131,12 +132,6 @@ static void GetImageScale(const TRRenderer *renderer, TRFloat *scaleX, TRFloat *
     }
 }
 
-/* Rounds half up, which does not depend on the sign as the truncation of a cast does. */
-static TRFloat RoundPixel(TRFloat value)
-{
-    return (TRFloat)floor(value + 0.5f);
-}
-
 /*
  * The position of the glyph at an index in pixels. The pen is moved before the glyph in the
  * reverse mode of right-to-left runs, and after it otherwise. The caller keeps the pen and the
@@ -179,6 +174,42 @@ static void SetupPen(const TRRenderer *renderer, RunPen *pen)
     pen->totalAdvance = 0.0f;
 }
 
+TR_INTERNAL TRFloat TRRendererRoundPixel(TRFloat value)
+{
+    return (TRFloat)floor(value + 0.5f);
+}
+
+TR_INTERNAL void TRRendererEnumeratePathPlacements(TRRendererRef renderer,
+    const TRGlyphID *glyphIDs, const TRPoint *offsets, const TRFloat *advances, TRUInteger count,
+    TRPathPlacementFunc func, void *userData)
+{
+    TRBoolean shouldStop = TRFalse;
+    RunPen pen;
+    TRUInteger index;
+
+    SetupPen(renderer, &pen);
+
+    for (index = 0; index < count && !shouldStop; index++) {
+        TRFloat offsetX, offsetY, advance;
+        TRPathRef path;
+
+        BeginGlyph(renderer, &pen, offsets, advances, index, &offsetX, &offsetY, &advance);
+
+        path = TRRendererCopyGlyphPath(renderer, glyphIDs[index]);
+        if (path) {
+            TRPoint origin;
+
+            origin.x = pen.penX + offsetX;
+            origin.y = -offsetY;
+
+            func(userData, index, path, origin, &shouldStop);
+            TRPathRelease(path);
+        }
+
+        EndGlyph(&pen, advance);
+    }
+}
+
 TRRendererRef TRRendererCreate(void)
 {
     const TRUInteger size = sizeof(TRRenderer);
@@ -201,6 +232,10 @@ TRRendererRef TRRendererCreate(void)
         renderer->strokeCap = TRStrokeCapButt;
         renderer->strokeJoin = TRStrokeJoinRound;
         renderer->strokeMiter = 1.0f;
+        renderer->strokeColor = TRColorMake(0xFF, 0x00, 0x00, 0x00);
+        renderer->drawStyle = TRDrawStyleFill;
+        memset(&renderer->drawCallbacks, 0, sizeof(TRDrawCallbacks));
+        renderer->drawUserData = NULL;
     }
 
     return renderer;
@@ -283,6 +318,28 @@ void TRRendererSetStrokeJoin(TRRendererRef renderer, TRStrokeJoin strokeJoin)
 void TRRendererSetStrokeMiter(TRRendererRef renderer, TRFloat strokeMiter)
 {
     renderer->strokeMiter = strokeMiter;
+}
+
+void TRRendererSetStrokeColor(TRRendererRef renderer, TRColor strokeColor)
+{
+    renderer->strokeColor = strokeColor;
+}
+
+void TRRendererSetDrawStyle(TRRendererRef renderer, TRDrawStyle drawStyle)
+{
+    renderer->drawStyle = drawStyle;
+}
+
+void TRRendererSetDrawCallbacks(TRRendererRef renderer, const TRDrawCallbacks *callbacks,
+    void *userData)
+{
+    if (callbacks) {
+        renderer->drawCallbacks = *callbacks;
+        renderer->drawUserData = userData;
+    } else {
+        memset(&renderer->drawCallbacks, 0, sizeof(TRDrawCallbacks));
+        renderer->drawUserData = NULL;
+    }
 }
 
 TRBoolean TRRendererIsRenderable(TRRendererRef renderer)
@@ -397,9 +454,10 @@ TRRect TRRendererGetRunInkBox(TRRendererRef renderer, const TRGlyphID *glyphIDs,
 
         image = TRRendererCopyGlyphImage(renderer, glyphIDs[index]);
         if (image) {
-            TRFloat left = RoundPixel(pen.penX + offsetX
+            TRFloat left = TRRendererRoundPixel(pen.penX + offsetX
                                       + ((TRFloat)TRGlyphImageGetLeft(image) * scaleX));
-            TRFloat top = RoundPixel(-offsetY - ((TRFloat)TRGlyphImageGetTop(image) * scaleY));
+            TRFloat top = TRRendererRoundPixel(-offsetY
+                                               - ((TRFloat)TRGlyphImageGetTop(image) * scaleY));
             TRFloat right = left + ((TRFloat)TRGlyphImageGetWidth(image) * scaleX);
             TRFloat bottom = top + ((TRFloat)TRGlyphImageGetHeight(image) * scaleY);
 
@@ -466,9 +524,10 @@ void TRRendererEnumerateGlyphPlacements(TRRendererRef renderer, TRGlyphImageKind
         if (image) {
             TRPoint origin;
 
-            origin.x = RoundPixel(pen.penX + offsetX
+            origin.x = TRRendererRoundPixel(pen.penX + offsetX
                                   + ((TRFloat)TRGlyphImageGetLeft(image) * scaleX));
-            origin.y = RoundPixel(-offsetY - ((TRFloat)TRGlyphImageGetTop(image) * scaleY));
+            origin.y = TRRendererRoundPixel(-offsetY
+                                            - ((TRFloat)TRGlyphImageGetTop(image) * scaleY));
 
             func(userData, index, image, origin, scaleX, scaleY, &shouldStop);
             TRGlyphImageRelease(image);

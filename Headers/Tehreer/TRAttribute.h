@@ -42,6 +42,10 @@ enum {
     TRAttributeUserData = 20,               /**< Opaque data of the owner; see below. */
     TRAttributeLanguage = 21,               /**< OpenType language tag of the text; see below. */
     TRAttributeFontFeatures = 22,           /**< OpenType feature settings; see below. */
+    TRAttributeBackgroundColor = 23,        /**< The color that is filled behind the text. */
+    TRAttributeUnderline = 24,              /**< Whether a line is drawn below the text. */
+    TRAttributeStrikethrough = 25,          /**< Whether a line is drawn through the text. */
+    TRAttributeDecorationColor = 26,        /**< The color of the underline and strikethrough. */
 
     /* Paragraph attributes */
     TRAttributeTextAlignment = 8,           /**< The alignment of the lines. */
@@ -74,11 +78,13 @@ typedef TRUInt32 TRTextAlignment;
 /**
  * The value of an attribute. The member to use depends on the type of the attribute.
  *
- * The foreground color and the user data do not change how text is laid out, but lines never have
- * a glyph run that spans a change of them, so a wrapper can paint each run with one set of
- * attributes. The user data is a pointer that Core only compares: a wrapper uses it to tag ranges
- * of text with its own attributes, such as links or underlines, and has to keep what it points to
- * alive as long as the text is used.
+ * The foreground color, the background color, the underline, the strikethrough, the decoration
+ * color and the user data do not change how text is laid out, but lines never have a glyph run
+ * that spans a change of them, so a wrapper can paint each run with one set of attributes. The
+ * decoration color is that of the underline and the strikethrough, and it is the foreground color
+ * of the run if it is not set. The user data is a pointer that Core only compares: a wrapper uses
+ * it to tag ranges of text with its own attributes, such as links, and has to keep what it points
+ * to alive as long as the text is used.
  *
  * The language and the font features change how the text is shaped, so a glyph run never spans a
  * change of them. The language is the OpenType tag of a language, which makes the font pick the
@@ -101,6 +107,10 @@ typedef union _TRAttributeValue {
     TRFloat obliqueness;
     TRReplacementRef replacement;
     TRColor foregroundColor;
+    TRColor backgroundColor;
+    TRBoolean underline;
+    TRBoolean strikethrough;
+    TRColor decorationColor;
     const void *userData;
     TRTag language;
     TRFontFeaturesRef fontFeatures;

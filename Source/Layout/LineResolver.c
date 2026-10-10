@@ -149,8 +149,10 @@ static TRUInteger GetPaint(TRTypesetterRef typesetter, TRUInteger index, GlyphRu
     SBAttributeListRef sbAttributes;
     TRAttributeListRef attributes;
 
-    paint->hasForegroundColor = TRFalse;
+    paint->flags = 0;
     paint->foregroundColor = 0;
+    paint->backgroundColor = 0;
+    paint->decorationColor = 0;
     paint->userData = NULL;
 
     sbAttributes = SBTextGetAttributes(sbText,
@@ -166,8 +168,24 @@ static TRUInteger GetPaint(TRTypesetterRef typesetter, TRUInteger index, GlyphRu
             const TRAttribute *item = TRAttributeListGetItem(attributes, itemIndex);
 
             if (item->type == TRAttributeForegroundColor) {
-                paint->hasForegroundColor = TRTrue;
+                paint->flags |= TRGlyphRunFlagForegroundColor;
                 paint->foregroundColor = item->value.foregroundColor;
+            } else if (item->type == TRAttributeBackgroundColor) {
+                paint->flags |= TRGlyphRunFlagBackgroundColor;
+                paint->backgroundColor = item->value.backgroundColor;
+            } else if (item->type == TRAttributeUnderline) {
+
+                if (item->value.underline) {
+                    paint->flags |= TRGlyphRunFlagUnderline;
+                }
+            } else if (item->type == TRAttributeStrikethrough) {
+
+                if (item->value.strikethrough) {
+                    paint->flags |= TRGlyphRunFlagStrikethrough;
+                }
+            } else if (item->type == TRAttributeDecorationColor) {
+                paint->flags |= TRGlyphRunFlagDecorationColor;
+                paint->decorationColor = item->value.decorationColor;
             } else if (item->type == TRAttributeUserData) {
                 paint->userData = item->value.userData;
             }

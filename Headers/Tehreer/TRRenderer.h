@@ -18,6 +18,7 @@
 #define _TEHREER_RENDERER_H
 
 #include <Tehreer/TRBase.h>
+#include <Tehreer/TRDrawCallbacks.h>
 #include <Tehreer/TRGeometry.h>
 #include <Tehreer/TRGlyphCache.h>
 #include <Tehreer/TRGlyphImage.h>
@@ -100,8 +101,9 @@ typedef struct _TRRenderer *TRRendererRef;
 /**
  * Creates a renderer that uses the default glyph cache. It has a type size of 16, no scaling, no
  * skew, a render scale of 1, left to right direction, an opaque black foreground color, and a
- * stroke whose radius is 0.5 with butt caps, round joins and a miter limit of 1. The typeface has to be
- * set before using it.
+ * stroke whose radius is 0.5 with butt caps, round joins and a miter limit of 1, drawn in opaque
+ * black. It fills glyphs when drawing, and has no draw callbacks. The typeface has to be set
+ * before using it.
  *
  * @return
  *      New renderer, or `NULL` on failure.
@@ -179,6 +181,42 @@ TR_PUBLIC void TRRendererSetStrokeJoin(TRRendererRef renderer, TRStrokeJoin stro
 TR_PUBLIC void TRRendererSetStrokeMiter(TRRendererRef renderer, TRFloat strokeMiter);
 
 /**
+ * Sets the color that is used for the outlines of the glyphs when the draw style strokes them. The
+ * default is opaque black.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param strokeColor
+ *      The color of the outlines.
+ */
+TR_PUBLIC void TRRendererSetStrokeColor(TRRendererRef renderer, TRColor strokeColor);
+
+/**
+ * Sets what the draw functions of glyph runs, lines and frames produce for the glyphs. The default
+ * is `TRDrawStyleFill`.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param drawStyle
+ *      Whether to fill the glyphs, stroke their outlines, or both.
+ */
+TR_PUBLIC void TRRendererSetDrawStyle(TRRendererRef renderer, TRDrawStyle drawStyle);
+
+/**
+ * Sets the functions that the draw functions call. The callbacks are copied, and `NULL` clears
+ * them, so that nothing is drawn.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param callbacks
+ *      The callbacks to use, or `NULL`.
+ * @param userData
+ *      An opaque pointer that is passed to each of them.
+ */
+TR_PUBLIC void TRRendererSetDrawCallbacks(TRRendererRef renderer, const TRDrawCallbacks *callbacks,
+    void *userData);
+
+/**
  * Returns whether the glyphs are big enough to be rendered, which takes at least one pixel in each
  * direction.
  */
@@ -219,8 +257,9 @@ TR_PUBLIC TRRect TRRendererGetGlyphInkBox(TRRendererRef renderer, TRGlyphID glyp
 
 /**
  * Returns the ink box of a run of glyphs: the box around their images, in the user space with the y
- * axis pointing downward. The box is relative to the start of the run, so that of a right-to-left run is shifted
- * by the advance of the run, unlike the placements. It is empty if no glyph has an image.
+ * axis pointing downward. The box is relative to the start of the run, so that of a right-to-left
+ * run is shifted by the advance of the run, unlike the placements. It is empty if no glyph has an
+ * image.
  *
  * @param glyphIDs
  *      The glyphs, in the order of the writing direction.

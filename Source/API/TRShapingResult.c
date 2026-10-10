@@ -59,6 +59,9 @@ static void BuildClusterMap(TRShapingResult *result, const hb_glyph_info_t *info
         }
     }
 
+    /* A code unit with no neighbor that has a glyph takes the first glyph, not a code unit. */
+    association = 0;
+
     if (result->isBackward) {
         /* Assign the same glyph index to the preceding code units. */
         for (index = codeUnitCount; index > 0; index--) {

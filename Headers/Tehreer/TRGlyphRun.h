@@ -94,6 +94,51 @@ TR_PUBLIC TRReplacementRef TRGlyphRunGetReplacement(TRGlyphRunRef run);
 TR_PUBLIC TRBoolean TRGlyphRunGetForegroundColor(TRGlyphRunRef run, TRColor *foregroundColor);
 
 /**
+ * Gets the background color of the run.
+ *
+ * @param run
+ *      The run.
+ * @param backgroundColor
+ *      Receives the color, if the text sets one.
+ * @return
+ *      `TRTrue` if the color was set, `TRFalse` if the text does not set one.
+ */
+TR_PUBLIC TRBoolean TRGlyphRunGetBackgroundColor(TRGlyphRunRef run, TRColor *backgroundColor);
+
+/**
+ * Returns whether the run is underlined.
+ *
+ * @param run
+ *      The run.
+ * @return
+ *      `TRTrue` if the text underlines the run, `TRFalse` otherwise.
+ */
+TR_PUBLIC TRBoolean TRGlyphRunHasUnderline(TRGlyphRunRef run);
+
+/**
+ * Returns whether the run is struck through.
+ *
+ * @param run
+ *      The run.
+ * @return
+ *      `TRTrue` if the text strikes the run through, `TRFalse` otherwise.
+ */
+TR_PUBLIC TRBoolean TRGlyphRunHasStrikethrough(TRGlyphRunRef run);
+
+/**
+ * Gets the color of the underline and the strikethrough of the run.
+ *
+ * @param run
+ *      The run.
+ * @param decorationColor
+ *      Receives the color, if the text sets one.
+ * @return
+ *      `TRTrue` if the color was set, `TRFalse` if the text does not set one, in which case the
+ *      decorations are drawn with the foreground color.
+ */
+TR_PUBLIC TRBoolean TRGlyphRunGetDecorationColor(TRGlyphRunRef run, TRColor *decorationColor);
+
+/**
  * Returns the user data of the text for the run, or `NULL` if it has none.
  */
 TR_PUBLIC const void *TRGlyphRunGetUserData(TRGlyphRunRef run);
@@ -194,6 +239,33 @@ TR_PUBLIC TRUInteger TRGlyphRunGetCodeUnitIndex(TRGlyphRunRef run, TRFloat dista
  *      A renderer with the glyph cache to use, and with the settings that are not the run's.
  */
 TR_PUBLIC TRRect TRGlyphRunGetInkBox(TRGlyphRunRef run, TRRendererRef renderer);
+
+/**
+ * Draws the run through the draw callbacks of a renderer, which receive absolute positions in
+ * pixels: the background of the run, then its glyphs or its replacement, then its underline and
+ * strikethrough. See `TRDrawCallbacks` for what each callback is given.
+ *
+ * The glyphs are drawn in the foreground color of the run, or in that of the renderer if the run
+ * has none, and the draw style of the renderer decides if they are filled, stroked with its stroke
+ * color, or both. The glyphs of a cluster that is split by the start or the end of the run are
+ * given with a clip, so that the run draws only its part of the cluster. The backgrounds and the
+ * decorations are as wide as the run, and the backgrounds are as tall as its metrics. The
+ * underline and strikethrough are drawn with the decoration color, or else the foreground color,
+ * and take their position and thickness from the typeface; they are not drawn for a replacement.
+ *
+ * The renderer is set up for the run while it draws, with its typeface, type size, scales,
+ * direction and foreground color, and it gets back what it had before. Its render scale, draw
+ * style, stroke settings and callbacks are not changed.
+ *
+ * @param run
+ *      The run.
+ * @param renderer
+ *      A renderer that has the draw callbacks. Nothing is drawn if it is `NULL`.
+ * @param origin
+ *      The position of the start of the run on its baseline, in the user space with the y axis
+ *      pointing downward. The origin of the run in its line is not added.
+ */
+TR_PUBLIC void TRGlyphRunDraw(TRGlyphRunRef run, TRRendererRef renderer, TRPoint origin);
 
 /**
  * Retains the run.

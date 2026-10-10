@@ -304,6 +304,18 @@ TRBoolean TRComposedFrameEnumerateSelection(TRComposedFrameRef frame, TRUInteger
     return isValid;
 }
 
+void TRComposedFrameDraw(TRComposedFrameRef frame, TRRendererRef renderer, TRPoint origin)
+{
+    if (renderer) {
+        TRUInteger lineCount = GetFrameLineCount(frame);
+        TRUInteger lineIndex;
+
+        for (lineIndex = 0; lineIndex < lineCount; lineIndex++) {
+            TRComposedLineDraw(GetFrameLine(frame, lineIndex), renderer, origin);
+        }
+    }
+}
+
 TRComposedFrameRef TRComposedFrameRetain(TRComposedFrameRef frame)
 {
     return ObjectRetain((ObjectRef)frame);

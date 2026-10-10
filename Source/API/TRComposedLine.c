@@ -242,7 +242,8 @@ TRGlyphRunRef TRComposedLineGetGlyphRun(TRComposedLineRef line, TRUInteger index
 TRBoolean TRComposedLineGetCodeUnitDistance(TRComposedLineRef line, TRUInteger codeUnitIndex,
     TRFloat *distance)
 {
-    TRBoolean isFound = (codeUnitIndex >= line->codeUnitStart && codeUnitIndex <= line->codeUnitEnd);
+    TRBoolean isFound = (codeUnitIndex >= line->codeUnitStart
+                         && codeUnitIndex <= line->codeUnitEnd);
 
     if (isFound) {
         TRFloat extent = 0.0f;
@@ -370,6 +371,25 @@ TRRect TRComposedLineGetInkBox(TRComposedLineRef line, TRRendererRef renderer)
     box.size.height = (hasBox ? maxY - minY : 0.0f);
 
     return box;
+}
+
+void TRComposedLineDraw(TRComposedLineRef line, TRRendererRef renderer, TRPoint origin)
+{
+    if (renderer) {
+        TRFloat top = origin.y + TRComposedLineGetTop(line);
+        TRFloat bottom = origin.y + TRComposedLineGetBottom(line);
+        TRUInteger runIndex;
+
+        for (runIndex = 0; runIndex < line->runCount; runIndex++) {
+            TRGlyphRunRef glyphRun = line->runs[runIndex];
+            TRPoint baseline;
+
+            baseline.x = origin.x + line->origin.x + glyphRun->origin.x;
+            baseline.y = origin.y + line->origin.y + glyphRun->origin.y;
+
+            TRGlyphRunDrawInExtent(glyphRun, renderer, baseline, top, bottom);
+        }
+    }
 }
 
 TRComposedLineRef TRComposedLineRetain(TRComposedLineRef line)
