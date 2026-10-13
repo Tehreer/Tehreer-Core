@@ -46,7 +46,8 @@ typedef const struct _TRFontFeatures *TRFontFeaturesRef;
  * @param count
  *      The number of settings, which may be zero for a set that changes nothing.
  * @return
- *      A reference to a set of feature settings, or `NULL` on failure.
+ *      A reference to a set of feature settings, or `NULL` if the settings are `NULL` for a count
+ *      that is not zero, the size of the settings overflows, or on failure.
  */
 TR_PUBLIC TRFontFeaturesRef TRFontFeaturesCreate(const TROpenTypeFeature *features,
     TRUInteger count);

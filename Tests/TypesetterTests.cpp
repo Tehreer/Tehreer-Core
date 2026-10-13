@@ -827,6 +827,16 @@ void TypesetterTests::testRangesAreChecked() {
     assert(TRTypesetterCreateTruncationToken(typesetter, 0, 99, TRTruncationPlaceEnd, nullptr, 0,
         TRStringEncodingUTF16) == nullptr);
 
+    /* The encoding of a token that is given has to be known. */
+    assert(TRTypesetterCreateTruncationToken(typesetter, 0, 7, TRTruncationPlaceEnd, u"...", 3,
+        3) == nullptr);
+
+    /* The encoding is not used if there is no token string, so it is not checked either. */
+    TRComposedLineRef defaultToken = TRTypesetterCreateTruncationToken(typesetter, 0, 7,
+        TRTruncationPlaceEnd, nullptr, 0, 3);
+    assert(defaultToken != nullptr);
+    TRComposedLineRelease(defaultToken);
+
     /* A truncated line needs its token, and its range is checked as well. */
     assert(TRTypesetterCreateTruncatedLine(typesetter, 0, 7, 1000.0f, TRBreakModeCharacter,
         TRTruncationPlaceEnd, nullptr) == nullptr);

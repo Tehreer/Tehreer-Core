@@ -43,7 +43,7 @@ TRFontFeaturesRef TRFontFeaturesCreate(const TROpenTypeFeature *features, TRUInt
 {
     TRFontFeatures *fontFeatures = NULL;
 
-    if (features || count == 0) {
+    if ((features || count == 0) && count <= (TRUInteger)(-1) / sizeof(TROpenTypeFeature)) {
         TRUInteger sizes[COUNT] = { 0 };
         void *pointers[COUNT] = { NULL };
 

@@ -244,6 +244,13 @@ void TextTests::testRangesAreChecked() {
     /* Text that is not given cannot be made. */
     assert(TRTextCreate(nullptr, 3, TRStringEncodingUTF8) == nullptr);
 
+    /* An encoding that is not known cannot be used, for an immutable text or a mutable one. */
+    assert(TRTextCreate("abc", 3, 3) == nullptr);
+    assert(TRTextCreate("abc", 3, 0xFFFF) == nullptr);
+    assert(TRTextCreate(nullptr, 0, 3) == nullptr);
+    assert(TRTextCreateMutable(3) == nullptr);
+    assert(TRTextCreateMutable(0xFFFFFFFF) == nullptr);
+
     TRTextRelease(mutableText);
 }
 
