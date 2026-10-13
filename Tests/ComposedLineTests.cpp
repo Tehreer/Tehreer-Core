@@ -976,7 +976,7 @@ void ComposedLineTests::testTruncation() {
     assert(end != nullptr);
     assert(TRComposedLineGetWidth(end) == A + B + C);
     assert(TRComposedLineGetCodeUnitStart(end) == 0);
-    assert((TRComposedLineGetCodeUnitEnd(end) - TRComposedLineGetCodeUnitStart(end)) == 2);
+    assert(TRComposedLineGetCodeUnitEnd(end) == 6);
     assert(TRComposedLineGetGlyphRunCount(end) == 2);
     assert(TRComposedLineIsTruncated(end));
 
@@ -984,8 +984,8 @@ void ComposedLineTests::testTruncation() {
         TRBreakModeCharacter, TRTruncationPlaceStart, token);
     assert(start != nullptr);
     assert(TRComposedLineGetWidth(start) == C + B + C);
-    assert(TRComposedLineGetCodeUnitStart(start) == 4);
-    assert((TRComposedLineGetCodeUnitEnd(start) - TRComposedLineGetCodeUnitStart(start)) == 2);
+    assert(TRComposedLineGetCodeUnitStart(start) == 0);
+    assert(TRComposedLineGetCodeUnitEnd(start) == 6);
     assert(TRComposedLineGetGlyphRunCount(start) == 2);
     assert(TRComposedLineIsTruncated(start));
 

@@ -45,6 +45,7 @@ private:
     void testSelection();
     void testSelectionIsClipped();
     void testSelectionPaddingFollowsEachLine();
+    void testTruncatedSelection();
     void testRangesAreChecked();
     void testFramesOutliveResolver();
 };

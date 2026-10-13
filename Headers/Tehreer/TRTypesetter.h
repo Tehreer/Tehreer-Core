@@ -231,8 +231,8 @@ TR_PUBLIC TRComposedLineRef TRTypesetterCreateTruncationToken(TRTypesetterRef ty
  * @param tokenLine
  *      The line of the token, such as one from `TRTypesetterCreateTruncationToken()`.
  * @return
- *      New line, or `NULL` on failure. Its range does not include the text that was cut out at the
- *      start or at the end.
+ *      New line, or `NULL` on failure. Its range is the whole range, including the text that was cut
+ *      out.
  */
 TR_PUBLIC TRComposedLineRef TRTypesetterCreateTruncatedLine(TRTypesetterRef typesetter,
     TRUInteger index, TRUInteger length, TRFloat extent, TRBreakMode breakMode,
