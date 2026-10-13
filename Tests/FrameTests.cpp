@@ -61,6 +61,8 @@ void FrameTests::run() {
     testRightToLeft();
     testIndexOfLine();
     testSelection();
+    testSelectionIsClipped();
+    testSelectionPaddingFollowsEachLine();
     testRangesAreChecked();
     testFramesOutliveResolver();
 }
@@ -539,6 +541,54 @@ static void collectRect(void *userData, TRRect rect, TRBoolean *) {
     static_cast<vector<TRRect> *>(userData)->push_back(rect);
 }
 
+void FrameTests::testSelectionIsClipped() {
+    /* Every glyph is wider than the frame, which has no way to break it any further. */
+    Fixture f(u"abc");
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(1000.0f, 100000.0f));
+    TRFrameResolverSetTextAlignment(f.resolver, TRTextAlignmentLeft);
+
+    TRComposedFrameRef frame = f.frame();
+    assert(TRComposedFrameGetLineCount(frame) == 3);
+
+    vector<TRRect> rects;
+    assert(TRComposedFrameEnumerateSelection(frame, 0, 1, collectRect, &rects));
+    assert(rects.size() == 1);
+    assert(isNear(rects[0].origin.x, 0.0f));
+    assert(isNear(rects[0].size.width, TRComposedFrameGetWidth(frame)));
+    assert(rects[0].size.width < A);
+
+    TRComposedFrameRelease(frame);
+}
+
+void FrameTests::testSelectionPaddingFollowsEachLine() {
+    /* The first paragraph is right-to-left and the second is left-to-right. */
+    Fixture f(u"שלום\nabc");
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(5000.0f, 100000.0f));
+
+    TRComposedFrameRef frame = f.frame();
+    assert(TRComposedFrameGetLineCount(frame) == 2);
+
+    TRComposedLineRef first = TRComposedFrameGetLine(frame, 0);
+    assert(TRComposedLineGetParagraphLevel(first) == 1);
+    assert(TRComposedLineGetParagraphLevel(TRComposedFrameGetLine(frame, 1)) == 0);
+
+    vector<TRRect> rects;
+    assert(TRComposedFrameEnumerateSelection(frame, 2, 5, collectRect, &rects));
+
+    /* The text of the first line ends at its left in its own direction, so the padding is there. */
+    TRFloat firstLeft = TRComposedLineGetOrigin(first).x;
+    bool hasPadding = false;
+    for (const TRRect &rect : rects) {
+        if (rect.origin.y < Height && isNear(rect.origin.x, 0.0f)
+                && isNear(rect.size.width, firstLeft)) {
+            hasPadding = true;
+        }
+    }
+    assert(hasPadding);
+
+    TRComposedFrameRelease(frame);
+}
+
 void FrameTests::testSelection() {
     Fixture f(u"abc abc");
     TRFrameResolverSetFrameSize(f.resolver, makeSize(4300.0f, 100000.0f));
@@ -556,15 +606,15 @@ void FrameTests::testSelection() {
     /* A range over two lines has the paddings in between. */
     rects.clear();
     TRComposedFrameEnumerateSelection(frame, 2, 4, collectRect, &rects);
-    assert(rects.size() == 4);
+    assert(rects.size() == 3);
 
     assert(isNear(rects[0].origin.x, A + B) && isNear(rects[0].size.width, C + Notdef));
     assert(isNear(rects[1].origin.x, A + B + C + Notdef));
     assert(isNear(rects[1].origin.x + rects[1].size.width, 4300.0f));
-    assert(isNear(rects[2].origin.x, 0.0f) && isNear(rects[2].size.width, 0.0f));
-    assert(isNear(rects[2].origin.y, Height));
-    assert(isNear(rects[3].origin.x, 0.0f) && isNear(rects[3].size.width, A + B));
-    assert(isNear(rects[3].origin.y, Height) && isNear(rects[3].size.height, Height));
+
+    /* The padding that leads to the text of the last line is empty here, so it is not passed. */
+    assert(isNear(rects[2].origin.x, 0.0f) && isNear(rects[2].size.width, A + B));
+    assert(isNear(rects[2].origin.y, Height) && isNear(rects[2].size.height, Height));
 
     TRComposedFrameRelease(frame);
 
