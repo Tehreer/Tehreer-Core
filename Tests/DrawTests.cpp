@@ -47,6 +47,13 @@ extern "C" {
 using namespace std;
 using namespace Tehreer;
 
+static TRSize makeSize(TRFloat width, TRFloat height)
+{
+    TRSize size = { width, height };
+
+    return size;
+}
+
 void DrawTests::run() {
     testGlyphRunImages();
     testRendererIsRestored();
@@ -382,7 +389,7 @@ struct Fixture {
 
         TRFrameResolverRef resolver = TRFrameResolverCreate();
         TRFrameResolverSetTypesetter(resolver, make());
-        TRFrameResolverSetFrameSize(resolver, width, 10000.0f);
+        TRFrameResolverSetFrameSize(resolver, makeSize(width, 10000.0f));
 
         TRComposedFrameRef result = TRFrameResolverCreateFrame(resolver, 0, TRTextGetLength(text));
         assert(result != nullptr);

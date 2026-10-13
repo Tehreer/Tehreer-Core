@@ -27,8 +27,7 @@
 typedef struct _TRFrameResolver {
     ObjectBase _base;
     TRTypesetterRef typesetter;
-    TRFloat frameWidth;
-    TRFloat frameHeight;
+    TRSize frameSize;
     TRBoolean fitsHorizontally;
     TRBoolean fitsVertically;
     TRTextAlignment textAlignment;

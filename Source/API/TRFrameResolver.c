@@ -405,7 +405,7 @@ static TRBoolean AddResolvedLine(FrameContext *context, TRFrameResolverRef resol
     /* Make sure that at least one line is added even if frame is smaller in height. */
     ComputeOccupiedSize(context, line, &width, &height);
 
-    if (height > resolver->frameHeight && GetLineCount(context) > 0) {
+    if (height > resolver->frameSize.height && GetLineCount(context) > 0) {
         TRComposedLineRelease(line);
         context->isFilled = TRTrue;
         isStopped = TRTrue;
@@ -729,8 +729,8 @@ static TRComposedFrameRef CreateFrameOfRange(TRFrameResolverRef resolver, TRRang
     FrameContext context;
 
     memset(&context, 0, sizeof(FrameContext));
-    context.layoutWidth = Clamp(resolver->frameWidth);
-    context.layoutHeight = Clamp(resolver->frameHeight);
+    context.layoutWidth = Clamp(resolver->frameSize.width);
+    context.layoutHeight = Clamp(resolver->frameSize.height);
     context.maxLines = (resolver->maxLines ? resolver->maxLines : (TRUInteger)(-1));
     context.endIndex = rangeEnd;
     ArrayInitialize(&context.lines, sizeof(TRComposedLine *));
@@ -770,8 +770,8 @@ TRFrameResolverRef TRFrameResolverCreate(void)
 
     if (resolver) {
         resolver->typesetter = NULL;
-        resolver->frameWidth = MaxFloat;
-        resolver->frameHeight = MaxFloat;
+        resolver->frameSize.width = MaxFloat;
+        resolver->frameSize.height = MaxFloat;
         resolver->fitsHorizontally = TRFalse;
         resolver->fitsVertically = TRFalse;
         resolver->textAlignment = TRTextAlignmentLeading;
@@ -789,6 +789,11 @@ TRFrameResolverRef TRFrameResolverCreate(void)
     return resolver;
 }
 
+TRTypesetterRef TRFrameResolverGetTypesetter(TRFrameResolverRef resolver)
+{
+    return resolver->typesetter;
+}
+
 void TRFrameResolverSetTypesetter(TRFrameResolverRef resolver, TRTypesetterRef typesetter)
 {
     if (typesetter) {
@@ -800,10 +805,19 @@ void TRFrameResolverSetTypesetter(TRFrameResolverRef resolver, TRTypesetterRef t
     resolver->typesetter = typesetter;
 }
 
-void TRFrameResolverSetFrameSize(TRFrameResolverRef resolver, TRFloat width, TRFloat height)
+TRSize TRFrameResolverGetFrameSize(TRFrameResolverRef resolver)
 {
-    resolver->frameWidth = width;
-    resolver->frameHeight = height;
+    return resolver->frameSize;
+}
+
+void TRFrameResolverSetFrameSize(TRFrameResolverRef resolver, TRSize size)
+{
+    resolver->frameSize = size;
+}
+
+TRBoolean TRFrameResolverGetFitsHorizontally(TRFrameResolverRef resolver)
+{
+    return resolver->fitsHorizontally;
 }
 
 void TRFrameResolverSetFitsHorizontally(TRFrameResolverRef resolver, TRBoolean fits)
@@ -811,14 +825,29 @@ void TRFrameResolverSetFitsHorizontally(TRFrameResolverRef resolver, TRBoolean f
     resolver->fitsHorizontally = fits;
 }
 
+TRBoolean TRFrameResolverGetFitsVertically(TRFrameResolverRef resolver)
+{
+    return resolver->fitsVertically;
+}
+
 void TRFrameResolverSetFitsVertically(TRFrameResolverRef resolver, TRBoolean fits)
 {
     resolver->fitsVertically = fits;
 }
 
+TRTextAlignment TRFrameResolverGetTextAlignment(TRFrameResolverRef resolver)
+{
+    return resolver->textAlignment;
+}
+
 void TRFrameResolverSetTextAlignment(TRFrameResolverRef resolver, TRTextAlignment alignment)
 {
     resolver->textAlignment = alignment;
+}
+
+TRVerticalAlignment TRFrameResolverGetVerticalAlignment(TRFrameResolverRef resolver)
+{
+    return resolver->verticalAlignment;
 }
 
 void TRFrameResolverSetVerticalAlignment(TRFrameResolverRef resolver,
@@ -827,9 +856,19 @@ void TRFrameResolverSetVerticalAlignment(TRFrameResolverRef resolver,
     resolver->verticalAlignment = alignment;
 }
 
+TRBreakMode TRFrameResolverGetTruncationMode(TRFrameResolverRef resolver)
+{
+    return resolver->truncationMode;
+}
+
 void TRFrameResolverSetTruncationMode(TRFrameResolverRef resolver, TRBreakMode mode)
 {
     resolver->truncationMode = mode;
+}
+
+TRTruncationPlace TRFrameResolverGetTruncationPlace(TRFrameResolverRef resolver)
+{
+    return resolver->truncationPlace;
 }
 
 void TRFrameResolverSetTruncationPlace(TRFrameResolverRef resolver, TRTruncationPlace place)
@@ -837,9 +876,19 @@ void TRFrameResolverSetTruncationPlace(TRFrameResolverRef resolver, TRTruncation
     resolver->truncationPlace = place;
 }
 
+TRBoolean TRFrameResolverIsTruncationEnabled(TRFrameResolverRef resolver)
+{
+    return resolver->isTruncationEnabled;
+}
+
 void TRFrameResolverSetTruncationEnabled(TRFrameResolverRef resolver, TRBoolean isEnabled)
 {
     resolver->isTruncationEnabled = isEnabled;
+}
+
+TRBoolean TRFrameResolverIsJustificationEnabled(TRFrameResolverRef resolver)
+{
+    return resolver->isJustificationEnabled;
 }
 
 void TRFrameResolverSetJustificationEnabled(TRFrameResolverRef resolver, TRBoolean isEnabled)
@@ -847,9 +896,19 @@ void TRFrameResolverSetJustificationEnabled(TRFrameResolverRef resolver, TRBoole
     resolver->isJustificationEnabled = isEnabled;
 }
 
+TRFloat TRFrameResolverGetJustificationLevel(TRFrameResolverRef resolver)
+{
+    return resolver->justificationLevel;
+}
+
 void TRFrameResolverSetJustificationLevel(TRFrameResolverRef resolver, TRFloat level)
 {
     resolver->justificationLevel = level;
+}
+
+TRUInteger TRFrameResolverGetMaxLines(TRFrameResolverRef resolver)
+{
+    return resolver->maxLines;
 }
 
 void TRFrameResolverSetMaxLines(TRFrameResolverRef resolver, TRUInteger maxLines)
@@ -857,9 +916,19 @@ void TRFrameResolverSetMaxLines(TRFrameResolverRef resolver, TRUInteger maxLines
     resolver->maxLines = maxLines;
 }
 
+TRFloat TRFrameResolverGetExtraLineSpacing(TRFrameResolverRef resolver)
+{
+    return resolver->extraLineSpacing;
+}
+
 void TRFrameResolverSetExtraLineSpacing(TRFrameResolverRef resolver, TRFloat spacing)
 {
     resolver->extraLineSpacing = spacing;
+}
+
+TRFloat TRFrameResolverGetLineHeightMultiplier(TRFrameResolverRef resolver)
+{
+    return resolver->lineHeightMultiplier;
 }
 
 void TRFrameResolverSetLineHeightMultiplier(TRFrameResolverRef resolver, TRFloat multiplier)

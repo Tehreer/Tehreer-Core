@@ -60,6 +60,16 @@ typedef struct _TRFrameResolver *TRFrameResolverRef;
 TR_PUBLIC TRFrameResolverRef TRFrameResolverCreate(void);
 
 /**
+ * Returns the typesetter to make frames with. The caller does not own it.
+ *
+ * @param resolver
+ *      The resolver.
+ * @return
+ *      The typesetter, or `NULL` if it is not set.
+ */
+TR_PUBLIC TRTypesetterRef TRFrameResolverGetTypesetter(TRFrameResolverRef resolver);
+
+/**
  * Sets the typesetter to make frames with. The resolver retains it.
  *
  * @param resolver
@@ -71,18 +81,36 @@ TR_PUBLIC void TRFrameResolverSetTypesetter(TRFrameResolverRef resolver,
     TRTypesetterRef typesetter);
 
 /**
- * Sets the size of the frame, which is unbounded by default. A size that is negative is taken as
- * zero.
+ * Returns the size of the frame, as it was set. A negative width or height is taken as zero when
+ * making a frame.
  *
  * @param resolver
  *      The resolver.
- * @param width
- *      The width of the frame.
- * @param height
- *      The height of the frame.
+ * @return
+ *      The width and the height of the frame.
  */
-TR_PUBLIC void TRFrameResolverSetFrameSize(TRFrameResolverRef resolver, TRFloat width,
-    TRFloat height);
+TR_PUBLIC TRSize TRFrameResolverGetFrameSize(TRFrameResolverRef resolver);
+
+/**
+ * Sets the size of the frame, which is unbounded by default. A width or a height that is negative
+ * is taken as zero.
+ *
+ * @param resolver
+ *      The resolver.
+ * @param size
+ *      The width and the height of the frame.
+ */
+TR_PUBLIC void TRFrameResolverSetFrameSize(TRFrameResolverRef resolver, TRSize size);
+
+/**
+ * Returns whether the frame is as wide as the widest line, instead of the width that is set.
+ *
+ * @param resolver
+ *      The resolver.
+ * @return
+ *      `TRTrue` if the width of the frame fits its lines.
+ */
+TR_PUBLIC TRBoolean TRFrameResolverGetFitsHorizontally(TRFrameResolverRef resolver);
 
 /**
  * Sets whether the frame is as wide as the widest line, instead of the width that is set. The lines
@@ -96,6 +124,16 @@ TR_PUBLIC void TRFrameResolverSetFrameSize(TRFrameResolverRef resolver, TRFloat 
 TR_PUBLIC void TRFrameResolverSetFitsHorizontally(TRFrameResolverRef resolver, TRBoolean fits);
 
 /**
+ * Returns whether the frame is as tall as its lines, instead of the height that is set.
+ *
+ * @param resolver
+ *      The resolver.
+ * @return
+ *      `TRTrue` if the height of the frame fits its lines.
+ */
+TR_PUBLIC TRBoolean TRFrameResolverGetFitsVertically(TRFrameResolverRef resolver);
+
+/**
  * Sets whether the frame is as tall as its lines, instead of the height that is set. The vertical
  * alignment has no effect then. It is disabled by default.
  *
@@ -105,6 +143,16 @@ TR_PUBLIC void TRFrameResolverSetFitsHorizontally(TRFrameResolverRef resolver, T
  *      `TRTrue` to fit the height of the frame to its lines.
  */
 TR_PUBLIC void TRFrameResolverSetFitsVertically(TRFrameResolverRef resolver, TRBoolean fits);
+
+/**
+ * Returns the alignment of the lines of the paragraphs that do not have their own.
+ *
+ * @param resolver
+ *      The resolver.
+ * @return
+ *      The alignment of the lines.
+ */
+TR_PUBLIC TRTextAlignment TRFrameResolverGetTextAlignment(TRFrameResolverRef resolver);
 
 /**
  * Sets the alignment of the lines of the paragraphs that do not have their own. The default is
@@ -119,6 +167,16 @@ TR_PUBLIC void TRFrameResolverSetTextAlignment(TRFrameResolverRef resolver,
     TRTextAlignment alignment);
 
 /**
+ * Returns where the lines are placed if the frame is taller than they are.
+ *
+ * @param resolver
+ *      The resolver.
+ * @return
+ *      The vertical alignment of the lines.
+ */
+TR_PUBLIC TRVerticalAlignment TRFrameResolverGetVerticalAlignment(TRFrameResolverRef resolver);
+
+/**
  * Sets where the lines are placed if the frame is taller than they are. The default is
  * `TRVerticalAlignmentTop`.
  *
@@ -131,6 +189,16 @@ TR_PUBLIC void TRFrameResolverSetVerticalAlignment(TRFrameResolverRef resolver,
     TRVerticalAlignment alignment);
 
 /**
+ * Returns how the last line of the frame is cut, if there is more text than the frame can show.
+ *
+ * @param resolver
+ *      The resolver.
+ * @return
+ *      The break mode of the truncation.
+ */
+TR_PUBLIC TRBreakMode TRFrameResolverGetTruncationMode(TRFrameResolverRef resolver);
+
+/**
  * Sets how the last line of the frame is cut, if there is more text than the frame can show. The
  * default is `TRBreakModeLine`. It does not enable the truncation.
  *
@@ -140,6 +208,16 @@ TR_PUBLIC void TRFrameResolverSetVerticalAlignment(TRFrameResolverRef resolver,
  *      The break mode of the truncation.
  */
 TR_PUBLIC void TRFrameResolverSetTruncationMode(TRFrameResolverRef resolver, TRBreakMode mode);
+
+/**
+ * Returns where the last line of the frame is cut.
+ *
+ * @param resolver
+ *      The resolver.
+ * @return
+ *      The place of the truncation.
+ */
+TR_PUBLIC TRTruncationPlace TRFrameResolverGetTruncationPlace(TRFrameResolverRef resolver);
 
 /**
  * Sets where the last line of the frame is cut. It does not enable the truncation; the end is the
@@ -154,6 +232,17 @@ TR_PUBLIC void TRFrameResolverSetTruncationPlace(TRFrameResolverRef resolver,
     TRTruncationPlace place);
 
 /**
+ * Returns whether the last line of the frame is cut, if there is more text than the frame can
+ * show.
+ *
+ * @param resolver
+ *      The resolver.
+ * @return
+ *      `TRTrue` if the last line is cut.
+ */
+TR_PUBLIC TRBoolean TRFrameResolverIsTruncationEnabled(TRFrameResolverRef resolver);
+
+/**
  * Sets whether the last line of the frame is cut, if there is more text than the frame can show.
  * It is disabled by default.
  *
@@ -164,6 +253,16 @@ TR_PUBLIC void TRFrameResolverSetTruncationPlace(TRFrameResolverRef resolver,
  */
 TR_PUBLIC void TRFrameResolverSetTruncationEnabled(TRFrameResolverRef resolver,
     TRBoolean isEnabled);
+
+/**
+ * Returns whether the lines that end before the end of their paragraph are justified.
+ *
+ * @param resolver
+ *      The resolver.
+ * @return
+ *      `TRTrue` if the lines are justified.
+ */
+TR_PUBLIC TRBoolean TRFrameResolverIsJustificationEnabled(TRFrameResolverRef resolver);
 
 /**
  * Sets whether the lines that end before the end of their paragraph are justified. It is disabled
@@ -178,6 +277,16 @@ TR_PUBLIC void TRFrameResolverSetJustificationEnabled(TRFrameResolverRef resolve
     TRBoolean isEnabled);
 
 /**
+ * Returns the justification level, as it was set.
+ *
+ * @param resolver
+ *      The resolver.
+ * @return
+ *      The justification level.
+ */
+TR_PUBLIC TRFloat TRFrameResolverGetJustificationLevel(TRFrameResolverRef resolver);
+
+/**
  * Sets the justification level, from 0.0 to 1.0. A lower level keeps the words closer, while a
  * higher level spreads them to the width of the frame. It is 1.0 by default. A line is justified to
  * what is left of the width after the margins of its paragraph.
@@ -188,6 +297,16 @@ TR_PUBLIC void TRFrameResolverSetJustificationEnabled(TRFrameResolverRef resolve
  *      The justification level.
  */
 TR_PUBLIC void TRFrameResolverSetJustificationLevel(TRFrameResolverRef resolver, TRFloat level);
+
+/**
+ * Returns the greatest number of lines in a frame. Zero means that there is no limit.
+ *
+ * @param resolver
+ *      The resolver.
+ * @return
+ *      The greatest number of lines.
+ */
+TR_PUBLIC TRUInteger TRFrameResolverGetMaxLines(TRFrameResolverRef resolver);
 
 /**
  * Sets the greatest number of lines in a frame. Zero means that there is no limit, which is the
@@ -201,6 +320,16 @@ TR_PUBLIC void TRFrameResolverSetJustificationLevel(TRFrameResolverRef resolver,
 TR_PUBLIC void TRFrameResolverSetMaxLines(TRFrameResolverRef resolver, TRUInteger maxLines);
 
 /**
+ * Returns the space that is added to the leading of each line, as it was set.
+ *
+ * @param resolver
+ *      The resolver.
+ * @return
+ *      The space below each line.
+ */
+TR_PUBLIC TRFloat TRFrameResolverGetExtraLineSpacing(TRFrameResolverRef resolver);
+
+/**
  * Sets the space that is added to the leading of each line, which is below it. It is resolved after
  * the line height multiplier, and it is ignored if it is not positive. A line that holds a block
  * replacement is not changed. The default is zero.
@@ -211,6 +340,16 @@ TR_PUBLIC void TRFrameResolverSetMaxLines(TRFrameResolverRef resolver, TRUIntege
  *      The space below each line.
  */
 TR_PUBLIC void TRFrameResolverSetExtraLineSpacing(TRFrameResolverRef resolver, TRFloat spacing);
+
+/**
+ * Returns the factor that the height of each line is multiplied with, as it was set.
+ *
+ * @param resolver
+ *      The resolver.
+ * @return
+ *      The factor of the height.
+ */
+TR_PUBLIC TRFloat TRFrameResolverGetLineHeightMultiplier(TRFrameResolverRef resolver);
 
 /**
  * Sets the factor that the height of each line is multiplied with, keeping its text in the

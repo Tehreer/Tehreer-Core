@@ -37,6 +37,13 @@
 using namespace std;
 using namespace Tehreer;
 
+static TRSize makeSize(TRFloat width, TRFloat height)
+{
+    TRSize size = { width, height };
+
+    return size;
+}
+
 void FrameTests::run() {
     testSingleLine();
     testFitting();
@@ -152,7 +159,7 @@ void FrameTests::testSingleLine() {
 
 void FrameTests::testFitting() {
     Fixture f(u"abc");
-    TRFrameResolverSetFrameSize(f.resolver, 10000.0f, 10000.0f);
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(10000.0f, 10000.0f));
     TRFrameResolverSetFitsHorizontally(f.resolver, TRTrue);
     TRFrameResolverSetFitsVertically(f.resolver, TRTrue);
 
@@ -170,7 +177,7 @@ void FrameTests::testFitting() {
 
 void FrameTests::testWrapping() {
     Fixture f(u"abc abc");
-    TRFrameResolverSetFrameSize(f.resolver, 3500.0f, 100000.0f);
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(3500.0f, 100000.0f));
     TRFrameResolverSetFitsVertically(f.resolver, TRTrue);
 
     TRComposedFrameRef frame = f.frame();
@@ -190,7 +197,7 @@ void FrameTests::testWrapping() {
 
 void FrameTests::testFrameRange() {
     Fixture f(u"abc abc");
-    TRFrameResolverSetFrameSize(f.resolver, 3500.0f, 100000.0f);
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(3500.0f, 100000.0f));
 
     TRComposedFrameRef frame = f.frame(4, 7);
     assert(TRComposedFrameGetLineCount(frame) == 1);
@@ -201,7 +208,7 @@ void FrameTests::testFrameRange() {
 
 void FrameTests::testHeightLimit() {
     Fixture f(u"abc abc");
-    TRFrameResolverSetFrameSize(f.resolver, 3500.0f, 3000.0f);
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(3500.0f, 3000.0f));
 
     /* The second line would end at 4800. */
     TRComposedFrameRef frame = f.frame();
@@ -211,7 +218,7 @@ void FrameTests::testHeightLimit() {
     TRComposedFrameRelease(frame);
 
     /* There is a line even if the frame is smaller than it. */
-    TRFrameResolverSetFrameSize(f.resolver, 3500.0f, 0.0f);
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(3500.0f, 0.0f));
     frame = f.frame();
     assert(TRComposedFrameGetLineCount(frame) == 1);
     TRComposedFrameRelease(frame);
@@ -219,7 +226,7 @@ void FrameTests::testHeightLimit() {
 
 void FrameTests::testMaxLines() {
     Fixture f(u"abc abc abc");
-    TRFrameResolverSetFrameSize(f.resolver, 3500.0f, 100000.0f);
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(3500.0f, 100000.0f));
 
     TRComposedFrameRef frame = f.frame();
     assert(TRComposedFrameGetLineCount(frame) == 3);
@@ -235,7 +242,7 @@ void FrameTests::testMaxLines() {
 
 void FrameTests::testTruncation() {
     Fixture f(u"abc abc");
-    TRFrameResolverSetFrameSize(f.resolver, 6000.0f, Height);
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(6000.0f, Height));
     TRFrameResolverSetTruncationMode(f.resolver, TRBreakModeCharacter);
 
     /* Without truncation, the frame shows what fits. */
@@ -269,14 +276,14 @@ void FrameTests::testTruncation() {
     TRFrameResolverSetJustificationEnabled(f.resolver, TRFalse);
 
     /* There is nothing to cut if everything fits. */
-    TRFrameResolverSetFrameSize(f.resolver, 10000.0f, Height);
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(10000.0f, Height));
     frame = f.frame();
     assert(TRComposedFrameGetLineCount(frame) == 1);
     assert(isNear(TRComposedLineGetWidth(TRComposedFrameGetLine(frame, 0)), 2.0f * (A + B + C) + Notdef));
     TRComposedFrameRelease(frame);
 
     TRFrameResolverSetTruncationEnabled(f.resolver, TRFalse);
-    TRFrameResolverSetFrameSize(f.resolver, 6000.0f, Height);
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(6000.0f, Height));
     frame = f.frame();
     assert((TRComposedFrameGetCodeUnitEnd(frame) - TRComposedFrameGetCodeUnitStart(frame)) == 4);
     TRComposedFrameRelease(frame);
@@ -284,7 +291,7 @@ void FrameTests::testTruncation() {
 
 void FrameTests::testTruncationAcrossParagraphs() {
     Fixture f(u"abc abc\nabc abc");
-    TRFrameResolverSetFrameSize(f.resolver, 6000.0f, Height);
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(6000.0f, Height));
     TRFrameResolverSetTruncationMode(f.resolver, TRBreakModeCharacter);
     TRFrameResolverSetTruncationPlace(f.resolver, TRTruncationPlaceEnd);
     TRFrameResolverSetTruncationEnabled(f.resolver, TRTrue);
@@ -307,7 +314,7 @@ void FrameTests::testTruncationAcrossParagraphs() {
 void FrameTests::testAlignments() {
     Fixture f(u"abc");
     const TRFloat width = A + B + C;
-    TRFrameResolverSetFrameSize(f.resolver, 5000.0f, 5000.0f);
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(5000.0f, 5000.0f));
 
     TRComposedFrameRef frame = f.frame();
     assert(isNear(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).x, 0.0f));
@@ -353,7 +360,7 @@ static void useText(Fixture &f) {
 
 void FrameTests::testIndents() {
     Fixture f(u"abc abc");
-    TRFrameResolverSetFrameSize(f.resolver, 3700.0f, 100000.0f);
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(3700.0f, 100000.0f));
     setParagraph(f.text, TRAttributeFirstLineHeadIndent, 100.0f);
     setParagraph(f.text, TRAttributeHeadIndent, 300.0f);
     useText(f);
@@ -384,7 +391,7 @@ void FrameTests::testIndents() {
     setParagraph(f.text, TRAttributeFirstLineHeadIndent, 0.0f);
     setParagraph(f.text, TRAttributeHeadIndent, 0.0f);
     setParagraph(f.text, TRAttributeTailIndent, -200.0f);
-    TRFrameResolverSetFrameSize(f.resolver, 3600.0f, 100000.0f);
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(3600.0f, 100000.0f));
     TRFrameResolverSetTextAlignment(f.resolver, TRTextAlignmentTrailing);
     useText(f);
     frame = f.frame();
@@ -458,7 +465,7 @@ void FrameTests::testLineHeights() {
 
 void FrameTests::testJustification() {
     Fixture f(u"ab ab ab");
-    TRFrameResolverSetFrameSize(f.resolver, 6000.0f, 100000.0f);
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(6000.0f, 100000.0f));
     TRFrameResolverSetJustificationEnabled(f.resolver, TRTrue);
 
     TRComposedFrameRef frame = f.frame();
@@ -473,7 +480,7 @@ void FrameTests::testJustification() {
 
     /* The margins of the paragraph are left out of the width that the line takes. */
     TRFrameResolverSetJustificationEnabled(f.resolver, TRTrue);
-    TRFrameResolverSetFrameSize(f.resolver, 6100.0f, 100000.0f);
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(6100.0f, 100000.0f));
     setParagraph(f.text, TRAttributeFirstLineHeadIndent, 100.0f);
     useText(f);
     frame = f.frame();
@@ -483,7 +490,7 @@ void FrameTests::testJustification() {
     TRComposedFrameRelease(frame);
 
     TRFrameResolverSetJustificationEnabled(f.resolver, TRFalse);
-    TRFrameResolverSetFrameSize(f.resolver, 6000.0f, 100000.0f);
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(6000.0f, 100000.0f));
     setParagraph(f.text, TRAttributeFirstLineHeadIndent, 0.0f);
     useText(f);
     frame = f.frame();
@@ -494,7 +501,7 @@ void FrameTests::testJustification() {
 
 void FrameTests::testRightToLeft() {
     Fixture f(u"שלום");
-    TRFrameResolverSetFrameSize(f.resolver, 5000.0f, 5000.0f);
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(5000.0f, 5000.0f));
 
     /* Leading is the right edge in a right-to-left paragraph. */
     TRComposedFrameRef frame = f.frame();
@@ -511,7 +518,7 @@ void FrameTests::testRightToLeft() {
 
 void FrameTests::testIndexOfLine() {
     Fixture f(u"abc abc");
-    TRFrameResolverSetFrameSize(f.resolver, 3500.0f, 100000.0f);
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(3500.0f, 100000.0f));
 
     TRComposedFrameRef frame = f.frame();
     assert(TRComposedFrameGetIndexOfLineForCodeUnit(frame, 0) == 0);
@@ -534,7 +541,7 @@ static void collectRect(void *userData, TRRect rect, TRBoolean *) {
 
 void FrameTests::testSelection() {
     Fixture f(u"abc abc");
-    TRFrameResolverSetFrameSize(f.resolver, 4300.0f, 100000.0f);
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(4300.0f, 100000.0f));
 
     TRComposedFrameRef frame = f.frame();
     assert(TRComposedFrameGetLineCount(frame) == 2);
@@ -563,7 +570,7 @@ void FrameTests::testSelection() {
 
     /* A line in the middle is covered completely. */
     Fixture g(u"abc abc abc");
-    TRFrameResolverSetFrameSize(g.resolver, 4300.0f, 100000.0f);
+    TRFrameResolverSetFrameSize(g.resolver, makeSize(4300.0f, 100000.0f));
     frame = g.frame();
     assert(TRComposedFrameGetLineCount(frame) == 3);
     rects.clear();
@@ -590,7 +597,7 @@ void stopAfterFirstRect(void *userData, TRRect, TRBoolean *stop) {
 void FrameTests::testRangesAreChecked() {
     const TRUInteger max = TRInvalidIndex;
     Fixture f(u"abc abc");
-    TRFrameResolverSetFrameSize(f.resolver, 4300.0f, 100000.0f);
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(4300.0f, 100000.0f));
 
     /* A range that is within the text is the frame, up to the end of the text. */
     TRComposedFrameRef frame = TRFrameResolverCreateFrame(f.resolver, 4, 3);
@@ -665,7 +672,7 @@ void FrameTests::testFramesOutliveResolver() {
     TRComposedFrameRef frame;
     {
         Fixture f(u"abc abc");
-        TRFrameResolverSetFrameSize(f.resolver, 3500.0f, 100000.0f);
+        TRFrameResolverSetFrameSize(f.resolver, makeSize(3500.0f, 100000.0f));
         frame = f.frame();
     }
 
