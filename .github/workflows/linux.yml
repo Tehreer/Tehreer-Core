@@ -38,10 +38,10 @@ jobs:
           fetch-depth: 1
 
       - name: Install Dependencies
-        if: matrix.coverage
         run: |
           sudo apt-get update
-          sudo apt-get install lcov
+          sudo apt-get install libpng-dev
+          if [ "${{ matrix.coverage }}" = "true" ]; then sudo apt-get install lcov; fi
 
       - name: Setup Compiler
         run: |
@@ -57,6 +57,7 @@ jobs:
         run: |
           cmake -S . -B build-release \
             -DTR_CONFIG_UNITY=ON \
+            -DFT_REQUIRE_PNG=ON \
             -DCMAKE_BUILD_TYPE=Release
           cmake --build build-release --parallel
 
@@ -64,6 +65,7 @@ jobs:
         run: |
           cmake -S. -B build-debug \
             -DTR_CONFIG_UNITY=OFF \
+            -DFT_REQUIRE_PNG=ON \
             -DENABLE_ASAN=ON \
             -DENABLE_UBSAN=ON \
             -DCMAKE_BUILD_TYPE=Debug \

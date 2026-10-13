@@ -117,7 +117,9 @@ void TypesetterTests::testCreateInvalid() {
     assert(TRTypesetterCreate(partial, nullptr, 0) == nullptr);
 
     /* The default attributes can supply it. */
-    assert(TRTypesetterCreate(partial, &attribute, 1) != nullptr);
+    TRTypesetterRef typesetter = TRTypesetterCreate(partial, &attribute, 1);
+    assert(typesetter != nullptr);
+    TRTypesetterRelease(typesetter);
 
     TRTextRelease(partial);
     TRTextRelease(noTypeface);

@@ -23,7 +23,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [x64, Win32]
+        include:
+          - platform: x64
+            triplet: x64-windows-static-md
+          - platform: Win32
+            triplet: x86-windows-static-md
 
     steps:
       - name: Checkout
@@ -31,10 +35,16 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Install libpng
+        run: vcpkg install libpng:${{ matrix.triplet }}
+
       - name: Build in Release Mode
         run: |
           cmake -S . -B Release `
             -A ${{ matrix.platform }} `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} `
+            -DFT_REQUIRE_PNG=ON `
             -DTR_CONFIG_UNITY=ON
           cmake --build Release --config Release --parallel
 
@@ -42,6 +52,9 @@ jobs:
         run: |
           cmake -S. -B Debug `
             -A ${{ matrix.platform }} `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} `
+            -DFT_REQUIRE_PNG=ON `
             -DTR_CONFIG_UNITY=OFF `
             -DENABLE_ASAN=ON `
             -DENABLE_UBSAN=ON

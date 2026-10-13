@@ -49,6 +49,7 @@ jobs:
         run: |
           cmake -S . -B build-release \
             -DTR_CONFIG_UNITY=ON \
+            -DFT_REQUIRE_PNG=ON \
             -DCMAKE_BUILD_TYPE=Release
           cmake --build build-release --parallel
 
@@ -56,6 +57,7 @@ jobs:
         run: |
           cmake -S. -B build-debug \
             -DTR_CONFIG_UNITY=OFF \
+            -DFT_REQUIRE_PNG=ON \
             -DENABLE_ASAN=ON \
             -DENABLE_UBSAN=ON \
             -DCMAKE_BUILD_TYPE=Debug

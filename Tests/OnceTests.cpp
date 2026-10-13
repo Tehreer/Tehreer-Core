@@ -34,6 +34,11 @@ using namespace Tehreer;
 constexpr size_t NumThreads = 16;
 constexpr size_t Iterations = 1000;
 
+/* Takes the function by value, so that a lambda is converted to a plain function pointer first. */
+static void executeOnce(OnceRef once, void (*func)(void)) {
+    OnceExecute(once, func);
+}
+
 void OnceTests::run() {
     testBasicOnce();
     testMultipleThreads();
@@ -50,11 +55,11 @@ void OnceTests::testBasicOnce() {
         callCount++;
     };
 
-    OnceExecute(&once, func);
+    executeOnce(&once, func);
     assert(callCount == 1);
 
-    OnceExecute(&once, func);
-    OnceExecute(&once, func);
+    executeOnce(&once, func);
+    executeOnce(&once, func);
     assert(callCount == 1);
 }
 
@@ -72,7 +77,7 @@ void OnceTests::testMultipleThreads() {
     for (size_t i = 0; i < NumThreads; i++) {
         threads.emplace_back([&]() {
             for (size_t j = 0; j < Iterations; j++) {
-                OnceExecute(&once, func);
+                executeOnce(&once, func);
             }
         });
     }
@@ -97,9 +102,9 @@ void OnceTests::testMultipleOnces() {
 
     for (size_t i = 0; i < NumThreads; i++) {
         threads.emplace_back([&]() {
-            OnceExecute(&once1, []() { count1++; });
-            OnceExecute(&once2, []() { count2++; });
-            OnceExecute(&once3, []() { count3++; });
+            executeOnce(&once1, []() { count1++; });
+            executeOnce(&once2, []() { count2++; });
+            executeOnce(&once3, []() { count3++; });
         });
     }
 
@@ -126,14 +131,14 @@ void OnceTests::testRecursiveOnce() {
 
     static auto outerFunc = []() {
         outerCount++;
-        OnceExecute(&innerOnce, innerFunc);
+        executeOnce(&innerOnce, innerFunc);
         this_thread::sleep_for(microseconds(100));
     };
 
     vector<thread> threads;
     for (size_t i = 0; i < NumThreads; i++) {
         threads.emplace_back([&]() {
-            OnceExecute(&outerOnce, outerFunc);
+            executeOnce(&outerOnce, outerFunc);
         });
     }
 
@@ -164,7 +169,7 @@ void OnceTests::testStressTest() {
                 thread_local size_t i = 0;
 
                 for (; i < NumOnces; i++) {
-                    OnceExecute(&onces[i], []() {
+                    executeOnce(&onces[i], []() {
                         counts[i]++;
                         this_thread::yield();
                     });
