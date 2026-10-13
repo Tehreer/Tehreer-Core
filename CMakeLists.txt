@@ -95,6 +95,7 @@ FetchContent_Declare(
   freetype
   GIT_REPOSITORY https://github.com/freetype/freetype.git
   GIT_TAG VER-2-14-3
+  GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(freetype)
 
@@ -102,6 +103,7 @@ FetchContent_Declare(
   harfbuzz
   GIT_REPOSITORY https://github.com/harfbuzz/harfbuzz.git
   GIT_TAG 14.6.0
+  GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(harfbuzz)
 
@@ -109,6 +111,7 @@ FetchContent_Declare(
   libunibreak
   GIT_REPOSITORY https://github.com/adah1972/libunibreak.git
   GIT_TAG libunibreak_8_0
+  GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(libunibreak)
 
@@ -126,19 +129,17 @@ FetchContent_MakeAvailable(SheenBidi)
 # UniBreak Library
 # ------------------------------------------------------------------------------
 
+# The *data.c files of these modules are textually included by their owner sources, so they must
+# not be compiled on their own, or the symbols get defined twice.
 add_library(unibreak STATIC)
 target_sources(unibreak PRIVATE
-  ${libunibreak_SOURCE_DIR}/src/eastasianwidthdata.c
   ${libunibreak_SOURCE_DIR}/src/eastasianwidthdef.c
   ${libunibreak_SOURCE_DIR}/src/eastasianwidthdef.h
-  ${libunibreak_SOURCE_DIR}/src/emojidata.c
   ${libunibreak_SOURCE_DIR}/src/emojidef.c
   ${libunibreak_SOURCE_DIR}/src/emojidef.h
   ${libunibreak_SOURCE_DIR}/src/graphemebreak.c
   ${libunibreak_SOURCE_DIR}/src/graphemebreak.h
-  ${libunibreak_SOURCE_DIR}/src/graphemebreakdata.c
   ${libunibreak_SOURCE_DIR}/src/graphemebreakdef.h
-  ${libunibreak_SOURCE_DIR}/src/indicconjunctbreakdata.c
   ${libunibreak_SOURCE_DIR}/src/indicconjunctbreakdef.h
   ${libunibreak_SOURCE_DIR}/src/linebreak.c
   ${libunibreak_SOURCE_DIR}/src/linebreak.h
@@ -151,7 +152,6 @@ target_sources(unibreak PRIVATE
   ${libunibreak_SOURCE_DIR}/src/unibreakdef.h
   ${libunibreak_SOURCE_DIR}/src/wordbreak.c
   ${libunibreak_SOURCE_DIR}/src/wordbreak.h
-  ${libunibreak_SOURCE_DIR}/src/wordbreakdata.c
   ${libunibreak_SOURCE_DIR}/src/wordbreakdef.h
 )
 target_include_directories(unibreak

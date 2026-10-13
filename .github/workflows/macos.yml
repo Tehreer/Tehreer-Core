@@ -21,6 +21,7 @@ jobs:
     runs-on: macos-latest
 
     strategy:
+      fail-fast: false
       matrix:
         include:
           - compiler: gcc
@@ -30,9 +31,9 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Setup Compiler
         run: |
@@ -49,7 +50,7 @@ jobs:
           cmake -S . -B build-release \
             -DTR_CONFIG_UNITY=ON \
             -DCMAKE_BUILD_TYPE=Release
-          cmake --build build-release
+          cmake --build build-release --parallel
 
       - name: Build in Debug mode
         run: |
@@ -58,7 +59,7 @@ jobs:
             -DENABLE_ASAN=ON \
             -DENABLE_UBSAN=ON \
             -DCMAKE_BUILD_TYPE=Debug
-          cmake --build build-debug
+          cmake --build build-debug --parallel
 
       - name: Run Tests (Debug)
         run: ctest --test-dir build-debug --output-on-failure
