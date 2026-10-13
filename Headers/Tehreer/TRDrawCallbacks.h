@@ -53,6 +53,10 @@ typedef TRUInt32 TRDrawStyle;
  *
  * The glyphs are passed as images if `drawGlyphImage` is set, and as outlines otherwise, if
  * `drawGlyphPath` is set. The functions must not modify the renderer that is drawing.
+ *
+ * `beginShadow` and `endShadow` were added after the other members, at the end of the struct. Code
+ * that builds the struct by hand MUST zero-initialize it first, so that the members it does not
+ * set are `NULL`.
  */
 typedef struct _TRDrawCallbacks {
     /**
@@ -131,9 +135,23 @@ typedef struct _TRDrawCallbacks {
 
     /**
      * Begins a shadow scope: every glyph passed to `drawGlyphImage` or `drawGlyphPath` until the
-     * matching `endShadow` is to be drawn with a shadow. It is called once per glyph run, and only
-     * if the shadow radius of the renderer is above zero. Backgrounds, underlines and
-     * strikethroughs are outside of the scope.
+     * matching `endShadow` is to be drawn with a shadow.
+     *
+     * The scope is opened for a glyph run only if all of these hold: both `beginShadow` and
+     * `endShadow` are set (if only one of them is set, neither is called); at least one of
+     * `drawGlyphImage` and `drawGlyphPath` is set; the run has glyphs; and the shadow radius of the
+     * renderer is above zero, while the radius, the horizontal offset and the vertical offset are
+     * all finite (a negative, NaN or infinite radius, or a NaN or infinite offset, opens no scope).
+     * The run is drawn as usual in each case in which the scope is not opened.
+     *
+     * It is called once for each glyph run that is drawn through the glyph callbacks. A run that
+     * is drawn by `drawReplacement` gets no scope. When the draw style is `TRDrawStyleFillStroke`,
+     * the fill pass and the stroke pass of the run share one scope, so a backend that applies the
+     * shadow to every draw inside of the scope would cast the shadow of the stroke on top of the
+     * fill. To get one shadow for the whole glyph, a backend should draw the scope into a layer and
+     * shadow the layer when `endShadow` is called, or else apply the shadow only to the first draw
+     * of each glyph, which is the fill. Backgrounds, underlines and strikethroughs are outside of
+     * the scope.
      *
      * @param userData
      *      The pointer that was passed with the callbacks.
@@ -149,7 +167,8 @@ typedef struct _TRDrawCallbacks {
     void (*beginShadow)(void *userData, TRFloat radius, TRFloat dx, TRFloat dy, TRColor color);
 
     /**
-     * Ends the shadow scope that `beginShadow` began. It is called only after `beginShadow`.
+     * Ends the shadow scope that `beginShadow` began. It is called only after `beginShadow`, and
+     * under the same conditions as it, once for each scope.
      *
      * @param userData
      *      The pointer that was passed with the callbacks.

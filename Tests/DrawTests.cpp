@@ -18,6 +18,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -1424,6 +1425,34 @@ void recordEndShadow(void *userData) {
     recorder->shadowEvents.push_back('e');
 }
 
+void recordShadowPath(void *userData, TRPathRef path, TRPoint origin, TRDrawStyle style,
+    TRColor color, const TRRect *clip) {
+    auto *recorder = static_cast<Recorder *>(userData);
+    recorder->shadowEvents.push_back('p');
+    recordPath(userData, path, origin, style, color, clip);
+}
+
+void recordShadowReplacement(void *userData, const struct _TRGlyphRun *run, TRPoint origin) {
+    auto *recorder = static_cast<Recorder *>(userData);
+    recorder->shadowEvents.push_back('r');
+    recordReplacement(userData, run, origin);
+}
+
+/* The events of drawing the line with a renderer whose shadow is set as given. */
+vector<char> drawShadowEvents(TRComposedLineRef line, const TRDrawCallbacks &callbacks,
+    TRFloat radius, TRFloat dx, TRFloat dy, TRDrawStyle style = TRDrawStyleFill) {
+    Recorder recorder;
+    TRRendererRef renderer = createRecordingRenderer(&recorder, callbacks);
+    TRRendererSetDrawStyle(renderer, style);
+    TRRendererSetShadowRadius(renderer, radius);
+    TRRendererSetShadowDx(renderer, dx);
+    TRRendererSetShadowDy(renderer, dy);
+    TRComposedLineDraw(line, renderer, { 0.0f, 50.0f });
+    TRRendererRelease(renderer);
+
+    return recorder.shadowEvents;
+}
+
 void DrawTests::testShadow() {
     Fixture f(u"abc");
     TRComposedLineRef line = f.line(0, 3);
@@ -1464,6 +1493,133 @@ void DrawTests::testShadow() {
     TRRendererSetShadowRadius(renderer, 3.0f);
     TRComposedLineDraw(line, renderer, { 0.0f, 50.0f });
     assert((partial.shadowEvents == vector<char>{ 'i', 'i', 'i' }));
+    TRRendererRelease(renderer);
+
+    /* Only one hook set, in either way, opens no scope. */
+    Recorder onlyEnd;
+    callbacks.beginShadow = nullptr;
+    callbacks.endShadow = recordEndShadow;
+    renderer = createRecordingRenderer(&onlyEnd, callbacks);
+    TRRendererSetShadowRadius(renderer, 3.0f);
+    TRComposedLineDraw(line, renderer, { 0.0f, 50.0f });
+    assert((onlyEnd.shadowEvents == vector<char>{ 'i', 'i', 'i' }));
+    TRRendererRelease(renderer);
+
+    callbacks.beginShadow = recordBeginShadow;
+    callbacks.endShadow = recordEndShadow;
+
+    /* A radius that is not above zero or not finite opens no scope, and is stored as it is. */
+    const TRFloat nan = numeric_limits<TRFloat>::quiet_NaN();
+    const TRFloat inf = numeric_limits<TRFloat>::infinity();
+    const vector<char> noScope = { 'i', 'i', 'i' };
+    assert(drawShadowEvents(line, callbacks, 0.0f, 0.0f, 0.0f) == noScope);
+    assert(drawShadowEvents(line, callbacks, -1.0f, 0.0f, 0.0f) == noScope);
+    assert(drawShadowEvents(line, callbacks, -inf, 0.0f, 0.0f) == noScope);
+    assert(drawShadowEvents(line, callbacks, nan, 0.0f, 0.0f) == noScope);
+    assert(drawShadowEvents(line, callbacks, inf, 0.0f, 0.0f) == noScope);
+
+    /* An offset that is not finite opens no scope either. */
+    assert(drawShadowEvents(line, callbacks, 3.0f, nan, 0.0f) == noScope);
+    assert(drawShadowEvents(line, callbacks, 3.0f, inf, 0.0f) == noScope);
+    assert(drawShadowEvents(line, callbacks, 3.0f, -inf, 0.0f) == noScope);
+    assert(drawShadowEvents(line, callbacks, 3.0f, 0.0f, nan) == noScope);
+    assert(drawShadowEvents(line, callbacks, 3.0f, 0.0f, inf) == noScope);
+    assert(drawShadowEvents(line, callbacks, 3.0f, 0.0f, -inf) == noScope);
+    assert((drawShadowEvents(line, callbacks, 3.0f, -5.0f, 6.0f)
+            == vector<char>{ 'b', 'i', 'i', 'i', 'e' }));
+
+    Recorder stored;
+    renderer = createRecordingRenderer(&stored, callbacks);
+    TRRendererSetShadowRadius(renderer, nan);
+    TRRendererSetShadowDx(renderer, inf);
+    TRRendererSetShadowDy(renderer, -inf);
+    assert(TRRendererGetShadowRadius(renderer) != TRRendererGetShadowRadius(renderer));
+    assert(TRRendererGetShadowDx(renderer) == inf);
+    assert(TRRendererGetShadowDy(renderer) == -inf);
+    TRRendererRelease(renderer);
+
+    /* Only a callback for paths is enough to get the scope. */
+    TRDrawCallbacks pathCallbacks = {};
+    pathCallbacks.drawGlyphPath = recordShadowPath;
+    pathCallbacks.beginShadow = recordBeginShadow;
+    pathCallbacks.endShadow = recordEndShadow;
+    assert((drawShadowEvents(line, pathCallbacks, 3.0f, 1.0f, 1.0f)
+            == vector<char>{ 'b', 'p', 'p', 'p', 'e' }));
+
+    /* Without any glyph callback, there is no scope as well. */
+    TRDrawCallbacks hooksOnly = {};
+    hooksOnly.beginShadow = recordBeginShadow;
+    hooksOnly.endShadow = recordEndShadow;
+    assert(drawShadowEvents(line, hooksOnly, 3.0f, 1.0f, 1.0f).empty());
+
+    /* The fill and the stroke of the glyphs share a single scope. */
+    TRDrawCallbacks strokeCallbacks = {};
+    strokeCallbacks.drawGlyphImage = recordShadowImage;
+    strokeCallbacks.beginShadow = recordBeginShadow;
+    strokeCallbacks.endShadow = recordEndShadow;
+    assert((drawShadowEvents(line, strokeCallbacks, 3.0f, 1.0f, 1.0f, TRDrawStyleFillStroke)
+            == vector<char>{ 'b', 'i', 'i', 'i', 'i', 'i', 'i', 'e' }));
+    assert((drawShadowEvents(line, pathCallbacks, 3.0f, 1.0f, 1.0f, TRDrawStyleFillStroke)
+            == vector<char>{ 'b', 'p', 'p', 'p', 'p', 'p', 'p', 'e' }));
+    assert((drawShadowEvents(line, strokeCallbacks, 3.0f, 1.0f, 1.0f, TRDrawStyleStroke)
+            == vector<char>{ 'b', 'i', 'i', 'i', 'e' }));
+
+    /* Each of the runs of a line gets its own scope. */
+    f.setColor(1, 1, TRAttributeForegroundColor, Green);
+    TRComposedLineRef runsLine = f.line(0, 3);
+    assert(TRComposedLineGetGlyphRunCount(runsLine) == 3);
+    assert((drawShadowEvents(runsLine, callbacks, 3.0f, 1.0f, 1.0f)
+            == vector<char>{ 'b', 'i', 'e', 'b', 'i', 'e', 'b', 'i', 'e' }));
+    TRComposedLineRelease(runsLine);
+
+    /* A run with a replacement gets no scope, while the runs around it do. */
+    Fixture g(u"a\uFFFCb");
+    TRFloat extent = 40.0f;
+    TRReplacementCallbacks replacementCallbacks = { computeRoom, nullptr };
+    TRReplacementRef replacement = TRReplacementCreate(&replacementCallbacks, &extent,
+        TRReplacementKindInline);
+    TRAttribute attribute = {};
+    attribute.type = TRAttributeReplacement;
+    attribute.value.replacement = replacement;
+    TRTextSetAttribute(g.text, 1, 1, &attribute);
+
+    TRComposedLineRef replacementLine = g.line(0, 3);
+    assert(TRComposedLineGetGlyphRunCount(replacementLine) == 3);
+
+    TRDrawCallbacks replacementCallbacksWithShadow = callbacks;
+    replacementCallbacksWithShadow.drawReplacement = recordShadowReplacement;
+    assert((drawShadowEvents(replacementLine, replacementCallbacksWithShadow, 3.0f, 1.0f, 1.0f)
+            == vector<char>{ 'b', 'i', 'e', 'r', 'b', 'i', 'e' }));
+
+    TRComposedLineRelease(replacementLine);
+    TRReplacementRelease(replacement);
+
+    /* The values of a scope are those of the renderer at the time of each draw. */
+    Recorder changing;
+    renderer = createRecordingRenderer(&changing, callbacks);
+    TRRendererSetShadowRadius(renderer, 3.0f);
+    TRRendererSetShadowDx(renderer, 2.0f);
+    TRRendererSetShadowDy(renderer, -4.0f);
+    TRRendererSetShadowColor(renderer, TRColorMake(0x80, 1, 2, 3));
+    TRComposedLineDraw(line, renderer, { 0.0f, 50.0f });
+    assert(changing.shadowRadius == 3.0f && changing.shadowDx == 2.0f);
+    assert(changing.shadowDy == -4.0f && changing.shadowColor == TRColorMake(0x80, 1, 2, 3));
+
+    TRRendererSetShadowRadius(renderer, 7.5f);
+    TRRendererSetShadowDx(renderer, -1.5f);
+    TRRendererSetShadowDy(renderer, 9.0f);
+    TRRendererSetShadowColor(renderer, TRColorMake(0xFF, 9, 8, 7));
+    changing.shadowEvents.clear();
+    TRComposedLineDraw(line, renderer, { 0.0f, 50.0f });
+    assert((changing.shadowEvents == vector<char>{ 'b', 'i', 'i', 'i', 'e' }));
+    assert(changing.shadowRadius == 7.5f && changing.shadowDx == -1.5f);
+    assert(changing.shadowDy == 9.0f && changing.shadowColor == TRColorMake(0xFF, 9, 8, 7));
+
+    /* The scope is gone again after the radius is taken back to zero. */
+    TRRendererSetShadowRadius(renderer, 0.0f);
+    changing.shadowEvents.clear();
+    TRComposedLineDraw(line, renderer, { 0.0f, 50.0f });
+    assert((changing.shadowEvents == vector<char>{ 'i', 'i', 'i' }));
     TRRendererRelease(renderer);
 
     TRComposedLineRelease(line);
