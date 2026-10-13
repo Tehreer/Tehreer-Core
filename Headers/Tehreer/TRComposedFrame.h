@@ -141,8 +141,9 @@ TR_PUBLIC TRUInteger TRComposedFrameGetIndexOfLineAtPosition(TRComposedFrameRef 
  * Passes the rectangles that cover a range of code units to the function. A range that spans
  * lines is covered with the paddings of the lines too: the space after the text of the first line
  * up to the edge of the frame, the whole width of each line in between, and the space before the
- * text of the last line. The edges are those of the frame, and the padding follows the direction of
- * the paragraph of the last line.
+ * text of the last line. The edges are those of the frame, and the padding of a line follows the
+ * direction of its own paragraph. A rectangle is clipped to the width of the frame, and a
+ * rectangle that is empty is not passed.
  *
  * @param frame
  *      The frame.

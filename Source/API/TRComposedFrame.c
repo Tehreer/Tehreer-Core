@@ -31,6 +31,7 @@
 
 typedef struct _SelectionContext {
     TRComposedLineRef line;
+    TRFloat frameWidth;
     TRSelectionFunc func;
     void *userData;
     TRBoolean shouldStop;
@@ -77,10 +78,19 @@ static TRRect MakeRect(TRFloat left, TRFloat top, TRFloat right, TRFloat bottom)
     return rect;
 }
 
-/* Passes a rectangle to the function, unless it asked to stop. */
+/*
+ * Passes a rectangle to the function, unless it asked to stop. The rectangle is clipped to the
+ * width of the frame, and it is skipped if nothing is left of it.
+ */
 static void AddSelectionRect(SelectionContext *context, TRRect rect)
 {
-    if (!context->shouldStop) {
+    TRFloat left = NumberMax(rect.origin.x, 0.0f);
+    TRFloat right = NumberMin(rect.origin.x + rect.size.width, context->frameWidth);
+
+    if (!context->shouldStop && left < right) {
+        rect.origin.x = left;
+        rect.size.width = right - left;
+
         context->func(context->userData, rect, &context->shouldStop);
     }
 }
@@ -116,7 +126,8 @@ static void AddSelectionAcrossLines(SelectionContext *context, TRComposedFrameRe
     const TRFloat frameRight = frame->width;
     TRComposedLineRef firstLine = GetFrameLine(frame, firstIndex);
     TRComposedLineRef lastLine = GetFrameLine(frame, lastIndex);
-    TRBoolean isRTL = (lastLine->paragraphLevel & 1) == 1;
+    TRBoolean isFirstRTL = (firstLine->paragraphLevel & 1) == 1;
+    TRBoolean isLastRTL = (lastLine->paragraphLevel & 1) == 1;
     TRUInteger midIndex;
     TRRect rect;
 
@@ -124,7 +135,7 @@ static void AddSelectionAcrossLines(SelectionContext *context, TRComposedFrameRe
     AddSelectionParts(context, firstLine, rangeStart, firstLine->codeUnitEnd);
 
     /* Select trailing padding of first line. */
-    if (isRTL) {
+    if (isFirstRTL) {
         rect = MakeRect(frameLeft, TRComposedLineGetTop(firstLine), firstLine->origin.x,
             TRComposedLineGetBottom(firstLine));
     } else {
@@ -143,7 +154,7 @@ static void AddSelectionAcrossLines(SelectionContext *context, TRComposedFrameRe
     }
 
     /* Select leading padding of last line. */
-    if (isRTL) {
+    if (isLastRTL) {
         rect = MakeRect(lastLine->origin.x + lastLine->extent, TRComposedLineGetTop(lastLine),
             frameRight, TRComposedLineGetBottom(lastLine));
     } else {
@@ -290,6 +301,7 @@ TRBoolean TRComposedFrameEnumerateSelection(TRComposedFrameRef frame, TRUInteger
         TRAssert(firstIndex != TRInvalidIndex && lastIndex != TRInvalidIndex);
 
         context.line = NULL;
+        context.frameWidth = frame->width;
         context.func = func;
         context.userData = userData;
         context.shouldStop = TRFalse;
