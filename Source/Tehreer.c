@@ -27,6 +27,7 @@
 #include <API/TRGlyphCache.c>
 #include <API/TRGlyphImage.c>
 #include <API/TRGlyphRun.c>
+#include <API/TRLineLocator.c>
 #include <API/TRPath.c>
 #include <API/TRRenderer.c>
 #include <API/TRReplacement.c>
