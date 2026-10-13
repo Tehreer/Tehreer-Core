@@ -31,6 +31,7 @@ private:
     void testLineBreaks();
     void testMandatoryBreaks();
     void testGraphemeBreaks();
+    void testWordBreaks();
     void testSurrogatePairs();
     void testEncodingsAgree();
     void testForwardSearch();

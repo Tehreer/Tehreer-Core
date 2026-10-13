@@ -200,7 +200,8 @@ TR_PUBLIC TRBreakMode TRFrameResolverGetTruncationMode(TRFrameResolverRef resolv
 
 /**
  * Sets how the last line of the frame is cut, if there is more text than the frame can show. The
- * default is `TRBreakModeLine`. It does not enable the truncation.
+ * default is `TRBreakModeLine`. `TRBreakModeWord` cuts the text between the word segments of
+ * Unicode. It does not enable the truncation.
  *
  * @param resolver
  *      The resolver.

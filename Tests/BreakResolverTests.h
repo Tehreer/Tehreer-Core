@@ -37,6 +37,10 @@ private:
     void testBackwardAtLeastOneCharacter();
     void testBackwardStopsAtParagraph();
     void testSurrogatePairsAreNotCut();
+    void testForwardWordBreaks();
+    void testBackwardWordBreaks();
+    void testWordBreaksInScripts();
+    void testWordBreaksStopAtParagraph();
     void testMixedSizes();
     void testBlocksEndLinesBeforeThem();
     void testBlockLines();

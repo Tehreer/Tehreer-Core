@@ -29,7 +29,15 @@
 
 static BreakType GetBreakType(TRBreakMode breakMode)
 {
-    return (breakMode == TRBreakModeCharacter ? BreakTypeGrapheme : BreakTypeLine);
+    BreakType breakType = BreakTypeLine;
+
+    if (breakMode == TRBreakModeCharacter) {
+        breakType = BreakTypeGrapheme;
+    } else if (breakMode == TRBreakModeWord) {
+        breakType = BreakTypeWord;
+    }
+
+    return breakType;
 }
 
 /* Finds the first block that starts in the range, which is the one that the break stops before. */
@@ -286,6 +294,34 @@ static TRUInteger SuggestBackwardCharacterBreak(TRTypesetterRef typesetter, TRFl
     return breakIndex;
 }
 
+static TRUInteger SuggestForwardWordBreak(TRTypesetterRef typesetter, TRFloat extent,
+    TRUInteger start, TRUInteger end)
+{
+    TRUInteger breakIndex = FindForwardBreakInRange(typesetter, extent, start, end,
+        TRBreakModeWord);
+
+    /* Take at least one word segment if the extent is too small. */
+    if (breakIndex == start) {
+        breakIndex = BreakClassifierGetForwardBreak(typesetter->breaks, BreakTypeWord, start, end);
+    }
+
+    return breakIndex;
+}
+
+static TRUInteger SuggestBackwardWordBreak(TRTypesetterRef typesetter, TRFloat extent,
+    TRUInteger start, TRUInteger end)
+{
+    TRUInteger breakIndex = FindBackwardBreakInRange(typesetter, extent, start, end,
+        TRBreakModeWord);
+
+    /* Take at least one word segment if the extent is too small. */
+    if (breakIndex == end) {
+        breakIndex = BreakClassifierGetBackwardBreak(typesetter->breaks, BreakTypeWord, end, start);
+    }
+
+    return breakIndex;
+}
+
 TR_INTERNAL TRUInteger BreakResolverSuggestForwardBreak(TRTypesetterRef typesetter, TRFloat extent,
     TRUInteger start, TRUInteger end, TRBreakMode breakMode)
 {
@@ -296,6 +332,8 @@ TR_INTERNAL TRUInteger BreakResolverSuggestForwardBreak(TRTypesetterRef typesett
 
     if (breakMode == TRBreakModeCharacter) {
         breakIndex = SuggestForwardCharacterBreak(typesetter, extent, start, end);
+    } else if (breakMode == TRBreakModeWord) {
+        breakIndex = SuggestForwardWordBreak(typesetter, extent, start, end);
     } else {
         breakIndex = FindForwardBreakInRange(typesetter, extent, start, end, TRBreakModeLine);
 
@@ -318,6 +356,8 @@ TR_INTERNAL TRUInteger BreakResolverSuggestBackwardBreak(TRTypesetterRef typeset
 
     if (breakMode == TRBreakModeCharacter) {
         breakIndex = SuggestBackwardCharacterBreak(typesetter, extent, start, end);
+    } else if (breakMode == TRBreakModeWord) {
+        breakIndex = SuggestBackwardWordBreak(typesetter, extent, start, end);
     } else {
         breakIndex = FindBackwardBreakInRange(typesetter, extent, start, end, TRBreakModeLine);
 
