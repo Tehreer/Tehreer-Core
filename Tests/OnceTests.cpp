@@ -148,7 +148,7 @@ void OnceTests::testRecursiveOnce() {
 void OnceTests::testStressTest() {
     constexpr size_t NumOnces = 100;
 
-    static vector<Once> onces(NumOnces);
+    static Once onces[NumOnces];
     static vector<atomic<size_t>> counts(NumOnces);
 
     for (size_t i = 0; i < NumOnces; i++) {

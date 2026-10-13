@@ -81,7 +81,7 @@ typedef volatile __int64 AtomicUInt;
 typedef AtomicUInt *AtomicUIntRef;
 
 #define AtomicUIntInit(aui, value)      (*(aui) = (__int64)(value))
-#define AtomicUIntLoad(aui)             ((TRUInteger)_InterlockedCompareExchange64(aui, 0, 0))
+#define AtomicUIntLoad(aui)             ((TRUInteger)_InterlockedCompareExchange64((AtomicUIntRef)(aui), 0, 0))
 #define AtomicUIntStore(aui, value)     _InterlockedExchange64(aui, (__int64)(value))
 #define AtomicUIntCompareAndSet(aui, expected, desired) \
     (((TRUInteger)_InterlockedCompareExchange64(aui, (__int64)(desired), (__int64)(*(expected)))) == *(expected))
@@ -97,7 +97,7 @@ typedef volatile long AtomicUInt;
 typedef AtomicUInt *AtomicUIntRef;
 
 #define AtomicUIntInit(aui, value)      (*(aui) = (long)(value))
-#define AtomicUIntLoad(aui)             ((TRUInteger)_InterlockedCompareExchange(aui, 0, 0))
+#define AtomicUIntLoad(aui)             ((TRUInteger)_InterlockedCompareExchange((AtomicUIntRef)(aui), 0, 0))
 #define AtomicUIntStore(aui, value)     _InterlockedExchange(aui, (long)(value))
 #define AtomicUIntCompareAndSet(aui, expected, desired) \
     (((TRUInteger)_InterlockedCompareExchange(aui, (long)(desired), (long)(*(expected)))) == *(expected))
@@ -118,7 +118,7 @@ typedef volatile LONG64 AtomicUInt;
 typedef AtomicUInt *AtomicUIntRef;
 
 #define AtomicUIntInit(aui, value)      (*(aui) = (LONG64)(value))
-#define AtomicUIntLoad(aui)             ((TRUInteger)InterlockedCompareExchange64(aui, 0, 0))
+#define AtomicUIntLoad(aui)             ((TRUInteger)InterlockedCompareExchange64((AtomicUIntRef)(aui), 0, 0))
 #define AtomicUIntStore(aui, value)     InterlockedExchange64(aui, (LONG64)(value))
 #define AtomicUIntCompareAndSet(aui, expected, desired) \
     (((TRUInteger)InterlockedCompareExchange64(aui, (LONG64)(desired), (LONG64)(*(expected)))) == *(expected))
@@ -131,7 +131,7 @@ typedef volatile LONG AtomicUInt;
 typedef AtomicUInt *AtomicUIntRef;
 
 #define AtomicUIntInit(aui, value)      (*(aui) = (LONG)(value))
-#define AtomicUIntLoad(aui)             ((TRUInteger)InterlockedCompareExchange(aui, 0, 0))
+#define AtomicUIntLoad(aui)             ((TRUInteger)InterlockedCompareExchange((AtomicUIntRef)(aui), 0, 0))
 #define AtomicUIntStore(aui, value)     InterlockedExchange(aui, (LONG)(value))
 #define AtomicUIntCompareAndSet(aui, expected, desired) \
     (((TRUInteger)InterlockedCompareExchange(aui, (LONG)(desired), (LONG)(*(expected)))) == *(expected))

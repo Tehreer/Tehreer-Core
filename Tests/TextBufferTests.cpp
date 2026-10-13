@@ -68,7 +68,9 @@ void TextBufferTests::testIsWhitespace() {
 }
 
 void TextBufferTests::testDecode() {
-    const u16string text = u"a\U0001F600" "b\xD800" "c";
+    u16string text = u"a\U0001F600b";
+    text.push_back(0xD800);
+    text += u"c";
     TextBuffer buffer = make16(text);
 
     TRUInteger index = 0;

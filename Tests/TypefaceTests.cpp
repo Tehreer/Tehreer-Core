@@ -480,9 +480,9 @@ void TypefaceTests::testTableData() {
     assert(buffer[0] == 0 && buffer[1] == 1 && buffer[2] == 0 && buffer[3] == 0);
 
     /* A table that does not fit is cut short, and the rest of the buffer is left alone. */
-    uint8_t small[6] = { 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE };
-    assert(TRTypefaceGetTableData(typeface, head, 0, small, 4) == 4);
-    assert(small[1] == 1 && small[4] == 0xEE && small[5] == 0xEE);
+    uint8_t smallBuffer[6] = { 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE };
+    assert(TRTypefaceGetTableData(typeface, head, 0, smallBuffer, 4) == 4);
+    assert(smallBuffer[1] == 1 && smallBuffer[4] == 0xEE && smallBuffer[5] == 0xEE);
 
     /* A part from an offset is the same as that part of the whole table. */
     uint8_t part[8] = { 0 };
@@ -567,8 +567,8 @@ void TypefaceTests::testGlyphAdvance() {
     assert(TRTypefaceGetGlyphAdvance(typeface, 1, 0.0f, TRFalse) == 0.0f);
 
     /* It scales linearly and does not round to pixels. */
-    TRFloat small = TRTypefaceGetGlyphAdvance(typeface, 1, 10.0f, TRFalse);
-    assert(small > 5.43f && small < 5.44f);
+    TRFloat smallAdvance = TRTypefaceGetGlyphAdvance(typeface, 1, 10.0f, TRFalse);
+    assert(smallAdvance > 5.43f && smallAdvance < 5.44f);
 
     /* Vertical advance of a font without vertical metrics is still well defined. */
     assert(TRTypefaceGetGlyphAdvance(typeface, 1, 2048.0f, TRTrue) >= 0.0f);
@@ -735,10 +735,10 @@ void TypefaceTests::testBitmapTypeface() {
     assert(box.size.width > 0.0f && box.size.height > 0.0f);
 
     /* The advance is in the units of the font, so it follows the size without a strike. */
-    TRFloat small = TRTypefaceGetGlyphAdvance(typeface, 3, 32.0f, TRFalse);
+    TRFloat smallAdvance = TRTypefaceGetGlyphAdvance(typeface, 3, 32.0f, TRFalse);
     TRFloat big = TRTypefaceGetGlyphAdvance(typeface, 3, 64.0f, TRFalse);
-    assert(small > 0.0f);
-    assert(fabsf(big - 2.0f * small) < 0.01f);
+    assert(smallAdvance > 0.0f);
+    assert(fabsf(big - 2.0f * smallAdvance) < 0.01f);
 
     /* There are no outlines to make paths from. */
     assert(TRTypefaceCreateGlyphPath(typeface, 3, 32.0f) == nullptr);

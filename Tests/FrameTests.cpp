@@ -71,7 +71,7 @@ constexpr TRFloat Notdef = 908.0f;
 constexpr TRFloat Ascent = 1900.0f;
 constexpr TRFloat Height = 2400.0f;
 
-static bool near(TRFloat a, TRFloat b) {
+static bool isNear(TRFloat a, TRFloat b) {
     return fabsf(a - b) < 0.01f;
 }
 
@@ -164,7 +164,7 @@ void FrameTests::testFitting() {
     /* Lines are moved with the frame that shrinks, as their alignment says. */
     TRFrameResolverSetTextAlignment(f.resolver, TRTextAlignmentRight);
     frame = f.frame();
-    assert(near(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).x, 0.0f));
+    assert(isNear(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).x, 0.0f));
     TRComposedFrameRelease(frame);
 }
 
@@ -256,14 +256,14 @@ void FrameTests::testTruncation() {
     assert((TRComposedFrameGetCodeUnitEnd(frame) - TRComposedFrameGetCodeUnitStart(frame)) == 7);
 
     TRComposedLineRef line = TRComposedFrameGetLine(frame, 0);
-    assert(near(TRComposedLineGetWidth(line), A + B + 3.0f * Notdef));
+    assert(isNear(TRComposedLineGetWidth(line), A + B + 3.0f * Notdef));
     assert((TRComposedLineGetCodeUnitEnd(line) - TRComposedLineGetCodeUnitStart(line)) == 2);
     TRComposedFrameRelease(frame);
 
     /* A line that shows the token is not justified, as it would lose it. */
     TRFrameResolverSetJustificationEnabled(f.resolver, TRTrue);
     frame = f.frame();
-    assert(near(TRComposedLineGetWidth(TRComposedFrameGetLine(frame, 0)), A + B + 3.0f * Notdef));
+    assert(isNear(TRComposedLineGetWidth(TRComposedFrameGetLine(frame, 0)), A + B + 3.0f * Notdef));
     assert(TRComposedLineIsTruncated(TRComposedFrameGetLine(frame, 0)));
     TRComposedFrameRelease(frame);
     TRFrameResolverSetJustificationEnabled(f.resolver, TRFalse);
@@ -272,7 +272,7 @@ void FrameTests::testTruncation() {
     TRFrameResolverSetFrameSize(f.resolver, 10000.0f, Height);
     frame = f.frame();
     assert(TRComposedFrameGetLineCount(frame) == 1);
-    assert(near(TRComposedLineGetWidth(TRComposedFrameGetLine(frame, 0)), 2.0f * (A + B + C) + Notdef));
+    assert(isNear(TRComposedLineGetWidth(TRComposedFrameGetLine(frame, 0)), 2.0f * (A + B + C) + Notdef));
     TRComposedFrameRelease(frame);
 
     TRFrameResolverSetTruncationEnabled(f.resolver, TRFalse);
@@ -310,27 +310,27 @@ void FrameTests::testAlignments() {
     TRFrameResolverSetFrameSize(f.resolver, 5000.0f, 5000.0f);
 
     TRComposedFrameRef frame = f.frame();
-    assert(near(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).x, 0.0f));
+    assert(isNear(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).x, 0.0f));
     TRComposedFrameRelease(frame);
 
     TRFrameResolverSetTextAlignment(f.resolver, TRTextAlignmentTrailing);
     frame = f.frame();
-    assert(near(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).x, 5000.0f - width));
+    assert(isNear(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).x, 5000.0f - width));
     TRComposedFrameRelease(frame);
 
     TRFrameResolverSetTextAlignment(f.resolver, TRTextAlignmentCenter);
     frame = f.frame();
-    assert(near(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).x, (5000.0f - width) / 2.0f));
+    assert(isNear(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).x, (5000.0f - width) / 2.0f));
     TRComposedFrameRelease(frame);
 
     TRFrameResolverSetVerticalAlignment(f.resolver, TRVerticalAlignmentCenter);
     frame = f.frame();
-    assert(near(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).y, Ascent + (5000.0f - Height) / 2.0f));
+    assert(isNear(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).y, Ascent + (5000.0f - Height) / 2.0f));
     TRComposedFrameRelease(frame);
 
     TRFrameResolverSetVerticalAlignment(f.resolver, TRVerticalAlignmentBottom);
     frame = f.frame();
-    assert(near(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).y, Ascent + 5000.0f - Height));
+    assert(isNear(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).y, Ascent + 5000.0f - Height));
     TRComposedFrameRelease(frame);
 
     /* The alignment of a paragraph wins over the one of the resolver. */
@@ -340,7 +340,7 @@ void FrameTests::testAlignments() {
     TRFrameResolverSetTypesetter(f.resolver, f.typesetter);
     TRFrameResolverSetTextAlignment(f.resolver, TRTextAlignmentLeft);
     frame = f.frame();
-    assert(near(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).x, 5000.0f - width));
+    assert(isNear(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).x, 5000.0f - width));
     TRComposedFrameRelease(frame);
 }
 
@@ -361,22 +361,22 @@ void FrameTests::testIndents() {
     /* The first line has 3600 for text, and the second has 3400. */
     TRComposedFrameRef frame = f.frame();
     assert(TRComposedFrameGetLineCount(frame) == 2);
-    assert(near(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).x, 100.0f));
-    assert(near(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 1)).x, 300.0f));
+    assert(isNear(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).x, 100.0f));
+    assert(isNear(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 1)).x, 300.0f));
     TRComposedFrameRelease(frame);
 
     /* Two lines use the first line indent. */
     setParagraphCount(f.text, TRAttributeFirstIndentLineCount, 2);
     useText(f);
     frame = f.frame();
-    assert(near(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 1)).x, 100.0f));
+    assert(isNear(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 1)).x, 100.0f));
     TRComposedFrameRelease(frame);
 
     /* With none, all of them use the head indent. */
     setParagraphCount(f.text, TRAttributeFirstIndentLineCount, 0);
     useText(f);
     frame = f.frame();
-    assert(near(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).x, 300.0f));
+    assert(isNear(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).x, 300.0f));
     TRComposedFrameRelease(frame);
 
     /* A tail indent that is not positive is a margin at the trailing edge. */
@@ -389,7 +389,7 @@ void FrameTests::testIndents() {
     useText(f);
     frame = f.frame();
     assert(TRComposedFrameGetLineCount(frame) == 2);
-    assert(near(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 1)).x, 3400.0f - (A + B + C)));
+    assert(isNear(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 1)).x, 3400.0f - (A + B + C)));
     TRComposedFrameRelease(frame);
 }
 
@@ -403,9 +403,9 @@ void FrameTests::testParagraphSpacing() {
     /* The spacing before the first paragraph and after the last one does not count. */
     TRComposedFrameRef frame = f.frame();
     assert(TRComposedFrameGetLineCount(frame) == 2);
-    assert(near(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).y, Ascent));
-    assert(near(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 1)).y, Height + 150.0f + Ascent));
-    assert(near(TRComposedFrameGetHeight(frame), 2.0f * Height + 150.0f));
+    assert(isNear(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).y, Ascent));
+    assert(isNear(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 1)).y, Height + 150.0f + Ascent));
+    assert(isNear(TRComposedFrameGetHeight(frame), 2.0f * Height + 150.0f));
     TRComposedFrameRelease(frame);
 }
 
@@ -416,17 +416,17 @@ void FrameTests::testLineHeights() {
     TRFrameResolverSetLineHeightMultiplier(f.resolver, 2.0f);
     TRComposedFrameRef frame = f.frame();
     TRComposedLineRef line = TRComposedFrameGetLine(frame, 0);
-    assert(near(TRComposedLineGetAscent(line), Ascent + Height / 2.0f));
-    assert(near(TRComposedLineGetDescent(line), 500.0f + Height / 2.0f));
-    assert(near(TRComposedFrameGetHeight(frame), 2.0f * Height));
+    assert(isNear(TRComposedLineGetAscent(line), Ascent + Height / 2.0f));
+    assert(isNear(TRComposedLineGetDescent(line), 500.0f + Height / 2.0f));
+    assert(isNear(TRComposedFrameGetHeight(frame), 2.0f * Height));
     TRComposedFrameRelease(frame);
 
     TRFrameResolverSetLineHeightMultiplier(f.resolver, 1.0f);
     TRFrameResolverSetExtraLineSpacing(f.resolver, 100.0f);
     frame = f.frame();
     line = TRComposedFrameGetLine(frame, 0);
-    assert(near(TRComposedLineGetLeading(line), 100.0f));
-    assert(near(TRComposedFrameGetHeight(frame), Height + 100.0f));
+    assert(isNear(TRComposedLineGetLeading(line), 100.0f));
+    assert(isNear(TRComposedFrameGetHeight(frame), Height + 100.0f));
     TRComposedFrameRelease(frame);
 
     /* The styles of the paragraphs: multiple, minimum, maximum, and line spacing. */
@@ -436,8 +436,8 @@ void FrameTests::testLineHeights() {
     useText(f);
     frame = f.frame();
     line = TRComposedFrameGetLine(frame, 0);
-    assert(near(TRComposedLineGetAscent(line), Ascent + Height / 2.0f));
-    assert(near(TRComposedLineGetLeading(line), 10.0f));
+    assert(isNear(TRComposedLineGetAscent(line), Ascent + Height / 2.0f));
+    assert(isNear(TRComposedLineGetLeading(line), 10.0f));
     TRComposedFrameRelease(frame);
 
     setParagraph(f.text, TRAttributeLineHeightMultiple, 0.0f);
@@ -445,14 +445,14 @@ void FrameTests::testLineHeights() {
     setParagraph(f.text, TRAttributeMinimumLineHeight, 3000.0f);
     useText(f);
     frame = f.frame();
-    assert(near(TRComposedFrameGetHeight(frame), 3000.0f));
+    assert(isNear(TRComposedFrameGetHeight(frame), 3000.0f));
     TRComposedFrameRelease(frame);
 
     setParagraph(f.text, TRAttributeMinimumLineHeight, 0.0f);
     setParagraph(f.text, TRAttributeMaximumLineHeight, 2000.0f);
     useText(f);
     frame = f.frame();
-    assert(near(TRComposedFrameGetHeight(frame), 2000.0f));
+    assert(isNear(TRComposedFrameGetHeight(frame), 2000.0f));
     TRComposedFrameRelease(frame);
 }
 
@@ -466,9 +466,9 @@ void FrameTests::testJustification() {
 
     /* The first line takes the width, and the last line of the paragraph stays as it is. */
     TRComposedLineRef first = TRComposedFrameGetLine(frame, 0);
-    assert(near(TRComposedLineGetWidth(first) - TRComposedLineGetTrailingWhitespaceExtent(first), 6000.0f));
-    assert(near(TRComposedLineGetWidth(TRComposedFrameGetLine(frame, 1)), A + B));
-    assert(near(TRComposedLineGetOrigin(first).y, Ascent));
+    assert(isNear(TRComposedLineGetWidth(first) - TRComposedLineGetTrailingWhitespaceExtent(first), 6000.0f));
+    assert(isNear(TRComposedLineGetWidth(TRComposedFrameGetLine(frame, 1)), A + B));
+    assert(isNear(TRComposedLineGetOrigin(first).y, Ascent));
     TRComposedFrameRelease(frame);
 
     /* The margins of the paragraph are left out of the width that the line takes. */
@@ -478,8 +478,8 @@ void FrameTests::testJustification() {
     useText(f);
     frame = f.frame();
     first = TRComposedFrameGetLine(frame, 0);
-    assert(near(TRComposedLineGetOrigin(first).x, 100.0f));
-    assert(near(TRComposedLineGetWidth(first) - TRComposedLineGetTrailingWhitespaceExtent(first), 6000.0f));
+    assert(isNear(TRComposedLineGetOrigin(first).x, 100.0f));
+    assert(isNear(TRComposedLineGetWidth(first) - TRComposedLineGetTrailingWhitespaceExtent(first), 6000.0f));
     TRComposedFrameRelease(frame);
 
     TRFrameResolverSetJustificationEnabled(f.resolver, TRFalse);
@@ -488,7 +488,7 @@ void FrameTests::testJustification() {
     useText(f);
     frame = f.frame();
     first = TRComposedFrameGetLine(frame, 0);
-    assert(near(TRComposedLineGetWidth(first) - TRComposedLineGetTrailingWhitespaceExtent(first), 2.0f * (A + B) + Notdef));
+    assert(isNear(TRComposedLineGetWidth(first) - TRComposedLineGetTrailingWhitespaceExtent(first), 2.0f * (A + B) + Notdef));
     TRComposedFrameRelease(frame);
 }
 
@@ -500,12 +500,12 @@ void FrameTests::testRightToLeft() {
     TRComposedFrameRef frame = f.frame();
     TRComposedLineRef line = TRComposedFrameGetLine(frame, 0);
     assert(TRComposedLineGetParagraphLevel(line) == 1);
-    assert(near(TRComposedLineGetOrigin(line).x, 5000.0f - 4.0f * Notdef));
+    assert(isNear(TRComposedLineGetOrigin(line).x, 5000.0f - 4.0f * Notdef));
     TRComposedFrameRelease(frame);
 
     TRFrameResolverSetTextAlignment(f.resolver, TRTextAlignmentLeft);
     frame = f.frame();
-    assert(near(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).x, 0.0f));
+    assert(isNear(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).x, 0.0f));
     TRComposedFrameRelease(frame);
 }
 
@@ -543,21 +543,21 @@ void FrameTests::testSelection() {
     vector<TRRect> rects;
     TRComposedFrameEnumerateSelection(frame, 1, 1, collectRect, &rects);
     assert(rects.size() == 1);
-    assert(near(rects[0].origin.x, A) && near(rects[0].size.width, B));
-    assert(near(rects[0].origin.y, 0.0f) && near(rects[0].size.height, Height));
+    assert(isNear(rects[0].origin.x, A) && isNear(rects[0].size.width, B));
+    assert(isNear(rects[0].origin.y, 0.0f) && isNear(rects[0].size.height, Height));
 
     /* A range over two lines has the paddings in between. */
     rects.clear();
     TRComposedFrameEnumerateSelection(frame, 2, 4, collectRect, &rects);
     assert(rects.size() == 4);
 
-    assert(near(rects[0].origin.x, A + B) && near(rects[0].size.width, C + Notdef));
-    assert(near(rects[1].origin.x, A + B + C + Notdef));
-    assert(near(rects[1].origin.x + rects[1].size.width, 4300.0f));
-    assert(near(rects[2].origin.x, 0.0f) && near(rects[2].size.width, 0.0f));
-    assert(near(rects[2].origin.y, Height));
-    assert(near(rects[3].origin.x, 0.0f) && near(rects[3].size.width, A + B));
-    assert(near(rects[3].origin.y, Height) && near(rects[3].size.height, Height));
+    assert(isNear(rects[0].origin.x, A + B) && isNear(rects[0].size.width, C + Notdef));
+    assert(isNear(rects[1].origin.x, A + B + C + Notdef));
+    assert(isNear(rects[1].origin.x + rects[1].size.width, 4300.0f));
+    assert(isNear(rects[2].origin.x, 0.0f) && isNear(rects[2].size.width, 0.0f));
+    assert(isNear(rects[2].origin.y, Height));
+    assert(isNear(rects[3].origin.x, 0.0f) && isNear(rects[3].size.width, A + B));
+    assert(isNear(rects[3].origin.y, Height) && isNear(rects[3].size.height, Height));
 
     TRComposedFrameRelease(frame);
 
@@ -570,7 +570,7 @@ void FrameTests::testSelection() {
     TRComposedFrameEnumerateSelection(frame, 0, 11, collectRect, &rects);
     bool hasMid = false;
     for (const TRRect &rect : rects) {
-        if (near(rect.origin.y, Height) && near(rect.size.width, 4300.0f)) {
+        if (isNear(rect.origin.y, Height) && isNear(rect.size.width, 4300.0f)) {
             hasMid = true;
         }
     }
@@ -670,7 +670,7 @@ void FrameTests::testFramesOutliveResolver() {
     }
 
     assert(TRComposedFrameGetLineCount(frame) == 2);
-    assert(near(TRComposedLineGetWidth(TRComposedFrameGetLine(frame, 0)), A + B + C + Notdef));
+    assert(isNear(TRComposedLineGetWidth(TRComposedFrameGetLine(frame, 0)), A + B + C + Notdef));
 
     TRComposedFrameRetain(frame);
     TRComposedFrameRelease(frame);
