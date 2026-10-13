@@ -42,6 +42,11 @@ private:
     void testJustification();
     void testRightToLeft();
     void testIndexOfLine();
+    void testHitTest();
+    void testHitTestRightToLeft();
+    void testHitTestMixedDirections();
+    void testHitTestClusters();
+    void testHitTestTruncatedLine();
     void testSelection();
     void testRangesAreChecked();
     void testFramesOutliveResolver();

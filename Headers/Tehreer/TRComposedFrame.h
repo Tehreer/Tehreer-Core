@@ -46,6 +46,45 @@ typedef struct _TRComposedFrame *TRComposedFrameRef;
 typedef void (*TRSelectionFunc)(void *userData, TRRect rect, TRBoolean *stop);
 
 /**
+ * The side of a cluster that a point is on. A cluster is a group of code units that are shown as
+ * one unit, such as a surrogate pair or a ligature, so a caret is never placed inside of it. The
+ * sides follow the order of the text, not the screen: the leading side is where the cluster starts,
+ * which is its left side in a left-to-right run and its right side in a right-to-left run.
+ */
+enum {
+    /** The point is on the side where the cluster starts. */
+    TRHitSideLeading = 0,
+    /** The point is on the side where the cluster ends. */
+    TRHitSideTrailing = 1
+};
+typedef TRUInt8 TRHitSide;
+
+/**
+ * The result of hit testing a position in a frame. The cluster is the one nearest to the position
+ * in the nearest line. A cluster that a run splits is cut at the run. The indices of a cluster of
+ * a truncation token are those of the text of the token, not of the text of the frame.
+ */
+typedef struct _TRHitTestResult {
+    /**
+     * The index of the code unit boundary that is nearest to the position, which is the start of
+     * the cluster for the leading side and its end for the trailing side. A caret is placed here.
+     */
+    TRUInteger codeUnitIndex;
+    /** The index of the first code unit of the cluster. */
+    TRUInteger clusterIndex;
+    /** The number of code units of the cluster. */
+    TRUInteger clusterLength;
+    /** The side of the cluster that the position is on. */
+    TRHitSide side;
+    /**
+     * `TRTrue` if the position is on the cluster itself: within the top and bottom of its line,
+     * and between its left and right edges. It is `TRFalse` for a position that is only nearest
+     * to the cluster, as above the first line, below the last one, or beside the text.
+     */
+    TRBoolean isInside;
+} TRHitTestResult;
+
+/**
  * Returns the index of the first code unit that the frame covers.
  *
  * @param frame
@@ -136,6 +175,37 @@ TR_PUBLIC TRUInteger TRComposedFrameGetIndexOfLineForCodeUnit(TRComposedFrameRef
  */
 TR_PUBLIC TRUInteger TRComposedFrameGetIndexOfLineAtPosition(TRComposedFrameRef frame,
     TRPoint position);
+
+/**
+ * Returns the code unit boundary that is nearest to a position, for placing a caret where the frame
+ * is tapped. The line is the one that has the y of the position, the first line for a position above
+ * the frame, and the last line for one below it. The boundary is snapped to the edge of a cluster.
+ *
+ * @param frame
+ *      The frame.
+ * @param position
+ *      The position in the coordinates of the frame.
+ * @return
+ *      The index of the code unit boundary, from the start of the frame to its end.
+ */
+TR_PUBLIC TRUInteger TRComposedFrameGetCodeUnitIndexAtPosition(TRComposedFrameRef frame,
+    TRPoint position);
+
+/**
+ * Finds the cluster that is hit by a position. The line is the one that has the y of the position,
+ * the first line for a position above the frame, and the last line for one below it. The nearest
+ * cluster of that line is found along the screen, across its runs in either direction. Use the result to place a caret, with its
+ * side telling which edge of the cluster is nearer in the order of the text, or to find the
+ * character that is under a point, when `isInside` is `TRTrue`.
+ *
+ * @param frame
+ *      The frame.
+ * @param position
+ *      The position in the coordinates of the frame.
+ * @return
+ *      The result of the hit test.
+ */
+TR_PUBLIC TRHitTestResult TRComposedFrameHitTest(TRComposedFrameRef frame, TRPoint position);
 
 /**
  * Passes the rectangles that cover a range of code units to the function. A range that spans

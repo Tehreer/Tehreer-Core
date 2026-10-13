@@ -36,6 +36,14 @@ typedef struct _SelectionContext {
     TRBoolean shouldStop;
 } SelectionContext;
 
+/* The extent of a cluster of a run, as distances from the left edge of the run. */
+typedef struct _ClusterBox {
+    TRUInteger start;
+    TRUInteger end;
+    TRFloat left;
+    TRFloat right;
+} ClusterBox;
+
 static void ReleaseLines(Array *lines)
 {
     TRUInteger count = ArrayGetCount(lines);
@@ -156,6 +164,95 @@ static void AddSelectionAcrossLines(SelectionContext *context, TRComposedFrameRe
     AddSelectionParts(context, lastLine, lastLine->codeUnitStart, rangeEnd);
 }
 
+/* ---------- Hit Testing ---------- */
+
+/* Returns how far a distance is from the interval, or zero if it is within the interval. */
+static TRFloat GetGapToInterval(TRFloat distance, TRFloat left, TRFloat right)
+{
+    TRFloat gap = 0.0f;
+
+    if (distance < left) {
+        gap = left - distance;
+    } else if (distance > right) {
+        gap = distance - right;
+    }
+
+    return gap;
+}
+
+/* Returns the cluster of the run that is nearest to a distance from the left edge of the run. */
+static ClusterBox GetNearestCluster(TRGlyphRunRef glyphRun, TRFloat distance)
+{
+    TRUInteger runEnd = TRGlyphRunGetCodeUnitEnd(glyphRun);
+    TRUInteger start = TRGlyphRunGetCodeUnitStart(glyphRun);
+    TRBoolean hasNearest = TRFalse;
+    TRFloat nearestGap = 0.0f;
+    ClusterBox nearest;
+
+    /* The run MUST have at least one code unit. */
+    TRAssert(start < runEnd);
+
+    nearest.start = start;
+    nearest.end = start;
+    nearest.left = 0.0f;
+    nearest.right = 0.0f;
+
+    while (start < runEnd) {
+        TRUInteger clusterEnd = TRGlyphRunGetClusterEnd(glyphRun, start);
+        TRUInteger end = NumberMin(clusterEnd, runEnd);
+        TRFloat startEdge = TRGlyphRunGetCaretEdge(glyphRun, start);
+        TRFloat endEdge = TRGlyphRunGetCaretEdge(glyphRun, end);
+        TRFloat left = NumberMin(startEdge, endEdge);
+        TRFloat right = NumberMax(startEdge, endEdge);
+        TRFloat gap = GetGapToInterval(distance, left, right);
+
+        if (!hasNearest || gap < nearestGap) {
+            hasNearest = TRTrue;
+            nearestGap = gap;
+            nearest.start = start;
+            nearest.end = end;
+            nearest.left = left;
+            nearest.right = right;
+        }
+
+        start = end;
+    }
+
+    return nearest;
+}
+
+/*
+ * Returns the index of the line that a position is in, the first line for a position above it, or
+ * the last one for a position below it.
+ */
+static TRUInteger GetHitLineIndex(TRComposedFrameRef frame, TRPoint position)
+{
+    TRComposedLineRef firstLine = GetFrameLine(frame, 0);
+    TRUInteger lineIndex = 0;
+
+    if (position.y >= TRComposedLineGetTop(firstLine)) {
+        lineIndex = TRComposedFrameGetIndexOfLineAtPosition(frame, position);
+    }
+
+    return lineIndex;
+}
+
+/* Returns the index of the run that covers a distance from the left edge of the line. */
+static TRUInteger GetRunIndexAtDistance(TRComposedLineRef line, TRFloat distance)
+{
+    TRUInteger runIndex = 0;
+    TRUInteger index;
+
+    for (index = line->runCount; index > 0; index--) {
+        if (line->runs[index - 1]->origin.x <= distance) {
+            runIndex = index - 1;
+            break;
+        }
+    }
+
+    return runIndex;
+}
+
 TR_INTERNAL TRComposedFrame *TRComposedFrameCreate(TRUInteger start, TRUInteger end,
     Array *lines, TRFloat width, TRFloat height)
 {
@@ -271,6 +368,41 @@ TRUInteger TRComposedFrameGetIndexOfLineAtPosition(TRComposedFrameRef frame, TRP
     }
 
     return lineIndex;
+}
+
+TRUInteger TRComposedFrameGetCodeUnitIndexAtPosition(TRComposedFrameRef frame, TRPoint position)
+{
+    TRHitTestResult hit = TRComposedFrameHitTest(frame, position);
+
+    return hit.codeUnitIndex;
+}
+
+TRHitTestResult TRComposedFrameHitTest(TRComposedFrameRef frame, TRPoint position)
+{
+    TRUInteger lineIndex = GetHitLineIndex(frame, position);
+    TRComposedLineRef line = GetFrameLine(frame, lineIndex);
+    TRFloat lineTop = TRComposedLineGetTop(line);
+    TRFloat lineBottom = TRComposedLineGetBottom(line);
+    TRFloat lineDistance = position.x - line->origin.x;
+    TRUInteger runIndex = GetRunIndexAtDistance(line, lineDistance);
+    TRGlyphRunRef glyphRun = line->runs[runIndex];
+    TRFloat runDistance = lineDistance - glyphRun->origin.x;
+    ClusterBox cluster = GetNearestCluster(glyphRun, runDistance);
+    TRFloat middle = (cluster.left + cluster.right) / 2.0f;
+    TRBoolean isRTL = TRGlyphRunIsRTL(glyphRun);
+    TRBoolean isLeftHalf = (runDistance <= middle);
+    TRBoolean isLeading = (isLeftHalf != isRTL);
+    TRBoolean isWithinLine = (position.y >= lineTop && position.y <= lineBottom);
+    TRBoolean isWithinCluster = (runDistance >= cluster.left && runDistance <= cluster.right);
+    TRHitTestResult hit;
+
+    hit.clusterIndex = cluster.start;
+    hit.clusterLength = cluster.end - cluster.start;
+    hit.side = (isLeading ? TRHitSideLeading : TRHitSideTrailing);
+    hit.codeUnitIndex = (isLeading ? cluster.start : cluster.end);
+    hit.isInside = (isWithinLine && isWithinCluster);
+
+    return hit;
 }
 
 TRBoolean TRComposedFrameEnumerateSelection(TRComposedFrameRef frame, TRUInteger index,

@@ -60,6 +60,11 @@ void FrameTests::run() {
     testJustification();
     testRightToLeft();
     testIndexOfLine();
+    testHitTest();
+    testHitTestRightToLeft();
+    testHitTestMixedDirections();
+    testHitTestClusters();
+    testHitTestTruncatedLine();
     testSelection();
     testRangesAreChecked();
     testFramesOutliveResolver();
@@ -532,6 +537,162 @@ void FrameTests::testIndexOfLine() {
     assert(TRComposedFrameGetIndexOfLineAtPosition(frame, { 10.0f, -50.0f }) == 1);
     assert(TRComposedFrameGetIndexOfLineAtPosition(frame, { 10.0f, 99999.0f }) == 1);
 
+    TRComposedFrameRelease(frame);
+}
+
+static void assertHit(TRComposedFrameRef frame, TRFloat x, TRFloat y, TRUInteger clusterIndex,
+    TRUInteger clusterLength, TRHitSide side, bool isInside) {
+    TRPoint position = { x, y };
+    TRHitTestResult hit = TRComposedFrameHitTest(frame, position);
+
+    assert(hit.clusterIndex == clusterIndex);
+    assert(hit.clusterLength == clusterLength);
+    assert(hit.side == side);
+    assert(hit.isInside == (isInside ? TRTrue : TRFalse));
+
+    /* The boundary is the edge of the cluster on the side of the position. */
+    assert(hit.codeUnitIndex == (side == TRHitSideLeading ? clusterIndex : clusterIndex + clusterLength));
+    assert(TRComposedFrameGetCodeUnitIndexAtPosition(frame, position) == hit.codeUnitIndex);
+}
+
+void FrameTests::testHitTest() {
+    Fixture f(u"abc");
+    TRComposedFrameRef frame = f.frame();
+
+    /* The halves of a cluster give the boundaries before and after it. */
+    assertHit(frame, 500.0f, 100.0f, 0, 1, TRHitSideLeading, true);
+    assertHit(frame, 900.0f, 100.0f, 0, 1, TRHitSideTrailing, true);
+    assertHit(frame, A + 500.0f, 100.0f, 1, 1, TRHitSideLeading, true);
+    assertHit(frame, A + B + C - 10.0f, 2300.0f, 2, 1, TRHitSideTrailing, true);
+
+    /* A position beside the text is nearest to the first or the last cluster, and is not on it. */
+    assertHit(frame, -50.0f, 100.0f, 0, 1, TRHitSideLeading, false);
+    assertHit(frame, A + B + C + 50.0f, 100.0f, 2, 1, TRHitSideTrailing, false);
+
+    /* A position above or below the only line is in the line for x, but not on the cluster. */
+    assertHit(frame, 500.0f, -100.0f, 0, 1, TRHitSideLeading, false);
+    assertHit(frame, A + 900.0f, Height + 100.0f, 1, 1, TRHitSideTrailing, false);
+    assertHit(frame, -500.0f, -100.0f, 0, 1, TRHitSideLeading, false);
+    assertHit(frame, 90000.0f, 90000.0f, 2, 1, TRHitSideTrailing, false);
+    TRComposedFrameRelease(frame);
+
+    /* Above the first line and below the last one pick the lines at the ends. */
+    Fixture g(u"abc abc");
+    TRFrameResolverSetFrameSize(g.resolver, makeSize(3500.0f, 100000.0f));
+    frame = g.frame();
+    assert(TRComposedFrameGetLineCount(frame) == 2);
+
+    assertHit(frame, 500.0f, 100.0f, 0, 1, TRHitSideLeading, true);
+    assertHit(frame, 500.0f, Height + 100.0f, 4, 1, TRHitSideLeading, true);
+    assertHit(frame, A + 900.0f, -5000.0f, 1, 1, TRHitSideTrailing, false);
+    assertHit(frame, A + 900.0f, 99999.0f, 5, 1, TRHitSideTrailing, false);
+    assertHit(frame, 99999.0f, 99999.0f, 6, 1, TRHitSideTrailing, false);
+
+    /* The result of a position at the end of the first line is the end of that line. */
+    TRPoint end = { 4100.0f, 100.0f };
+    assert(TRComposedFrameGetCodeUnitIndexAtPosition(frame, end) == 4);
+    TRComposedFrameRelease(frame);
+}
+
+void FrameTests::testHitTestRightToLeft() {
+    Fixture f(u"\u05E9\u05DC\u05D5\u05DD");
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(5000.0f, 5000.0f));
+
+    TRComposedFrameRef frame = f.frame();
+    TRFloat left = 5000.0f - 4.0f * Notdef;
+
+    /* The first character is at the right, and its leading side is the right half of it. */
+    assertHit(frame, 4950.0f, 100.0f, 0, 1, TRHitSideLeading, true);
+    assertHit(frame, 4200.0f, 100.0f, 0, 1, TRHitSideTrailing, true);
+    assertHit(frame, left + 3.0f * Notdef - 100.0f, 100.0f, 1, 1, TRHitSideLeading, true);
+
+    /* The last character is at the left, and its trailing side is the left half of it. */
+    assertHit(frame, left + 10.0f, 100.0f, 3, 1, TRHitSideTrailing, true);
+    assertHit(frame, left + Notdef - 10.0f, 100.0f, 3, 1, TRHitSideLeading, true);
+
+    /* Beside the text, the nearest edge is the end at the left and the start at the right. */
+    assertHit(frame, 0.0f, 100.0f, 3, 1, TRHitSideTrailing, false);
+    assertHit(frame, 5000.0f + 400.0f, 100.0f, 0, 1, TRHitSideLeading, false);
+    assertHit(frame, 4950.0f, 4000.0f, 0, 1, TRHitSideLeading, false);
+    TRComposedFrameRelease(frame);
+}
+
+void FrameTests::testHitTestMixedDirections() {
+    /* The latin run takes the space, and the hebrew run follows it with its first letter at right. */
+    Fixture f(u"abc \u05E9\u05DC\u05D5\u05DD");
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(20000.0f, 5000.0f));
+
+    TRComposedFrameRef frame = f.frame();
+    TRComposedLineRef line = TRComposedFrameGetLine(frame, 0);
+    assert(TRComposedLineGetParagraphLevel(line) == 0);
+    assert(TRComposedLineGetGlyphRunCount(line) == 2);
+
+    TRFloat hebrew = A + B + C + Notdef;
+    assertHit(frame, 100.0f, 100.0f, 0, 1, TRHitSideLeading, true);
+    assertHit(frame, A + B + C + 800.0f, 100.0f, 3, 1, TRHitSideTrailing, true);
+
+    /* The right end of the hebrew run is where it starts. */
+    assertHit(frame, hebrew + 4.0f * Notdef - 100.0f, 100.0f, 4, 1, TRHitSideLeading, true);
+    assertHit(frame, hebrew + 4.0f * Notdef - 800.0f, 100.0f, 4, 1, TRHitSideTrailing, true);
+
+    /* The characters of the hebrew run grow toward the left. */
+    assertHit(frame, hebrew + Notdef + 100.0f, 100.0f, 6, 1, TRHitSideTrailing, true);
+    assertHit(frame, hebrew + 10.0f, 100.0f, 7, 1, TRHitSideTrailing, true);
+    assertHit(frame, hebrew + Notdef - 10.0f, 100.0f, 7, 1, TRHitSideLeading, true);
+
+    /* Beyond the end of the line, the caret is at the start of the last run on the screen. */
+    assertHit(frame, hebrew + 4.0f * Notdef + 500.0f, 100.0f, 4, 1, TRHitSideLeading, false);
+    TRComposedFrameRelease(frame);
+}
+
+void FrameTests::testHitTestClusters() {
+    /* A surrogate pair is a single cluster, so the caret cannot be put between its units. */
+    Fixture f(u"a\xD83D\xDE00" u"b");
+    TRComposedFrameRef frame = f.frame();
+
+    assertHit(frame, 100.0f, 100.0f, 0, 1, TRHitSideLeading, true);
+    assertHit(frame, A + 100.0f, 100.0f, 1, 2, TRHitSideLeading, true);
+    assertHit(frame, A + Notdef / 2.0f + 1.0f, 100.0f, 1, 2, TRHitSideTrailing, true);
+    assertHit(frame, A + Notdef - 100.0f, 100.0f, 1, 2, TRHitSideTrailing, true);
+    assertHit(frame, A + Notdef + 100.0f, 100.0f, 3, 1, TRHitSideLeading, true);
+
+    TRPoint inside = { A + Notdef / 2.0f - 1.0f, 100.0f };
+    assert(TRComposedFrameGetCodeUnitIndexAtPosition(frame, inside) == 1);
+    inside.x += 2.0f;
+    assert(TRComposedFrameGetCodeUnitIndexAtPosition(frame, inside) == 3);
+
+    TRComposedFrameRelease(frame);
+}
+
+void FrameTests::testHitTestTruncatedLine() {
+    Fixture f(u"abc abc");
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(6000.0f, Height));
+    TRFrameResolverSetTruncationMode(f.resolver, TRBreakModeCharacter);
+    TRFrameResolverSetTruncationPlace(f.resolver, TRTruncationPlaceEnd);
+    TRFrameResolverSetTruncationEnabled(f.resolver, TRTrue);
+
+    TRComposedFrameRef frame = f.frame();
+    TRComposedLineRef line = TRComposedFrameGetLine(frame, 0);
+    assert(TRComposedLineIsTruncated(line));
+
+    /* The text before the token is hit as usual. */
+    assertHit(frame, 100.0f, 100.0f, 0, 1, TRHitSideLeading, true);
+    assertHit(frame, A + 900.0f, 100.0f, 1, 1, TRHitSideTrailing, true);
+
+    /* The token is on the line, so a position in it is on a cluster too. */
+    TRPoint inToken = { A + B + 100.0f, 100.0f };
+    TRHitTestResult hit = TRComposedFrameHitTest(frame, inToken);
+    assert(hit.isInside && hit.clusterLength == 1);
+
+    inToken.x = A + B + 3.0f * Notdef - 100.0f;
+    hit = TRComposedFrameHitTest(frame, inToken);
+    assert(hit.isInside && hit.clusterLength == 1);
+
+    /* Beyond the token, the nearest cluster is its last one, and the position is not on it. */
+    inToken.x = 90000.0f;
+    hit = TRComposedFrameHitTest(frame, inToken);
+    assert(!hit.isInside && hit.side == TRHitSideTrailing && hit.clusterLength == 1);
+    assert(TRComposedFrameGetCodeUnitIndexAtPosition(frame, inToken) == hit.codeUnitIndex);
     TRComposedFrameRelease(frame);
 }
 
