@@ -34,6 +34,13 @@ static void FinalizeText(ObjectRef object)
     SBTextRelease(text->_sbText);
 }
 
+static TRBoolean IsEncodingValid(TRStringEncoding encoding)
+{
+    return (encoding == TRStringEncodingUTF8
+            || encoding == TRStringEncodingUTF16
+            || encoding == TRStringEncodingUTF32);
+}
+
 static TRText *CreateText(SBMutableTextRef sbText, TRBoolean isMutable)
 {
     TRText *text = NULL;
@@ -61,7 +68,7 @@ TRTextRef TRTextCreate(const void *string, TRUInteger length, TRStringEncoding e
     SBTextConfigRef config = AttributeRegistryGetDefaultConfig();
     SBTextRef sbText = NULL;
 
-    if (config && (string || length == 0)) {
+    if (config && (string || length == 0) && IsEncodingValid(encoding)) {
         sbText = SBTextCreate(string, length, encoding, config);
     }
 
@@ -140,7 +147,7 @@ TRMutableTextRef TRTextCreateMutable(TRStringEncoding encoding)
     SBTextConfigRef config = AttributeRegistryGetDefaultConfig();
     SBMutableTextRef sbText = NULL;
 
-    if (config) {
+    if (config && IsEncodingValid(encoding)) {
         sbText = SBTextCreateMutable(encoding, config);
     }
 

@@ -84,6 +84,11 @@ typedef intptr_t                    TRInteger;
 typedef uintptr_t                   TRUInteger;
 
 /**
+ * A value that indicates an invalid unsigned index, such as when an item is not found.
+ */
+#define TRInvalidIndex              ((TRUInteger)(-1))
+
+/**
  * A type to represent a single-precision floating-point number.
  * Conforms to IEEE 754 standard.
  */

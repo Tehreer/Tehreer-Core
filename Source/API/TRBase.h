@@ -100,11 +100,6 @@
 #endif
 
 /**
- * A value that indicates an invalid unsigned index.
- */
-#define TRInvalidIndex  (TRUInteger)(-1)
-
-/**
  * A range of code units, which starts at `index` and has `length` code units. The public interface
  * takes the index and the length as they are, so a range is only made inside of the library.
  */

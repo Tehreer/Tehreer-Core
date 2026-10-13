@@ -49,7 +49,7 @@ typedef struct _TRText *TRMutableTextRef;
  *      String encoding (UTF-8, UTF-16, or UTF-32).
  * @return
  *      A reference to a text object that the caller owns, or `NULL` if the string is `NULL` for a
- *      length that is not zero, or on failure.
+ *      length that is not zero, the encoding is not valid, or on failure.
  */
 TR_PUBLIC TRTextRef TRTextCreate(const void *string, TRUInteger length, TRStringEncoding encoding);
 
@@ -173,7 +173,8 @@ TR_PUBLIC void TRTextRelease(TRTextRef text);
  * @param encoding
  *      Target encoding for the new text (UTF-8/16/32).
  * @return
- *      A reference to a mutable text object that the caller owns, or `NULL` on failure.
+ *      A reference to a mutable text object that the caller owns, or `NULL` if the encoding is not
+ *      valid or on failure.
  */
 TR_PUBLIC TRMutableTextRef TRTextCreateMutable(TRStringEncoding encoding);
 

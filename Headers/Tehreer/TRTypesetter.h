@@ -202,9 +202,9 @@ TR_PUBLIC TRComposedLineRef TRTypesetterCreateFrameLine(TRTypesetterRef typesett
  * @param tokenLength
  *      Number of code units of the token.
  * @param tokenEncoding
- *      The encoding of the token.
+ *      The encoding of the token. It is ignored if the token string is `NULL` or empty.
  * @return
- *      New line, or `NULL` on failure.
+ *      New line, or `NULL` if the token encoding is not valid, or on failure.
  */
 TR_PUBLIC TRComposedLineRef TRTypesetterCreateTruncationToken(TRTypesetterRef typesetter,
     TRUInteger index, TRUInteger length, TRTruncationPlace truncationPlace,
