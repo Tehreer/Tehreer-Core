@@ -426,6 +426,8 @@ static void DrawGlyphs(TRGlyphRunRef glyphRun, TRRendererRef renderer, TRPoint b
     if (hasOutput && glyphRun->glyphCount > 0) {
         TRFloat scale = renderer->renderScale;
         TRDrawStyle style = renderer->drawStyle;
+        TRBoolean hasShadow = (renderer->shadowRadius > 0.0f && callbacks->beginShadow
+                               && callbacks->endShadow);
         TRColor strokeColor = renderer->strokeColor;
         TRBoolean hasForeground = ((glyphRun->flags & TRGlyphRunFlagForegroundColor) != 0);
         TRColor foregroundColor = (hasForeground ? glyphRun->foregroundColor
@@ -454,11 +456,20 @@ static void DrawGlyphs(TRGlyphRunRef glyphRun, TRRendererRef renderer, TRPoint b
         pass.exactPen.x = penX;
         pass.exactPen.y = penY;
 
+        if (hasShadow) {
+            callbacks->beginShadow(pass.userData, renderer->shadowRadius, renderer->shadowDx,
+                renderer->shadowDy, renderer->shadowColor);
+        }
+
         if (style != TRDrawStyleStroke) {
             DrawGlyphPass(glyphRun, renderer, &pass, TRDrawStyleFill, foregroundColor);
         }
         if (style != TRDrawStyleFill) {
             DrawGlyphPass(glyphRun, renderer, &pass, TRDrawStyleStroke, strokeColor);
+        }
+
+        if (hasShadow) {
+            callbacks->endShadow(pass.userData);
         }
 
         RestoreRendererState(renderer, &state);

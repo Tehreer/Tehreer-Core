@@ -233,6 +233,10 @@ TRRendererRef TRRendererCreate(void)
         renderer->strokeJoin = TRStrokeJoinRound;
         renderer->strokeMiter = 1.0f;
         renderer->strokeColor = TRColorMake(0xFF, 0x00, 0x00, 0x00);
+        renderer->shadowRadius = 0.0f;
+        renderer->shadowDx = 0.0f;
+        renderer->shadowDy = 0.0f;
+        renderer->shadowColor = TRColorMake(0x00, 0x00, 0x00, 0x00);
         renderer->drawStyle = TRDrawStyleFill;
         memset(&renderer->drawCallbacks, 0, sizeof(TRDrawCallbacks));
         renderer->drawUserData = NULL;
@@ -393,6 +397,46 @@ TRColor TRRendererGetStrokeColor(TRRendererRef renderer)
 void TRRendererSetStrokeColor(TRRendererRef renderer, TRColor strokeColor)
 {
     renderer->strokeColor = strokeColor;
+}
+
+TRFloat TRRendererGetShadowRadius(TRRendererRef renderer)
+{
+    return renderer->shadowRadius;
+}
+
+void TRRendererSetShadowRadius(TRRendererRef renderer, TRFloat shadowRadius)
+{
+    renderer->shadowRadius = shadowRadius;
+}
+
+TRFloat TRRendererGetShadowDx(TRRendererRef renderer)
+{
+    return renderer->shadowDx;
+}
+
+void TRRendererSetShadowDx(TRRendererRef renderer, TRFloat shadowDx)
+{
+    renderer->shadowDx = shadowDx;
+}
+
+TRFloat TRRendererGetShadowDy(TRRendererRef renderer)
+{
+    return renderer->shadowDy;
+}
+
+void TRRendererSetShadowDy(TRRendererRef renderer, TRFloat shadowDy)
+{
+    renderer->shadowDy = shadowDy;
+}
+
+TRColor TRRendererGetShadowColor(TRRendererRef renderer)
+{
+    return renderer->shadowColor;
+}
+
+void TRRendererSetShadowColor(TRRendererRef renderer, TRColor shadowColor)
+{
+    renderer->shadowColor = shadowColor;
 }
 
 TRDrawStyle TRRendererGetDrawStyle(TRRendererRef renderer)

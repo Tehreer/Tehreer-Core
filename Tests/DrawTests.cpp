@@ -77,6 +77,7 @@ void DrawTests::run() {
     testFrameOrigins();
     testMissingCallbacks();
     testMissingRenderer();
+    testShadow();
 }
 
 /*
@@ -124,6 +125,12 @@ struct Op {
 struct Recorder {
     TRRendererRef renderer = nullptr;
     vector<Op> ops;
+    /* The shadow scope calls: 'b' for begin, 'e' for end, and 'i' for an image in between. */
+    vector<char> shadowEvents;
+    TRFloat shadowRadius = 0.0f;
+    TRFloat shadowDx = 0.0f;
+    TRFloat shadowDy = 0.0f;
+    TRColor shadowColor = 0;
 };
 
 Op makeOp(Recorder *recorder, Op::Kind kind) {
@@ -1393,6 +1400,72 @@ void DrawTests::testMissingRenderer() {
     TRComposedFrameDraw(frame, nullptr, { 0.0f, 0.0f });
 
     TRComposedFrameRelease(frame);
+    TRComposedLineRelease(line);
+}
+
+void recordShadowImage(void *userData, TRGlyphImageRef image, TRPoint origin, TRFloat scaleX,
+    TRFloat scaleY, TRColor color, const TRRect *clip) {
+    auto *recorder = static_cast<Recorder *>(userData);
+    recorder->shadowEvents.push_back('i');
+    recordImage(userData, image, origin, scaleX, scaleY, color, clip);
+}
+
+void recordBeginShadow(void *userData, TRFloat radius, TRFloat dx, TRFloat dy, TRColor color) {
+    auto *recorder = static_cast<Recorder *>(userData);
+    recorder->shadowEvents.push_back('b');
+    recorder->shadowRadius = radius;
+    recorder->shadowDx = dx;
+    recorder->shadowDy = dy;
+    recorder->shadowColor = color;
+}
+
+void recordEndShadow(void *userData) {
+    auto *recorder = static_cast<Recorder *>(userData);
+    recorder->shadowEvents.push_back('e');
+}
+
+void DrawTests::testShadow() {
+    Fixture f(u"abc");
+    TRComposedLineRef line = f.line(0, 3);
+
+    TRDrawCallbacks callbacks = {};
+    callbacks.drawGlyphImage = recordShadowImage;
+    callbacks.beginShadow = recordBeginShadow;
+    callbacks.endShadow = recordEndShadow;
+
+    /* Without a radius, the scope is never opened. */
+    Recorder plain;
+    TRRendererRef renderer = createRecordingRenderer(&plain, callbacks);
+    TRRendererSetShadowDx(renderer, 2.0f);
+    TRRendererSetShadowColor(renderer, TRColorMake(0x80, 1, 2, 3));
+    TRComposedLineDraw(line, renderer, { 0.0f, 50.0f });
+    assert((plain.shadowEvents == vector<char>{ 'i', 'i', 'i' }));
+    TRRendererRelease(renderer);
+
+    /* A positive radius surrounds the glyphs with the scope and passes the values. */
+    Recorder shadowed;
+    renderer = createRecordingRenderer(&shadowed, callbacks);
+    TRRendererSetShadowRadius(renderer, 3.0f);
+    TRRendererSetShadowDx(renderer, 2.0f);
+    TRRendererSetShadowDy(renderer, -4.0f);
+    TRRendererSetShadowColor(renderer, TRColorMake(0x80, 1, 2, 3));
+    TRComposedLineDraw(line, renderer, { 0.0f, 50.0f });
+    assert((shadowed.shadowEvents == vector<char>{ 'b', 'i', 'i', 'i', 'e' }));
+    assert(shadowed.shadowRadius == 3.0f);
+    assert(shadowed.shadowDx == 2.0f);
+    assert(shadowed.shadowDy == -4.0f);
+    assert(shadowed.shadowColor == TRColorMake(0x80, 1, 2, 3));
+    TRRendererRelease(renderer);
+
+    /* Both hooks are needed, and the other callbacks still work without them. */
+    Recorder partial;
+    callbacks.endShadow = nullptr;
+    renderer = createRecordingRenderer(&partial, callbacks);
+    TRRendererSetShadowRadius(renderer, 3.0f);
+    TRComposedLineDraw(line, renderer, { 0.0f, 50.0f });
+    assert((partial.shadowEvents == vector<char>{ 'i', 'i', 'i' }));
+    TRRendererRelease(renderer);
+
     TRComposedLineRelease(line);
 }
 

@@ -174,7 +174,13 @@ void RendererTests::testDefaults() {
     assert(renderer->strokeMiter == 1.0f);
     assert(renderer->strokeColor == TRColorMake(0xFF, 0, 0, 0));
     assert(renderer->drawStyle == TRDrawStyleFill);
+    assert(TRRendererGetShadowRadius(renderer) == 0.0f);
+    assert(TRRendererGetShadowDx(renderer) == 0.0f);
+    assert(TRRendererGetShadowDy(renderer) == 0.0f);
+    assert(TRRendererGetShadowColor(renderer) == TRColorMake(0, 0, 0, 0));
     assert(renderer->drawCallbacks.drawGlyphImage == nullptr);
+    assert(renderer->drawCallbacks.beginShadow == nullptr);
+    assert(renderer->drawCallbacks.endShadow == nullptr);
     assert(renderer->drawCallbacks.drawGlyphPath == nullptr);
     assert(renderer->drawCallbacks.fillRect == nullptr);
     assert(renderer->drawCallbacks.drawReplacement == nullptr);
@@ -193,6 +199,10 @@ void RendererTests::testDefaults() {
     TRRendererSetStrokeMiter(renderer, 9.0f);
     TRRendererSetStrokeColor(renderer, 0x87654321);
     TRRendererSetDrawStyle(renderer, TRDrawStyleFillStroke);
+    TRRendererSetShadowRadius(renderer, 2.5f);
+    TRRendererSetShadowDx(renderer, 1.5f);
+    TRRendererSetShadowDy(renderer, -3.0f);
+    TRRendererSetShadowColor(renderer, 0x80102030);
 
     int token = 0;
     TRDrawCallbacks callbacks = {};
@@ -211,6 +221,10 @@ void RendererTests::testDefaults() {
     assert(renderer->strokeMiter == 9.0f);
     assert(renderer->strokeColor == 0x87654321);
     assert(renderer->drawStyle == TRDrawStyleFillStroke);
+    assert(TRRendererGetShadowRadius(renderer) == 2.5f);
+    assert(TRRendererGetShadowDx(renderer) == 1.5f);
+    assert(TRRendererGetShadowDy(renderer) == -3.0f);
+    assert(TRRendererGetShadowColor(renderer) == 0x80102030);
     assert(renderer->drawCallbacks.fillRect == callbacks.fillRect);
     assert(renderer->drawUserData == &token);
 
