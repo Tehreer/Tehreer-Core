@@ -35,6 +35,10 @@ private:
     void testFirstLineIndexBelow();
     void testStop();
     void testInvalidArguments();
+    void testInfiniteRects();
+    void testBandLimit();
+    void testNegativeBoxes();
+    void testConcurrentQueries();
     void testReferenceCounting();
 };
 

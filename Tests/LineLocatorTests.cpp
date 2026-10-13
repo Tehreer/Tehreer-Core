@@ -16,11 +16,13 @@
 
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <limits>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <Tehreer/TRComposedFrame.h>
@@ -48,6 +50,12 @@ constexpr TRFloat EmSize = 2048.0f;
 constexpr TRFloat FrameWidth = 3500.0f;
 constexpr TRFloat LineHeight = 2400.0f;
 constexpr TRFloat BandHeight = 512.0f;
+
+static TRSize makeSize(TRFloat width, TRFloat height) {
+    TRSize size = { width, height };
+
+    return size;
+}
 
 static TRRect makeRect(TRFloat x, TRFloat y, TRFloat width, TRFloat height) {
     TRRect rect = { { x, y }, { width, height } };
@@ -201,6 +209,10 @@ void LineLocatorTests::run() {
     testFirstLineIndexBelow();
     testStop();
     testInvalidArguments();
+    testInfiniteRects();
+    testBandLimit();
+    testNegativeBoxes();
+    testConcurrentQueries();
     testReferenceCounting();
 }
 
@@ -476,7 +488,10 @@ void LineLocatorTests::testInvalidArguments() {
     assert(TRLineLocatorEnumerateLines(locator, makeRect(0, nan, 100, 100), count, &calls) == TRFalse);
     assert(TRLineLocatorEnumerateLines(locator, makeRect(0, 0, nan, 100), count, &calls) == TRFalse);
     assert(TRLineLocatorEnumerateLines(locator, makeRect(0, 0, 100, nan), count, &calls) == TRFalse);
-    assert(TRLineLocatorEnumerateLines(locator, makeRect(-inf, 0, inf, 100), count, &calls) == TRFalse);
+    assert(TRLineLocatorEnumerateLines(locator, makeRect(nan, 0, inf, 100), count, &calls) == TRFalse);
+    assert(TRLineLocatorEnumerateLines(locator, makeRect(0, nan, 100, inf), count, &calls) == TRFalse);
+    assert(TRLineLocatorEnumerateLines(locator, makeRect(0, 0, -inf, 100), count, &calls) == TRFalse);
+    assert(TRLineLocatorEnumerateLines(locator, makeRect(0, 0, 100, -inf), count, &calls) == TRFalse);
     assert(calls == 0);
 
     TRRect box = makeRect(7, 8, 9, 10);
@@ -484,6 +499,170 @@ void LineLocatorTests::testInvalidArguments() {
     assert(TRLineLocatorGetLineBox(locator, TRInvalidIndex, &box) == TRFalse);
     assert(box.origin.x == 7 && box.origin.y == 8 && box.size.width == 9 && box.size.height == 10);
     assert(TRLineLocatorGetLineBox(locator, 0, nullptr) == TRFalse);
+
+    TRLineLocatorRelease(locator);
+    TRComposedFrameRelease(frame);
+}
+
+void LineLocatorTests::testInfiniteRects() {
+    Fixture f(makeWords(30));
+    TRComposedFrameRef frame = f.frame();
+    TRLineLocatorRef locator = f.locator(frame);
+    vector<TRRect> boxes = getBoxes(locator);
+    TRFloat inf = numeric_limits<TRFloat>::infinity();
+    vector<TRUInteger> all;
+
+    for (TRUInteger i = 0; i < boxes.size(); i++) {
+        all.push_back(i);
+    }
+
+    /* Everything is asked with an infinite origin and size. */
+    assert(collect(locator, makeRect(-inf, -inf, inf, inf)) == all);
+    assert(collect(locator, makeRect(0.0f, -inf, 100.0f, inf)) == all);
+    assert(collect(locator, makeRect(-inf, 0.0f, inf, getBottom(boxes.back()))) == all);
+    assert(collect(locator, makeRect(0.0f, 0.0f, inf, inf)) == all);
+
+    /* An infinite size reaches only downward from the origin. */
+    TRFloat y = boxes[10].origin.y + 1.0f;
+    assertSameLines(locator, boxes, makeRect(0.0f, y, 100.0f, 1.0e30f));
+    assert(collect(locator, makeRect(0.0f, y, 100.0f, inf)) == bruteForce(boxes, makeRect(0.0f, y, 100.0f, 1.0e30f)));
+    assert(collect(locator, makeRect(-inf, y, inf, 100.0f)) == bruteForce(boxes, makeRect(-1.0e30f, y, 2.0e30f, 100.0f)));
+    assert(collect(locator, makeRect(0.0f, y, 100.0f, inf)).front() != 0);
+    assert(collect(locator, makeRect(0.0f, getBottom(boxes.back()), 100.0f, inf)).empty());
+
+    /* An infinite origin is outside of the frame. */
+    assert(collect(locator, makeRect(0.0f, inf, 100.0f, inf)).empty());
+    assert(collect(locator, makeRect(0.0f, -inf, 100.0f, 100.0f)).empty());
+    assert(collect(locator, makeRect(inf, 0.0f, inf, inf)).empty());
+
+    TRLineLocatorRelease(locator);
+    TRComposedFrameRelease(frame);
+}
+
+void LineLocatorTests::testBandLimit() {
+    /* The bands are limited to 2^22, which are 2^31 units. */
+    {
+        Fixture f(makeWords(3));
+        TRFrameResolverSetFrameSize(f.resolver, makeSize(FrameWidth, 1.0e14f));
+        TRFrameResolverSetExtraLineSpacing(f.resolver, 1.0e12f);
+        TRComposedFrameRef frame = f.frame();
+
+        assert(TRLineLocatorCreate(frame, f.renderer) == nullptr);
+
+        TRComposedFrameRelease(frame);
+    }
+
+    {
+        Fixture f(makeWords(3));
+        TRFrameResolverSetFrameSize(f.resolver, makeSize(FrameWidth, 1.0e14f));
+        TRFrameResolverSetExtraLineSpacing(f.resolver, 1.0e11f);
+        TRComposedFrameRef frame = f.frame();
+
+        assert(TRLineLocatorCreate(frame, f.renderer) == nullptr);
+
+        TRComposedFrameRelease(frame);
+    }
+
+    /* Three lines in a frame that is 1.95 billion units tall still fit, in 3.8 million bands. */
+    {
+        Fixture f(makeWords(3));
+        TRFrameResolverSetFrameSize(f.resolver, makeSize(FrameWidth, 1.0e14f));
+        TRFrameResolverSetExtraLineSpacing(f.resolver, 6.5e8f);
+        TRComposedFrameRef frame = f.frame();
+        TRLineLocatorRef locator = f.locator(frame);
+        vector<TRRect> boxes = getBoxes(locator);
+
+        assert(boxes.size() == 3);
+        assert(getBottom(boxes.back()) > 1.9e9f && getBottom(boxes.back()) < 2.1e9f);
+        assert(collect(locator, makeRect(0.0f, 0.0f, 10.0f, 10.0f)) == vector<TRUInteger>({ 0 }));
+        assertSameLines(locator, boxes, makeRect(0.0f, 6.0e8f, 10.0f, 1.0e9f));
+        assertSameLines(locator, boxes, makeRect(0.0f, 1.5e9f, 10.0f, 1.0e9f));
+        assert(TRLineLocatorGetFirstLineIndexBelow(locator, 5.0e8f) == 0);
+        assert(TRLineLocatorGetFirstLineIndexBelow(locator, 1.0e9f) == 1);
+
+        TRLineLocatorRelease(locator);
+        TRComposedFrameRelease(frame);
+    }
+
+    /* A tall frame of many lines, ten million units, works. */
+    {
+        Fixture f(makeWords(4200));
+        TRComposedFrameRef frame = f.frame();
+        TRLineLocatorRef locator = f.locator(frame);
+        vector<TRRect> boxes = getBoxes(locator);
+
+        assert(getBottom(boxes.back()) > 1.0e7f);
+        assertSameLines(locator, boxes, makeRect(0.0f, 5.0e6f, 3500.0f, 3000.0f));
+
+        TRLineLocatorRelease(locator);
+        TRComposedFrameRelease(frame);
+    }
+}
+
+void LineLocatorTests::testNegativeBoxes() {
+    /* A line height far smaller than the ink puts the ink of line 0 above the top of the frame. */
+    Fixture f(makeWords(20));
+    TRFrameResolverSetLineHeightMultiplier(f.resolver, 0.1f);
+    TRComposedFrameRef frame = f.frame();
+    TRLineLocatorRef locator = f.locator(frame);
+    vector<TRRect> boxes = getBoxes(locator);
+
+    assert(boxes[0].origin.y < 0.0f);
+
+    assertAllRects(locator, getBottom(boxes.back()));
+    assert(contains(collect(locator, makeRect(0.0f, boxes[0].origin.y, 10.0f, 1.0f)), 0));
+    assert(TRLineLocatorGetFirstLineIndexBelow(locator, boxes[0].origin.y - 1.0f) == 0);
+
+    TRLineLocatorRelease(locator);
+    TRComposedFrameRelease(frame);
+}
+
+void LineLocatorTests::testConcurrentQueries() {
+    constexpr size_t NumThreads = 8;
+    constexpr size_t Rounds = 200;
+
+    Fixture f(makeWords(300));
+    TRFrameResolverSetLineHeightMultiplier(f.resolver, 0.5f);
+    TRComposedFrameRef frame = f.frame();
+    TRLineLocatorRef locator = f.locator(frame);
+    vector<TRRect> boxes = getBoxes(locator);
+    TRFloat height = getBottom(boxes.back());
+
+    vector<TRRect> rects;
+    vector<vector<TRUInteger>> expected;
+    vector<TRUInteger> expectedBelow;
+    for (TRFloat y = -500.0f; y < height; y += 977.0f) {
+        TRRect rect = makeRect(0.0f, y, 3500.0f, 1500.0f);
+        rects.push_back(rect);
+        expected.push_back(collect(locator, rect));
+        expectedBelow.push_back(TRLineLocatorGetFirstLineIndexBelow(locator, y));
+    }
+
+    atomic<size_t> mismatches(0);
+    vector<thread> threads;
+
+    for (size_t t = 0; t < NumThreads; t++) {
+        threads.emplace_back([&]() {
+            for (size_t r = 0; r < Rounds; r++) {
+                for (size_t i = 0; i < rects.size(); i++) {
+                    TRUInteger below = TRLineLocatorGetFirstLineIndexBelow(locator, rects[i].origin.y);
+
+                    if (collect(locator, rects[i]) != expected[i]) {
+                        mismatches++;
+                    }
+                    if (below != expectedBelow[i]) {
+                        mismatches++;
+                    }
+                }
+            }
+        });
+    }
+
+    for (auto &t : threads) {
+        t.join();
+    }
+
+    assert(mismatches == 0);
 
     TRLineLocatorRelease(locator);
     TRComposedFrameRelease(frame);
