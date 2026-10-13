@@ -417,6 +417,29 @@ static void DrawGlyphPass(TRGlyphRunRef glyphRun, TRRendererRef renderer, GlyphP
     }
 }
 
+static TRBoolean IsFiniteNumber(TRFloat value)
+{
+    /* The first test is false for NaN, and the second one for infinity. */
+    return (value == value && value - value == 0.0f);
+}
+
+/* The shadow scope is opened only when both hooks are set and the shadow is valid and visible. */
+static TRBoolean HasShadowScope(const TRDrawCallbacks *callbacks, TRRendererRef renderer)
+{
+    TRBoolean hasShadow = TRFalse;
+
+    if (callbacks->beginShadow && callbacks->endShadow) {
+        TRFloat radius = renderer->shadowRadius;
+        TRFloat dx = renderer->shadowDx;
+        TRFloat dy = renderer->shadowDy;
+
+        hasShadow = (radius > 0.0f && IsFiniteNumber(radius) && IsFiniteNumber(dx)
+                     && IsFiniteNumber(dy));
+    }
+
+    return hasShadow;
+}
+
 /* The glyphs are drawn from the start of their clusters, so those of split clusters are whole. */
 static void DrawGlyphs(TRGlyphRunRef glyphRun, TRRendererRef renderer, TRPoint baseline)
 {
@@ -426,8 +449,7 @@ static void DrawGlyphs(TRGlyphRunRef glyphRun, TRRendererRef renderer, TRPoint b
     if (hasOutput && glyphRun->glyphCount > 0) {
         TRFloat scale = renderer->renderScale;
         TRDrawStyle style = renderer->drawStyle;
-        TRBoolean hasShadow = (renderer->shadowRadius > 0.0f && callbacks->beginShadow
-                               && callbacks->endShadow);
+        TRBoolean hasShadow = HasShadowScope(callbacks, renderer);
         TRColor strokeColor = renderer->strokeColor;
         TRBoolean hasForeground = ((glyphRun->flags & TRGlyphRunFlagForegroundColor) != 0);
         TRColor foregroundColor = (hasForeground ? glyphRun->foregroundColor

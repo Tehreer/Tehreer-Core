@@ -418,8 +418,8 @@ TR_PUBLIC TRColor TRRendererGetStrokeColor(TRRendererRef renderer);
 TR_PUBLIC void TRRendererSetStrokeColor(TRRendererRef renderer, TRColor strokeColor);
 
 /**
- * Returns the blur radius of the shadow that is drawn behind the glyphs, as it was set. A negative
- * radius is taken as zero when drawing.
+ * Returns the blur radius of the shadow that is drawn behind the glyphs, as it was set. A radius
+ * that is negative, NaN or infinite is returned as it is, but no shadow is drawn with it.
  *
  * @param renderer
  *      The renderer.
@@ -434,6 +434,10 @@ TR_PUBLIC TRFloat TRRendererGetShadowRadius(TRRendererRef renderer);
  * shadow is applied by the draw callbacks `beginShadow` and `endShadow`, which surround the glyphs
  * of each run.
  *
+ * The value is stored as it is given. No shadow is drawn, and the callbacks are not called, when
+ * the radius is not above zero or is not finite, or when the horizontal or vertical offset is not
+ * finite (NaN or infinity). See `TRDrawCallbacks` for the other conditions.
+ *
  * @param renderer
  *      The renderer.
  * @param shadowRadius
@@ -442,7 +446,8 @@ TR_PUBLIC TRFloat TRRendererGetShadowRadius(TRRendererRef renderer);
 TR_PUBLIC void TRRendererSetShadowRadius(TRRendererRef renderer, TRFloat shadowRadius);
 
 /**
- * Returns the horizontal offset of the shadow.
+ * Returns the horizontal offset of the shadow, as it was set. A NaN or infinite offset is returned
+ * as it is, but no shadow is drawn with it.
  *
  * @param renderer
  *      The renderer.
@@ -452,7 +457,8 @@ TR_PUBLIC void TRRendererSetShadowRadius(TRRendererRef renderer, TRFloat shadowR
 TR_PUBLIC TRFloat TRRendererGetShadowDx(TRRendererRef renderer);
 
 /**
- * Sets the horizontal offset of the shadow. The default is 0.
+ * Sets the horizontal offset of the shadow. The default is 0. The value is stored as it is given,
+ * but no shadow is drawn while it is NaN or infinite.
  *
  * @param renderer
  *      The renderer.
@@ -462,7 +468,8 @@ TR_PUBLIC TRFloat TRRendererGetShadowDx(TRRendererRef renderer);
 TR_PUBLIC void TRRendererSetShadowDx(TRRendererRef renderer, TRFloat shadowDx);
 
 /**
- * Returns the vertical offset of the shadow.
+ * Returns the vertical offset of the shadow, as it was set. A NaN or infinite offset is returned
+ * as it is, but no shadow is drawn with it.
  *
  * @param renderer
  *      The renderer.
@@ -472,7 +479,8 @@ TR_PUBLIC void TRRendererSetShadowDx(TRRendererRef renderer, TRFloat shadowDx);
 TR_PUBLIC TRFloat TRRendererGetShadowDy(TRRendererRef renderer);
 
 /**
- * Sets the vertical offset of the shadow. The default is 0.
+ * Sets the vertical offset of the shadow. The default is 0. The value is stored as it is given,
+ * but no shadow is drawn while it is NaN or infinite.
  *
  * @param renderer
  *      The renderer.
