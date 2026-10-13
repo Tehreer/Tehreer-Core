@@ -370,7 +370,13 @@ static void AppendTokenRuns(TRComposedLineRef token, RunList *list, TRUInteger i
     TRUInteger tokenIndex;
 
     for (tokenIndex = 0; tokenIndex < token->runCount; tokenIndex++) {
-        RunListInsert(list, index + tokenIndex, TRGlyphRunCreateCopy(token->runs[tokenIndex]));
+        TRGlyphRun *tokenRun = TRGlyphRunCreateCopy(token->runs[tokenIndex]);
+
+        if (tokenRun) {
+            tokenRun->flags |= TRGlyphRunFlagToken;
+        }
+
+        RunListInsert(list, index + tokenIndex, tokenRun);
     }
 }
 

@@ -252,7 +252,8 @@ TRBoolean TRComposedLineGetCodeUnitDistance(TRComposedLineRef line, TRUInteger c
         for (runIndex = 0; runIndex < line->runCount; runIndex++) {
             TRGlyphRunRef glyphRun = line->runs[runIndex];
 
-            if (codeUnitIndex >= glyphRun->codeUnitStart && codeUnitIndex < glyphRun->codeUnitEnd) {
+            if (codeUnitIndex >= glyphRun->codeUnitStart && codeUnitIndex < glyphRun->codeUnitEnd
+                && (glyphRun->flags & TRGlyphRunFlagToken) == 0) {
                 extent += TRGlyphRunGetCaretEdge(glyphRun, codeUnitIndex);
                 break;
             } else {
@@ -281,7 +282,8 @@ TRBoolean TRComposedLineEnumerateEdges(TRComposedLineRef line, TRUInteger index,
         for (runIndex = 0; runIndex < line->runCount && !shouldStop; runIndex++) {
             TRGlyphRunRef glyphRun = line->runs[runIndex];
 
-            if (glyphRun->codeUnitStart < rangeEnd && glyphRun->codeUnitEnd > index) {
+            if (glyphRun->codeUnitStart < rangeEnd && glyphRun->codeUnitEnd > index
+                && (glyphRun->flags & TRGlyphRunFlagToken) == 0) {
                 TRUInteger selectionStart = NumberMax(index, glyphRun->codeUnitStart);
                 TRUInteger selectionEnd = NumberMin(rangeEnd, glyphRun->codeUnitEnd);
                 TRFloat leadingEdge = TRGlyphRunGetCaretEdge(glyphRun, selectionStart);
@@ -309,7 +311,7 @@ TRUInteger TRComposedLineGetCodeUnitIndex(TRComposedLineRef line, TRFloat distan
         runIndex -= 1;
         glyphRun = line->runs[runIndex];
 
-        if (glyphRun->origin.x <= distance) {
+        if (glyphRun->origin.x <= distance && (glyphRun->flags & TRGlyphRunFlagToken) == 0) {
             codeUnitIndex = TRGlyphRunGetCodeUnitIndex(glyphRun, distance - glyphRun->origin.x);
             break;
         }

@@ -34,7 +34,9 @@ enum {
     TRGlyphRunFlagBackgroundColor = 1 << 1,
     TRGlyphRunFlagUnderline = 1 << 2,
     TRGlyphRunFlagStrikethrough = 1 << 3,
-    TRGlyphRunFlagDecorationColor = 1 << 4
+    TRGlyphRunFlagDecorationColor = 1 << 4,
+    /* A copy of a truncation token run, whose code units are those of the token's own text. */
+    TRGlyphRunFlagToken = 1 << 5
 };
 typedef TRUInt8 TRGlyphRunFlags;
 

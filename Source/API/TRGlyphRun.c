@@ -915,7 +915,8 @@ TRUInteger TRGlyphRunGetClusterStart(TRGlyphRunRef run, TRUInteger codeUnitIndex
 {
     TRUInteger clusterStart = TRInvalidIndex;
 
-    if (codeUnitIndex >= run->codeUnitStart && codeUnitIndex < run->codeUnitEnd) {
+    if (codeUnitIndex >= run->codeUnitStart && codeUnitIndex < run->codeUnitEnd
+        && (run->flags & TRGlyphRunFlagToken) == 0) {
         clusterStart = TextRunGetClusterStart(run->textRun, codeUnitIndex);
     }
 
@@ -926,7 +927,8 @@ TRUInteger TRGlyphRunGetClusterEnd(TRGlyphRunRef run, TRUInteger codeUnitIndex)
 {
     TRUInteger clusterEnd = TRInvalidIndex;
 
-    if (codeUnitIndex >= run->codeUnitStart && codeUnitIndex < run->codeUnitEnd) {
+    if (codeUnitIndex >= run->codeUnitStart && codeUnitIndex < run->codeUnitEnd
+        && (run->flags & TRGlyphRunFlagToken) == 0) {
         clusterEnd = TextRunGetClusterEnd(run->textRun, codeUnitIndex);
     }
 

@@ -998,6 +998,12 @@ void ComposedLineTests::testTruncation() {
     assert(TRComposedLineGetGlyphRunCount(middle) == 3);
     assert(TRComposedLineIsTruncated(middle));
 
+    /* The token has the range [0, 1) in its own text, which must not match the text at index 0. */
+    Edges edges;
+    assert(TRComposedLineEnumerateEdges(end, 0, 6, collectEdge, &edges));
+    assert(edges.parts.size() == 1);
+    assert(TRComposedLineGetCodeUnitIndex(end, A + B + C / 2.0f) == 2);
+
     /* Nothing is cut out if the text fits. */
     TRComposedLineRef fits = TRTypesetterCreateTruncatedLine(typesetter, all.index, all.length, 10000.0f,
         TRBreakModeCharacter, TRTruncationPlaceEnd, token);
