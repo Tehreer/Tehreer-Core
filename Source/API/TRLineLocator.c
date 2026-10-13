@@ -34,10 +34,18 @@
 #define BandHeight      512.0
 
 /*
- * The greatest number of bands, and of entries in them, that a locator takes. It keeps the sizes of
- * the allocation from overflowing, and refuses lines which are placed absurdly far from each other.
+ * The greatest number of bands that a locator takes: 2^22, which are 2^31 units, about 2.1 billion,
+ * of height. A frame that is ten million units tall takes about 20 thousand bands. The starts of
+ * the bands take 8 bytes each, so at most 32 MB.
  */
-#define MaxBandCount    ((double)(TRInvalidIndex / 16))
+#define MaxBandCount    ((double)(1 << 22))
+
+/*
+ * The greatest number of entries in the bands: 2^24, which take at most 128 MB. A frame whose lines
+ * have boxes of a height of a few bands needs a small multiple of its line count. Both limits also
+ * keep the sums of the sizes of the chunks far from overflowing.
+ */
+#define MaxEntryCount   ((double)(1 << 24))
 
 /*
  * The bands cover the boxes without a gap, from the band of the top of the topmost box, which is
@@ -136,7 +144,10 @@ static TRUInteger GetBandOffset(const TRLineLocator *locator, double band)
     return (TRUInteger)(band - locator->firstBand);
 }
 
-/* Tells if the bands take a number of bands and entries that the locator can have. */
+/*
+ * Tells if the bands take no more bands and entries than the limits. The counts are summed as
+ * doubles, so they cannot wrap, and a box that is not finite does not pass the comparisons.
+ */
 static TRBoolean BandsAreSupported(const TRRect *boxes, TRUInteger lineCount, double *firstBand,
     TRUInteger *bandCount, TRUInteger *entryCount)
 {
@@ -166,7 +177,7 @@ static TRBoolean BandsAreSupported(const TRRect *boxes, TRUInteger lineCount, do
 
     span = maxBand - minBand + 1.0;
 
-    if (span <= MaxBandCount && entries <= MaxBandCount) {
+    if (span <= MaxBandCount && entries <= MaxEntryCount) {
         *firstBand = minBand;
         *bandCount = (TRUInteger)span;
         *entryCount = (TRUInteger)entries;
@@ -307,6 +318,63 @@ static void EnumerateBandLines(const TRLineLocator *locator, TRUInteger offset, 
     }
 }
 
+/*
+ * Passes the lines of the bands from one offset to another, and stops after the band in which the
+ * function asked to stop.
+ */
+static void EnumerateBands(const TRLineLocator *locator, TRUInteger firstOffset,
+    TRUInteger lastOffset, double topBand, const TRRect *rect, TRFloat rectRight,
+    TRFloat rectBottom, TRLineLocatorFunc func, void *userData)
+{
+    TRBoolean shouldStop = TRFalse;
+    TRUInteger offset;
+
+    for (offset = firstOffset; offset <= lastOffset; offset++) {
+        EnumerateBandLines(locator, offset, topBand, rect, rectRight, rectBottom, func, userData,
+            &shouldStop);
+
+        if (shouldStop) {
+            break;
+        }
+    }
+}
+
+/* Gets the edge of a rectangle that is the sum of the origin and the size. */
+static TRBoolean GetRectEdge(TRFloat origin, TRFloat size, TRFloat *edge)
+{
+    TRBoolean isValid = TRFalse;
+
+    /* The size is not a number, or is negative, if it fails the comparison. */
+    if (origin == origin && size >= 0.0f) {
+        /* The sum is not a number if the origin is negative infinity and the size is infinite. */
+        *edge = (size == HUGE_VAL ? HUGE_VAL : origin + size);
+        isValid = TRTrue;
+    }
+
+    return isValid;
+}
+
+/* Returns the first line whose box reaches below a y, among the entries from a position. */
+static TRUInteger FindFirstLineBelow(const TRLineLocator *locator, TRUInteger position, TRFloat y)
+{
+    TRUInteger firstLineIndex = TRInvalidIndex;
+    TRUInteger end = locator->bandStarts[locator->bandCount];
+
+    /* The entries of the bands are one after another, so they are looked at in one go. */
+    for (; position < end; position++) {
+        TRUInteger line = locator->bandLines[position];
+        const TRRect *box = &locator->boxes[line];
+        TRFloat boxBottom = box->origin.y + box->size.height;
+
+        if (boxBottom > y) {
+            firstLineIndex = line;
+            break;
+        }
+    }
+
+    return firstLineIndex;
+}
+
 /* ---------- Public API ---------- */
 
 TRLineLocatorRef TRLineLocatorCreate(TRComposedFrameRef frame, TRRendererRef renderer)
@@ -354,12 +422,11 @@ TRBoolean TRLineLocatorEnumerateLines(TRLineLocatorRef locator, TRRect rect, TRL
     void *userData)
 {
     TRBoolean isEnumerated = TRFalse;
-    TRFloat rectRight = rect.origin.x + rect.size.width;
-    TRFloat rectBottom = rect.origin.y + rect.size.height;
+    TRFloat rectRight;
+    TRFloat rectBottom;
 
-    /* Both sums are not a number if the origin, or the size, is not a number. */
-    if (func && rect.size.width >= 0.0f && rect.size.height >= 0.0f
-        && rectRight == rectRight && rectBottom == rectBottom) {
+    if (func && GetRectEdge(rect.origin.x, rect.size.width, &rectRight)
+        && GetRectEdge(rect.origin.y, rect.size.height, &rectBottom)) {
         double firstBand = locator->firstBand;
         double lastBand = firstBand + (double)(locator->bandCount - 1);
         double topBand = GetBandNumber(rect.origin.y);
@@ -368,22 +435,16 @@ TRBoolean TRLineLocatorEnumerateLines(TRLineLocatorRef locator, TRRect rect, TRL
         isEnumerated = TRTrue;
 
         if (topBand <= lastBand && bottomBand >= firstBand) {
-            TRBoolean shouldStop = TRFalse;
-            TRUInteger offset;
+            TRUInteger firstOffset;
             TRUInteger lastOffset;
 
             topBand = NumberMax(topBand, firstBand);
             bottomBand = NumberMin(bottomBand, lastBand);
+            firstOffset = GetBandOffset(locator, topBand);
             lastOffset = GetBandOffset(locator, bottomBand);
 
-            for (offset = GetBandOffset(locator, topBand); offset <= lastOffset; offset++) {
-                EnumerateBandLines(locator, offset, topBand, &rect, rectRight, rectBottom, func,
-                    userData, &shouldStop);
-
-                if (shouldStop) {
-                    break;
-                }
-            }
+            EnumerateBands(locator, firstOffset, lastOffset, topBand, &rect, rectRight,
+                rectBottom, func, userData);
         }
     }
 
@@ -402,19 +463,8 @@ TRUInteger TRLineLocatorGetFirstLineIndexBelow(TRLineLocatorRef locator, TRFloat
         if (band <= lastBand) {
             TRUInteger offset = GetBandOffset(locator, NumberMax(band, firstBand));
             TRUInteger position = locator->bandStarts[offset];
-            TRUInteger end = locator->bandStarts[locator->bandCount];
 
-            /* The entries of the bands are one after another, so they are looked at in one go. */
-            for (; position < end; position++) {
-                TRUInteger line = locator->bandLines[position];
-                const TRRect *box = &locator->boxes[line];
-                TRFloat boxBottom = box->origin.y + box->size.height;
-
-                if (boxBottom > y) {
-                    firstLineIndex = line;
-                    break;
-                }
-            }
+            firstLineIndex = FindFirstLineBelow(locator, position, y);
         }
     }
 
