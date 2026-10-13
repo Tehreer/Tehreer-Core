@@ -15,14 +15,14 @@
  */
 
 
-#ifndef _TEHREER__LINE_INDEX_TESTS_H
-#define _TEHREER__LINE_INDEX_TESTS_H
+#ifndef _TEHREER__LINE_LOCATOR_TESTS_H
+#define _TEHREER__LINE_LOCATOR_TESTS_H
 
 namespace Tehreer {
 
-class LineIndexTests {
+class LineLocatorTests {
 public:
-    LineIndexTests() = default;
+    LineLocatorTests() = default;
 
     void run();
 

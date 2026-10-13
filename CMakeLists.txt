@@ -242,7 +242,7 @@ if(BUILD_TESTS)
     GlyphBitmapTests
     GlyphCacheTests
     GlyphImageTests
-    LineIndexTests
+    LineLocatorTests
     MemoryTests
     MutexTests
     NameWriterTests
@@ -371,9 +371,9 @@ if(BUILD_TESTS)
     Tests/GlyphImageTests.h
     Tests/GlyphImageTests.cpp
   )
-  set(LineIndexTests
-    Tests/LineIndexTests.h
-    Tests/LineIndexTests.cpp
+  set(LineLocatorTests
+    Tests/LineLocatorTests.h
+    Tests/LineLocatorTests.cpp
   )
   set(RenderableFaceTests
     Tests/RenderableFaceTests.h

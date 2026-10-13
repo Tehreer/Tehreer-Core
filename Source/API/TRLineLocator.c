@@ -22,7 +22,7 @@
 #include <Tehreer/TRComposedFrame.h>
 #include <Tehreer/TRComposedLine.h>
 #include <Tehreer/TRGeometry.h>
-#include <Tehreer/TRLineIndex.h>
+#include <Tehreer/TRLineLocator.h>
 #include <Tehreer/TRRenderer.h>
 
 #include <API/TRAssert.h>
@@ -34,7 +34,7 @@
 #define BandHeight      512.0
 
 /*
- * The greatest number of bands, and of entries in them, that an index takes. It keeps the sizes of
+ * The greatest number of bands, and of entries in them, that a locator takes. It keeps the sizes of
  * the allocation from overflowing, and refuses lines which are placed absurdly far from each other.
  */
 #define MaxBandCount    ((double)(TRInvalidIndex / 16))
@@ -45,7 +45,7 @@
  * `bandLines[bandStarts[b]]` up to, but not including, `bandLines[bandStarts[b + 1]]`, in the
  * order of the frame.
  */
-typedef struct _TRLineIndex {
+typedef struct _TRLineLocator {
     ObjectBase _base;
     double firstBand;
     TRUInteger lineCount;
@@ -53,7 +53,7 @@ typedef struct _TRLineIndex {
     TRRect *boxes;
     TRUInteger *bandStarts;
     TRUInteger *bandLines;
-} TRLineIndex;
+} TRLineLocator;
 
 /* ---------- Boxes ---------- */
 
@@ -130,13 +130,13 @@ static void GetBoxBands(const TRRect *box, double *firstBand, double *lastBand)
     *lastBand = GetBandNumber(bottom);
 }
 
-/* Returns the offset of a band from the first band of the index. */
-static TRUInteger GetBandOffset(const TRLineIndex *lineIndex, double band)
+/* Returns the offset of a band from the first band of the locator. */
+static TRUInteger GetBandOffset(const TRLineLocator *locator, double band)
 {
-    return (TRUInteger)(band - lineIndex->firstBand);
+    return (TRUInteger)(band - locator->firstBand);
 }
 
-/* Tells if the bands take a number of bands and entries that the index can have. */
+/* Tells if the bands take a number of bands and entries that the locator can have. */
 static TRBoolean BandsAreSupported(const TRRect *boxes, TRUInteger lineCount, double *firstBand,
     TRUInteger *bandCount, TRUInteger *entryCount)
 {
@@ -181,11 +181,11 @@ static TRBoolean BandsAreSupported(const TRRect *boxes, TRUInteger lineCount, do
  * Puts the lines into the bands by counting them first, so that each band takes exactly the entries
  * it needs. The starts of the bands are used as the positions to fill, and are moved back after.
  */
-static void FillBands(TRLineIndex *lineIndex)
+static void FillBands(TRLineLocator *locator)
 {
-    TRUInteger lineCount = lineIndex->lineCount;
-    TRUInteger bandCount = lineIndex->bandCount;
-    TRUInteger *bandStarts = lineIndex->bandStarts;
+    TRUInteger lineCount = locator->lineCount;
+    TRUInteger bandCount = locator->bandCount;
+    TRUInteger *bandStarts = locator->bandStarts;
     TRUInteger line;
     TRUInteger band;
 
@@ -195,10 +195,10 @@ static void FillBands(TRLineIndex *lineIndex)
         TRUInteger offset;
         TRUInteger lastOffset;
 
-        GetBoxBands(&lineIndex->boxes[line], &boxFirst, &boxLast);
-        lastOffset = GetBandOffset(lineIndex, boxLast);
+        GetBoxBands(&locator->boxes[line], &boxFirst, &boxLast);
+        lastOffset = GetBandOffset(locator, boxLast);
 
-        for (offset = GetBandOffset(lineIndex, boxFirst); offset <= lastOffset; offset++) {
+        for (offset = GetBandOffset(locator, boxFirst); offset <= lastOffset; offset++) {
             bandStarts[offset + 1] += 1;
         }
     }
@@ -213,11 +213,11 @@ static void FillBands(TRLineIndex *lineIndex)
         TRUInteger offset;
         TRUInteger lastOffset;
 
-        GetBoxBands(&lineIndex->boxes[line], &boxFirst, &boxLast);
-        lastOffset = GetBandOffset(lineIndex, boxLast);
+        GetBoxBands(&locator->boxes[line], &boxFirst, &boxLast);
+        lastOffset = GetBandOffset(locator, boxLast);
 
-        for (offset = GetBandOffset(lineIndex, boxFirst); offset <= lastOffset; offset++) {
-            lineIndex->bandLines[bandStarts[offset]] = line;
+        for (offset = GetBandOffset(locator, boxFirst); offset <= lastOffset; offset++) {
+            locator->bandLines[bandStarts[offset]] = line;
             bandStarts[offset] += 1;
         }
     }
@@ -228,9 +228,9 @@ static void FillBands(TRLineIndex *lineIndex)
     bandStarts[0] = 0;
 }
 
-static TRLineIndex *CreateLineIndex(const TRRect *boxes, TRUInteger lineCount)
+static TRLineLocator *CreateLineLocator(const TRRect *boxes, TRUInteger lineCount)
 {
-    TRLineIndex *lineIndex = NULL;
+    TRLineLocator *locator = NULL;
     double firstBand;
     TRUInteger bandCount;
     TRUInteger entryCount;
@@ -239,30 +239,30 @@ static TRLineIndex *CreateLineIndex(const TRRect *boxes, TRUInteger lineCount)
         TRUInteger sizes[4];
         void *pointers[4];
 
-        sizes[0] = sizeof(TRLineIndex);
+        sizes[0] = sizeof(TRLineLocator);
         sizes[1] = sizeof(TRRect) * lineCount;
         sizes[2] = sizeof(TRUInteger) * (bandCount + 1);
         sizes[3] = sizeof(TRUInteger) * entryCount;
 
         /* The boxes and the bands are in the memory of the object, so it needs no finalizer. */
-        lineIndex = ObjectCreate(sizes, 4, pointers, NULL);
+        locator = ObjectCreate(sizes, 4, pointers, NULL);
 
-        if (lineIndex) {
-            lineIndex->firstBand = firstBand;
-            lineIndex->lineCount = lineCount;
-            lineIndex->bandCount = bandCount;
-            lineIndex->boxes = pointers[1];
-            lineIndex->bandStarts = pointers[2];
-            lineIndex->bandLines = pointers[3];
+        if (locator) {
+            locator->firstBand = firstBand;
+            locator->lineCount = lineCount;
+            locator->bandCount = bandCount;
+            locator->boxes = pointers[1];
+            locator->bandStarts = pointers[2];
+            locator->bandLines = pointers[3];
 
-            memcpy(lineIndex->boxes, boxes, sizes[1]);
-            memset(lineIndex->bandStarts, 0, sizes[2]);
+            memcpy(locator->boxes, boxes, sizes[1]);
+            memset(locator->bandStarts, 0, sizes[2]);
 
-            FillBands(lineIndex);
+            FillBands(locator);
         }
     }
 
-    return lineIndex;
+    return locator;
 }
 
 /* ---------- Queries ---------- */
@@ -283,17 +283,17 @@ static TRBoolean BoxesIntersect(const TRRect *box, const TRRect *rect, TRFloat r
  * the bands of the rectangle, which is the band of the top of its box, or the one of the top of the
  * rectangle if the box starts above it.
  */
-static void EnumerateBandLines(const TRLineIndex *lineIndex, TRUInteger offset, double topBand,
-    const TRRect *rect, TRFloat rectRight, TRFloat rectBottom, TRLineIndexFunc func,
+static void EnumerateBandLines(const TRLineLocator *locator, TRUInteger offset, double topBand,
+    const TRRect *rect, TRFloat rectRight, TRFloat rectBottom, TRLineLocatorFunc func,
     void *userData, TRBoolean *shouldStop)
 {
-    double band = lineIndex->firstBand + (double)offset;
-    TRUInteger position = lineIndex->bandStarts[offset];
-    TRUInteger end = lineIndex->bandStarts[offset + 1];
+    double band = locator->firstBand + (double)offset;
+    TRUInteger position = locator->bandStarts[offset];
+    TRUInteger end = locator->bandStarts[offset + 1];
 
     for (; position < end; position++) {
-        TRUInteger line = lineIndex->bandLines[position];
-        const TRRect *box = &lineIndex->boxes[line];
+        TRUInteger line = locator->bandLines[position];
+        const TRRect *box = &locator->boxes[line];
         double boxBand = GetBandNumber(box->origin.y);
 
         if (NumberMax(boxBand, topBand) == band
@@ -309,9 +309,9 @@ static void EnumerateBandLines(const TRLineIndex *lineIndex, TRUInteger offset, 
 
 /* ---------- Public API ---------- */
 
-TRLineIndexRef TRLineIndexCreate(TRComposedFrameRef frame, TRRendererRef renderer)
+TRLineLocatorRef TRLineLocatorCreate(TRComposedFrameRef frame, TRRendererRef renderer)
 {
-    TRLineIndex *lineIndex = NULL;
+    TRLineLocator *locator = NULL;
 
     if (frame && renderer) {
         Array boxes;
@@ -324,33 +324,33 @@ TRLineIndexRef TRLineIndexCreate(TRComposedFrameRef frame, TRRendererRef rendere
             /* A frame MUST have at least one line. */
             TRAssert(lineCount > 0);
 
-            lineIndex = CreateLineIndex(ArrayGetItems(&boxes), lineCount);
+            locator = CreateLineLocator(ArrayGetItems(&boxes), lineCount);
         }
 
         ArrayFinalize(&boxes);
     }
 
-    return lineIndex;
+    return locator;
 }
 
-TRUInteger TRLineIndexGetLineCount(TRLineIndexRef index)
+TRUInteger TRLineLocatorGetLineCount(TRLineLocatorRef locator)
 {
-    return index->lineCount;
+    return locator->lineCount;
 }
 
-TRBoolean TRLineIndexGetLineBox(TRLineIndexRef index, TRUInteger lineIndex, TRRect *box)
+TRBoolean TRLineLocatorGetLineBox(TRLineLocatorRef locator, TRUInteger lineIndex, TRRect *box)
 {
     TRBoolean isSet = TRFalse;
 
-    if (box && IndexIsValid(lineIndex, index->lineCount)) {
-        *box = index->boxes[lineIndex];
+    if (box && IndexIsValid(lineIndex, locator->lineCount)) {
+        *box = locator->boxes[lineIndex];
         isSet = TRTrue;
     }
 
     return isSet;
 }
 
-TRBoolean TRLineIndexEnumerateLines(TRLineIndexRef index, TRRect rect, TRLineIndexFunc func,
+TRBoolean TRLineLocatorEnumerateLines(TRLineLocatorRef locator, TRRect rect, TRLineLocatorFunc func,
     void *userData)
 {
     TRBoolean isEnumerated = TRFalse;
@@ -360,8 +360,8 @@ TRBoolean TRLineIndexEnumerateLines(TRLineIndexRef index, TRRect rect, TRLineInd
     /* Both sums are not a number if the origin, or the size, is not a number. */
     if (func && rect.size.width >= 0.0f && rect.size.height >= 0.0f
         && rectRight == rectRight && rectBottom == rectBottom) {
-        double firstBand = index->firstBand;
-        double lastBand = firstBand + (double)(index->bandCount - 1);
+        double firstBand = locator->firstBand;
+        double lastBand = firstBand + (double)(locator->bandCount - 1);
         double topBand = GetBandNumber(rect.origin.y);
         double bottomBand = GetBandNumber(rectBottom);
 
@@ -374,10 +374,10 @@ TRBoolean TRLineIndexEnumerateLines(TRLineIndexRef index, TRRect rect, TRLineInd
 
             topBand = NumberMax(topBand, firstBand);
             bottomBand = NumberMin(bottomBand, lastBand);
-            lastOffset = GetBandOffset(index, bottomBand);
+            lastOffset = GetBandOffset(locator, bottomBand);
 
-            for (offset = GetBandOffset(index, topBand); offset <= lastOffset; offset++) {
-                EnumerateBandLines(index, offset, topBand, &rect, rectRight, rectBottom, func,
+            for (offset = GetBandOffset(locator, topBand); offset <= lastOffset; offset++) {
+                EnumerateBandLines(locator, offset, topBand, &rect, rectRight, rectBottom, func,
                     userData, &shouldStop);
 
                 if (shouldStop) {
@@ -390,24 +390,24 @@ TRBoolean TRLineIndexEnumerateLines(TRLineIndexRef index, TRRect rect, TRLineInd
     return isEnumerated;
 }
 
-TRUInteger TRLineIndexGetFirstLineIndexBelow(TRLineIndexRef index, TRFloat y)
+TRUInteger TRLineLocatorGetFirstLineIndexBelow(TRLineLocatorRef locator, TRFloat y)
 {
     TRUInteger firstLineIndex = TRInvalidIndex;
 
     if (y == y) {
-        double firstBand = index->firstBand;
-        double lastBand = firstBand + (double)(index->bandCount - 1);
+        double firstBand = locator->firstBand;
+        double lastBand = firstBand + (double)(locator->bandCount - 1);
         double band = GetBandNumber(y);
 
         if (band <= lastBand) {
-            TRUInteger offset = GetBandOffset(index, NumberMax(band, firstBand));
-            TRUInteger position = index->bandStarts[offset];
-            TRUInteger end = index->bandStarts[index->bandCount];
+            TRUInteger offset = GetBandOffset(locator, NumberMax(band, firstBand));
+            TRUInteger position = locator->bandStarts[offset];
+            TRUInteger end = locator->bandStarts[locator->bandCount];
 
             /* The entries of the bands are one after another, so they are looked at in one go. */
             for (; position < end; position++) {
-                TRUInteger line = index->bandLines[position];
-                const TRRect *box = &index->boxes[line];
+                TRUInteger line = locator->bandLines[position];
+                const TRRect *box = &locator->boxes[line];
                 TRFloat boxBottom = box->origin.y + box->size.height;
 
                 if (boxBottom > y) {
@@ -421,12 +421,12 @@ TRUInteger TRLineIndexGetFirstLineIndexBelow(TRLineIndexRef index, TRFloat y)
     return firstLineIndex;
 }
 
-TRLineIndexRef TRLineIndexRetain(TRLineIndexRef index)
+TRLineLocatorRef TRLineLocatorRetain(TRLineLocatorRef locator)
 {
-    return ObjectRetain((ObjectRef)index);
+    return ObjectRetain((ObjectRef)locator);
 }
 
-void TRLineIndexRelease(TRLineIndexRef index)
+void TRLineLocatorRelease(TRLineLocatorRef locator)
 {
-    ObjectRelease((ObjectRef)index);
+    ObjectRelease((ObjectRef)locator);
 }
