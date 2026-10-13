@@ -418,6 +418,90 @@ TR_PUBLIC TRColor TRRendererGetStrokeColor(TRRendererRef renderer);
 TR_PUBLIC void TRRendererSetStrokeColor(TRRendererRef renderer, TRColor strokeColor);
 
 /**
+ * Returns the blur radius of the shadow that is drawn behind the glyphs, as it was set. A negative
+ * radius is taken as zero when drawing.
+ *
+ * @param renderer
+ *      The renderer.
+ * @return
+ *      The blur radius of the shadow, in pixels.
+ */
+TR_PUBLIC TRFloat TRRendererGetShadowRadius(TRRendererRef renderer);
+
+/**
+ * Sets the blur radius of the shadow that is drawn behind the glyphs. The default is 0, which
+ * disables the shadow. The radius is in pixels and is not multiplied by the render scale. The
+ * shadow is applied by the draw callbacks `beginShadow` and `endShadow`, which surround the glyphs
+ * of each run.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param shadowRadius
+ *      The blur radius of the shadow, in pixels.
+ */
+TR_PUBLIC void TRRendererSetShadowRadius(TRRendererRef renderer, TRFloat shadowRadius);
+
+/**
+ * Returns the horizontal offset of the shadow.
+ *
+ * @param renderer
+ *      The renderer.
+ * @return
+ *      The offset of the shadow along the x axis, in pixels.
+ */
+TR_PUBLIC TRFloat TRRendererGetShadowDx(TRRendererRef renderer);
+
+/**
+ * Sets the horizontal offset of the shadow. The default is 0.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param shadowDx
+ *      The offset of the shadow along the x axis, in pixels, which is positive towards the right.
+ */
+TR_PUBLIC void TRRendererSetShadowDx(TRRendererRef renderer, TRFloat shadowDx);
+
+/**
+ * Returns the vertical offset of the shadow.
+ *
+ * @param renderer
+ *      The renderer.
+ * @return
+ *      The offset of the shadow along the y axis, in pixels.
+ */
+TR_PUBLIC TRFloat TRRendererGetShadowDy(TRRendererRef renderer);
+
+/**
+ * Sets the vertical offset of the shadow. The default is 0.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param shadowDy
+ *      The offset of the shadow along the y axis, in pixels, which is positive downward.
+ */
+TR_PUBLIC void TRRendererSetShadowDy(TRRendererRef renderer, TRFloat shadowDy);
+
+/**
+ * Returns the color of the shadow.
+ *
+ * @param renderer
+ *      The renderer.
+ * @return
+ *      The color of the shadow.
+ */
+TR_PUBLIC TRColor TRRendererGetShadowColor(TRRendererRef renderer);
+
+/**
+ * Sets the color of the shadow. The default is transparent black.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param shadowColor
+ *      The color of the shadow.
+ */
+TR_PUBLIC void TRRendererSetShadowColor(TRRendererRef renderer, TRColor shadowColor);
+
+/**
  * Returns what the draw functions of glyph runs, lines and frames produce for the glyphs.
  *
  * @param renderer

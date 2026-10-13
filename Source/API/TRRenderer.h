@@ -41,6 +41,10 @@ typedef struct _TRRenderer {
     TRStrokeJoin strokeJoin;
     TRFloat strokeMiter;
     TRColor strokeColor;
+    TRFloat shadowRadius;
+    TRFloat shadowDx;
+    TRFloat shadowDy;
+    TRColor shadowColor;
     TRDrawStyle drawStyle;
     TRDrawCallbacks drawCallbacks;
     void *drawUserData;

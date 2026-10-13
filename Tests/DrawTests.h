@@ -48,6 +48,7 @@ private:
     void testFrameOrigins();
     void testMissingCallbacks();
     void testMissingRenderer();
+    void testShadow();
 };
 
 }

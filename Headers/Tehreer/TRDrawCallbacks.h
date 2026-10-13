@@ -128,6 +128,33 @@ typedef struct _TRDrawCallbacks {
      *      The position of the start of the run on its baseline, rounded to whole pixels.
      */
     void (*drawReplacement)(void *userData, const struct _TRGlyphRun *run, TRPoint origin);
+
+    /**
+     * Begins a shadow scope: every glyph passed to `drawGlyphImage` or `drawGlyphPath` until the
+     * matching `endShadow` is to be drawn with a shadow. It is called once per glyph run, and only
+     * if the shadow radius of the renderer is above zero. Backgrounds, underlines and
+     * strikethroughs are outside of the scope.
+     *
+     * @param userData
+     *      The pointer that was passed with the callbacks.
+     * @param radius
+     *      The blur radius of the shadow, in pixels.
+     * @param dx
+     *      The horizontal offset of the shadow, in pixels.
+     * @param dy
+     *      The vertical offset of the shadow, in pixels, which is positive downward.
+     * @param color
+     *      The color of the shadow.
+     */
+    void (*beginShadow)(void *userData, TRFloat radius, TRFloat dx, TRFloat dy, TRColor color);
+
+    /**
+     * Ends the shadow scope that `beginShadow` began. It is called only after `beginShadow`.
+     *
+     * @param userData
+     *      The pointer that was passed with the callbacks.
+     */
+    void (*endShadow)(void *userData);
 } TRDrawCallbacks;
 
 TR_EXTERN_C_END
