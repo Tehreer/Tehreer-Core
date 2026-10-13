@@ -71,6 +71,12 @@ void FontFeaturesTests::testCreate() {
 void FontFeaturesTests::testInvalidCreate() {
     /* Settings that are counted but not given cannot be copied. */
     assert(TRFontFeaturesCreate(nullptr, 2) == nullptr);
+
+    /* A count whose size in bytes does not fit in the address space cannot be allocated. */
+    TROpenTypeFeature setting = { TRTagMake('l', 'i', 'g', 'a'), 0 };
+    const TRUInteger max = static_cast<TRUInteger>(-1);
+    assert(TRFontFeaturesCreate(&setting, max) == nullptr);
+    assert(TRFontFeaturesCreate(&setting, max / sizeof(TROpenTypeFeature) + 1) == nullptr);
 }
 
 void FontFeaturesTests::testEquality() {
