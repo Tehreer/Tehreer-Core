@@ -60,6 +60,10 @@ enum {
     TRAttributeMaximumLineHeight = 17,      /**< Greatest height of a line. */
     TRAttributeLineSpacing = 18             /**< Extra space added below each line. */
 };
+/**
+ * A type to represent the type of an attribute, which is one of the `TRAttribute*` constants above
+ * and decides the member of `TRAttributeValue` to use.
+ */
 typedef TRUInt32 TRAttributeType;
 
 /**
@@ -67,12 +71,16 @@ typedef TRUInt32 TRAttributeType;
  * paragraph, while left and right are absolute.
  */
 enum {
-    TRTextAlignmentLeft = 0,
-    TRTextAlignmentCenter = 1,
-    TRTextAlignmentRight = 2,
-    TRTextAlignmentLeading = 3,
-    TRTextAlignmentTrailing = 4
+    TRTextAlignmentLeft = 0,       /**< Lines are aligned to the left edge. */
+    TRTextAlignmentCenter = 1,     /**< Lines are centered. */
+    TRTextAlignmentRight = 2,      /**< Lines are aligned to the right edge. */
+    TRTextAlignmentLeading = 3,    /**< Lines are aligned to the edge where the paragraph starts. */
+    TRTextAlignmentTrailing = 4    /**< Lines are aligned to the edge where the paragraph ends. */
 };
+/**
+ * A type to represent the alignment of the lines of a paragraph, which is one of the
+ * `TRTextAlignment*` constants above.
+ */
 typedef TRUInt32 TRTextAlignment;
 
 /**
@@ -97,39 +105,48 @@ typedef TRUInt32 TRTextAlignment;
  * positive, it is the distance from the leading edge to the trailing margin, and if it is zero or
  * negative, its absolute value is the distance from the trailing edge. The first indent line count
  * is the number of lines that use the first line head indent; it is 1 by default.
+ *
+ * The heights of the lines of a paragraph are resolved in the order of the line height multiple,
+ * the minimum line height, the maximum line height and the line spacing. Each of the first three is
+ * ignored if it is not positive, and changes the ascent of the line so that its height becomes the
+ * wanted one. The line spacing is added to the leading of the line.
  */
 typedef union _TRAttributeValue {
-    TRTypefaceRef typeface;
-    TRFloat typeSize;
-    TRFloat scaleX;
-    TRFloat scaleY;
-    TRFloat baselineOffset;
-    TRFloat obliqueness;
-    TRReplacementRef replacement;
-    TRColor foregroundColor;
-    TRColor backgroundColor;
-    TRBoolean underline;
-    TRBoolean strikethrough;
-    TRColor decorationColor;
-    const void *userData;
-    TRTag language;
-    TRFontFeaturesRef fontFeatures;
-    TRTextAlignment textAlignment;
-    TRFloat firstLineHeadIndent;
-    TRFloat headIndent;
-    TRFloat tailIndent;
-    TRUInteger firstIndentLineCount;
-    TRFloat paragraphSpacingBefore;
-    TRFloat paragraphSpacing;
-    TRFloat lineHeightMultiple;
-    TRFloat minimumLineHeight;
-    TRFloat maximumLineHeight;
-    TRFloat lineSpacing;
+    TRTypefaceRef typeface;             /**< Value of `TRAttributeTypeface`. */
+    TRFloat typeSize;                   /**< Value of `TRAttributeTypeSize`. */
+    TRFloat scaleX;                     /**< Value of `TRAttributeScaleX`. */
+    TRFloat scaleY;                     /**< Value of `TRAttributeScaleY`. */
+    TRFloat baselineOffset;             /**< Value of `TRAttributeBaselineOffset`. */
+    TRFloat obliqueness;                /**< Value of `TRAttributeObliqueness`. */
+    TRReplacementRef replacement;       /**< Value of `TRAttributeReplacement`. */
+    TRColor foregroundColor;            /**< Value of `TRAttributeForegroundColor`. */
+    TRColor backgroundColor;            /**< Value of `TRAttributeBackgroundColor`. */
+    TRBoolean underline;                /**< Value of `TRAttributeUnderline`. */
+    TRBoolean strikethrough;            /**< Value of `TRAttributeStrikethrough`. */
+    TRColor decorationColor;            /**< Value of `TRAttributeDecorationColor`. */
+    const void *userData;               /**< Value of `TRAttributeUserData`. */
+    TRTag language;                     /**< Value of `TRAttributeLanguage`. */
+    TRFontFeaturesRef fontFeatures;     /**< Value of `TRAttributeFontFeatures`. */
+    TRTextAlignment textAlignment;      /**< Value of `TRAttributeTextAlignment`. */
+    TRFloat firstLineHeadIndent;        /**< Value of `TRAttributeFirstLineHeadIndent`. */
+    TRFloat headIndent;                 /**< Value of `TRAttributeHeadIndent`. */
+    TRFloat tailIndent;                 /**< Value of `TRAttributeTailIndent`. */
+    TRUInteger firstIndentLineCount;    /**< Value of `TRAttributeFirstIndentLineCount`. */
+    TRFloat paragraphSpacingBefore;     /**< Value of `TRAttributeParagraphSpacingBefore`. */
+    TRFloat paragraphSpacing;           /**< Value of `TRAttributeParagraphSpacing`. */
+    TRFloat lineHeightMultiple;         /**< Value of `TRAttributeLineHeightMultiple`. */
+    TRFloat minimumLineHeight;          /**< Value of `TRAttributeMinimumLineHeight`. */
+    TRFloat maximumLineHeight;          /**< Value of `TRAttributeMaximumLineHeight`. */
+    TRFloat lineSpacing;                /**< Value of `TRAttributeLineSpacing`. */
 } TRAttributeValue;
 
+/**
+ * An attribute of a text: a type, and a value whose member depends on the type. For example, the
+ * value of `TRAttributeTypeSize` is read from the `typeSize` member.
+ */
 typedef struct _TRAttribute {
-    TRAttributeType type;
-    TRAttributeValue value;
+    TRAttributeType type;           /**< The type of the attribute. */
+    TRAttributeValue value;         /**< The value of the attribute. */
 } TRAttribute;
 
 TR_EXTERN_C_END

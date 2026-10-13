@@ -63,6 +63,11 @@ TR_PUBLIC TRFontFileRef TRFontFileCreateFromMemory(const void *memory, TRUIntege
  * typeface for each of them, which takes their variation coordinates. Any other face has a single
  * one, which uses the default coordinates of the font. The faces that cannot be loaded have none.
  * A font file always has at least one.
+ *
+ * @param fontFile
+ *      The font file.
+ * @return
+ *      The number of default typefaces of the font file.
  */
 TR_PUBLIC TRUInteger TRFontFileGetTypefaceCount(TRFontFileRef fontFile);
 

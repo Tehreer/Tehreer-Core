@@ -25,24 +25,24 @@ TR_EXTERN_C_BEGIN
  * A point in a two-dimensional coordinate system. The y axis grows downward, as in text layout.
  */
 typedef struct _TRPoint {
-    TRFloat x;
-    TRFloat y;
+    TRFloat x;                      /**< The horizontal coordinate. */
+    TRFloat y;                      /**< The vertical coordinate. */
 } TRPoint;
 
 /**
  * A width and a height.
  */
 typedef struct _TRSize {
-    TRFloat width;
-    TRFloat height;
+    TRFloat width;                  /**< The horizontal extent. */
+    TRFloat height;                 /**< The vertical extent. */
 } TRSize;
 
 /**
  * A rectangle defined by its top-left corner and its size.
  */
 typedef struct _TRRect {
-    TRPoint origin;
-    TRSize size;
+    TRPoint origin;                 /**< The top-left corner. */
+    TRSize size;                    /**< The width and the height. */
 } TRRect;
 
 /**
@@ -50,12 +50,12 @@ typedef struct _TRRect {
  * (a * x + c * y + tx, b * x + d * y + ty).
  */
 typedef struct _TRAffineTransform {
-    TRFloat a;
-    TRFloat b;
-    TRFloat c;
-    TRFloat d;
-    TRFloat tx;
-    TRFloat ty;
+    TRFloat a;                      /**< The horizontal scale of x. */
+    TRFloat b;                      /**< The vertical shear of x. */
+    TRFloat c;                      /**< The horizontal shear of y. */
+    TRFloat d;                      /**< The vertical scale of y. */
+    TRFloat tx;                     /**< The horizontal translation. */
+    TRFloat ty;                     /**< The vertical translation. */
 } TRAffineTransform;
 
 TR_EXTERN_C_END

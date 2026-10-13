@@ -21,18 +21,24 @@
 
 TR_EXTERN_C_BEGIN
 
+/** The major version number of the library. */
 #define TEHREER_VERSION_MAJOR      1
+/** The minor version number of the library. */
 #define TEHREER_VERSION_MINOR      0
+/** The patch version number of the library. */
 #define TEHREER_VERSION_PATRH      0
+/** The version of the library as a string in the form `"MAJOR.MINOR.PATRH"`. */
 #define TEHREER_VERSION_STRING     "1.0.0"
 
 /**
- * Returns the version string of the Tehreer library.
+ * Returns the version string of the Tehreer library, in the form `"MAJOR.MINOR.PATRH"`.
  *
- * This function returns a constant null-terminated string representing the version of the linked
- * Tehreer library, in the format "MAJOR.MINOR.PATRH".
+ * @warning
+ *      This function is declared but the library does not define it, so calling it fails to link.
+ *      Use `TEHREER_VERSION_STRING` instead.
  *
- * @return A string representing the version (e.g. "1.0.0").
+ * @return
+ *      A constant null-terminated string, e.g. `"1.0.0"`.
  */
 TR_PUBLIC const char *TRVersionGetString(void);
 

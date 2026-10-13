@@ -51,73 +51,203 @@ typedef const struct _TRComposedLine *TRComposedLineRef;
 typedef void (*TREdgeFunc)(void *userData, TRFloat left, TRFloat right, TRBoolean *stop);
 
 /**
- * Returns the index of the first code unit that the line covers, and the index after the last one.
+ * Returns the index of the first code unit that the line covers.
+ *
+ * @param line
+ *      The line.
+ * @return
+ *      The index of the first code unit that the line covers.
  */
 TR_PUBLIC TRUInteger TRComposedLineGetCodeUnitStart(TRComposedLineRef line);
+
+/**
+ * Returns the index after the last code unit that the line covers.
+ *
+ * @param line
+ *      The line.
+ * @return
+ *      The index after the last code unit that the line covers.
+ */
 TR_PUBLIC TRUInteger TRComposedLineGetCodeUnitEnd(TRComposedLineRef line);
 
 /**
  * Returns the base level of the paragraph of the line: even for left-to-right and odd for
  * right-to-left.
+ *
+ * @param line
+ *      The line.
+ * @return
+ *      The base level of the paragraph of the line: even for left-to-right and odd for right-to-
+ *      left.
  */
 TR_PUBLIC TRUInt8 TRComposedLineGetParagraphLevel(TRComposedLineRef line);
 
 /**
  * Returns the position of the start of the line on its baseline.
+ *
+ * @param line
+ *      The line.
+ * @return
+ *      The position of the start of the line on its baseline.
  */
 TR_PUBLIC TRPoint TRComposedLineGetOrigin(TRComposedLineRef line);
 
 /**
- * Returns the distance from the baseline to the top of the line, to its bottom, and the extra
- * space below it.
+ * Returns the distance from the baseline to the top of the line. It is the greatest ascent of the
+ * glyph runs of the line, or the ascent of the replacement for a block line.
+ *
+ * @param line
+ *      The line.
+ * @return
+ *      The distance from the baseline to the top of the line.
  */
 TR_PUBLIC TRFloat TRComposedLineGetAscent(TRComposedLineRef line);
+
+/**
+ * Returns the distance from the baseline to the bottom of the line, which is the greatest descent
+ * of the glyph runs of the line, or the descent of the replacement for a block line.
+ *
+ * @param line
+ *      The line.
+ * @return
+ *      The distance from the baseline to the bottom of the line, which is the greatest descent of
+ *      the glyph runs of the line, or the descent of the replacement for a block line.
+ */
 TR_PUBLIC TRFloat TRComposedLineGetDescent(TRComposedLineRef line);
+
+/**
+ * Returns the extra space below the descent of the line, which is the greatest leading of the glyph
+ * runs of the line, or the leading of the replacement for a block line.
+ *
+ * @param line
+ *      The line.
+ * @return
+ *      The extra space below the descent of the line, which is the greatest leading of the glyph
+ *      runs of the line, or the leading of the replacement for a block line.
+ */
 TR_PUBLIC TRFloat TRComposedLineGetLeading(TRComposedLineRef line);
 
 /**
- * Returns the extent of the line along its direction, and its height with the leading.
+ * Returns the extent of the line along its direction, which is the sum of the widths of its glyph
+ * runs, including the trailing whitespace.
+ *
+ * @param line
+ *      The line.
+ * @return
+ *      The extent of the line along its direction, which is the sum of the widths of its glyph
+ *      runs, including the trailing whitespace.
  */
 TR_PUBLIC TRFloat TRComposedLineGetWidth(TRComposedLineRef line);
+
+/**
+ * Returns the height of the line, which is the sum of its ascent, descent and leading.
+ *
+ * @param line
+ *      The line.
+ * @return
+ *      The height of the line, which is the sum of its ascent, descent and leading.
+ */
 TR_PUBLIC TRFloat TRComposedLineGetHeight(TRComposedLineRef line);
 
 /**
- * Returns the edges of the line in the coordinates of its frame: the top without the ascent
- * above the baseline, the bottom with the descent and the leading, and the left and right.
+ * Returns the top edge of the line, which is its ascent above the y of its origin.
+ *
+ * @param line
+ *      The line.
+ * @return
+ *      The top edge of the line, which is its ascent above the y of its origin.
  */
 TR_PUBLIC TRFloat TRComposedLineGetTop(TRComposedLineRef line);
+
+/**
+ * Returns the bottom edge of the line, which is its descent and leading below the y of its origin.
+ *
+ * @param line
+ *      The line.
+ * @return
+ *      The bottom edge of the line, which is its descent and leading below the y of its origin.
+ */
 TR_PUBLIC TRFloat TRComposedLineGetBottom(TRComposedLineRef line);
+
+/**
+ * Returns the left edge of the line, which is the x of its origin.
+ *
+ * @param line
+ *      The line.
+ * @return
+ *      The left edge of the line, which is the x of its origin.
+ */
 TR_PUBLIC TRFloat TRComposedLineGetLeft(TRComposedLineRef line);
+
+/**
+ * Returns the right edge of the line, which is its width after the x of its origin.
+ *
+ * @param line
+ *      The line.
+ * @return
+ *      The right edge of the line, which is its width after the x of its origin.
+ */
 TR_PUBLIC TRFloat TRComposedLineGetRight(TRComposedLineRef line);
 
 /**
  * Returns the extent of the whitespace at the end of the line, which is part of its width.
+ *
+ * @param line
+ *      The line.
+ * @return
+ *      The extent of the whitespace at the end of the line, which is part of its width.
  */
 TR_PUBLIC TRFloat TRComposedLineGetTrailingWhitespaceExtent(TRComposedLineRef line);
 
 /**
  * Returns whether the line holds a block replacement, which is as tall as the replacement and has
  * nothing else.
+ *
+ * @param line
+ *      The line.
+ * @return
+ *      `TRTrue` if the line holds a block replacement, `TRFalse` otherwise.
  */
 TR_PUBLIC TRBoolean TRComposedLineIsBlock(TRComposedLineRef line);
 
 /**
  * Returns whether the line shows a token in place of some of its text. Such a line cannot be
  * made again from its range, as that would show the text that was cut out.
+ *
+ * @param line
+ *      The line.
+ * @return
+ *      `TRTrue` if the line shows a token in place of some of its text, `TRFalse` otherwise.
  */
 TR_PUBLIC TRBoolean TRComposedLineIsTruncated(TRComposedLineRef line);
 
 /**
- * Returns the number of glyph runs, and a glyph run by its index, which is `NULL` if the index is
- * not less than the count. The run is not retained for the caller, and stays valid as long as the
- * line is alive.
+ * Returns the number of glyph runs in the line.
+ *
+ * @param line
+ *      The line.
+ * @return
+ *      The number of glyph runs.
  */
 TR_PUBLIC TRUInteger TRComposedLineGetGlyphRunCount(TRComposedLineRef line);
+
+/**
+ * Returns a glyph run of the line, in the order they appear on the screen. The run is not retained
+ * for the caller, and stays valid as long as the line is alive.
+ *
+ * @param line
+ *      The line.
+ * @param index
+ *      The index of the glyph run, less than `TRComposedLineGetGlyphRunCount()`.
+ * @return
+ *      The glyph run, or `NULL` if the index is not less than the count.
+ */
 TR_PUBLIC TRGlyphRunRef TRComposedLineGetGlyphRun(TRComposedLineRef line, TRUInteger index);
 
 /**
  * Gets the distance from the start of the line to the boundary before a code unit, which can be
- * the end of the line too.
+ * the end of the line too. The start of the line is its left edge, so the distance is measured
+ * along the screen, also in a right-to-left run.
  *
  * @param line
  *      The line.
@@ -126,7 +256,8 @@ TR_PUBLIC TRGlyphRunRef TRComposedLineGetGlyphRun(TRComposedLineRef line, TRUInt
  * @param distance
  *      Receives the distance.
  * @return
- *      `TRTrue` if the distance was given, `TRFalse` if the code unit is out of the line.
+ *      `TRTrue` if the distance was given, `TRFalse` if the code unit is out of the line, in which
+ *      case `distance` is left as it was.
  */
 TR_PUBLIC TRBoolean TRComposedLineGetCodeUnitDistance(TRComposedLineRef line,
     TRUInteger codeUnitIndex, TRFloat *distance);
@@ -154,15 +285,34 @@ TR_PUBLIC TRBoolean TRComposedLineEnumerateEdges(TRComposedLineRef line, TRUInte
     TRUInteger length, TREdgeFunc func, void *userData);
 
 /**
- * Returns the code unit boundary that is closest to a distance from the start of the line.
+ * Returns the code unit boundary that is closest to a distance from the start of the line. The
+ * start of the line is its left edge. A distance before it gives the start of the code units of the
+ * line, and one past its end gives the boundary at the end of the last run.
+ *
+ * @param line
+ *      The line.
+ * @param distance
+ *      The distance from the left edge of the line.
+ * @return
+ *      The index of the code unit before the boundary.
  */
 TR_PUBLIC TRUInteger TRComposedLineGetCodeUnitIndex(TRComposedLineRef line, TRFloat distance);
 
 /**
- * Returns how far to move the start of the line so that it is aligned. The flush factor is 0 for
- * the start of the extent and 1 for its end, and anything between them, such as 0.5 for the
- * center, is possible. The extent that is not taken by the line, without its trailing whitespace,
- * is divided by the factor.
+ * Returns how far to move the start of the line so that it is aligned. The extent that is not taken
+ * by the line, without its trailing whitespace, is multiplied by the flush factor. For a
+ * right-to-left paragraph, the trailing whitespace is subtracted too, since it lies before the
+ * text on the screen.
+ *
+ * @param line
+ *      The line.
+ * @param flushFactor
+ *      0 to align to the left of the extent and 1 to the right. Anything between them is possible,
+ *      such as 0.5 for the center.
+ * @param flushExtent
+ *      The width of the space in which the line is aligned.
+ * @return
+ *      The offset to add to the left edge of the line.
  */
 TR_PUBLIC TRFloat TRComposedLineGetPenOffset(TRComposedLineRef line, TRFloat flushFactor,
     TRFloat flushExtent);
@@ -170,6 +320,14 @@ TR_PUBLIC TRFloat TRComposedLineGetPenOffset(TRComposedLineRef line, TRFloat flu
 /**
  * Returns the ink box of the glyphs of the line, relative to its origin. The renderer is set up for
  * each run, and restored, as `TRGlyphRunGetInkBox()` does.
+ *
+ * @param line
+ *      The line.
+ * @param renderer
+ *      The renderer that decides how the glyphs are measured.
+ * @return
+ *      The union of the ink boxes of the runs that have one, or an empty rectangle at the origin if
+ *      none has.
  */
 TR_PUBLIC TRRect TRComposedLineGetInkBox(TRComposedLineRef line, TRRendererRef renderer);
 
@@ -190,12 +348,21 @@ TR_PUBLIC TRRect TRComposedLineGetInkBox(TRComposedLineRef line, TRRendererRef r
 TR_PUBLIC void TRComposedLineDraw(TRComposedLineRef line, TRRendererRef renderer, TRPoint origin);
 
 /**
- * Retains the line.
+ * Increments the reference count of a line.
+ *
+ * @param line
+ *      The line whose reference count will be incremented.
+ * @return
+ *      The same line passed in as the parameter.
  */
 TR_PUBLIC TRComposedLineRef TRComposedLineRetain(TRComposedLineRef line);
 
 /**
- * Releases the line.
+ * Decrements the reference count of a line. The line will be deallocated when its reference count
+ * reaches zero.
+ *
+ * @param line
+ *      The line whose reference count will be decremented.
  */
 TR_PUBLIC void TRComposedLineRelease(TRComposedLineRef line);
 

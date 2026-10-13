@@ -25,10 +25,14 @@ TR_EXTERN_C_BEGIN
  * The pixel format of a glyph image.
  */
 enum {
-    TRGlyphImageFormatAlpha = 0,    /**< One byte for each pixel, holding its coverage. */
-    TRGlyphImageFormatARGB = 1      /**< Four bytes for each pixel in the order alpha, red, green and
-                                         blue, with the color channels premultiplied by alpha. */
+    TRGlyphImageFormatAlpha = 0,   /**< One byte for each pixel, holding its coverage. */
+    TRGlyphImageFormatARGB = 1     /**< Four bytes for each pixel in the order alpha, red, green and
+                                        blue, with the color channels premultiplied by alpha. */
 };
+/**
+ * A type to represent the pixel format of a glyph image, which is one of the `TRGlyphImageFormat*`
+ * constants above.
+ */
 typedef TRUInt32 TRGlyphImageFormat;
 
 /**
@@ -47,43 +51,83 @@ typedef struct _TRGlyphImage *TRGlyphImageRef;
 
 /**
  * Returns the pixel format of the image.
+ *
+ * @param image
+ *      The image.
+ * @return
+ *      The pixel format of the image.
  */
 TR_PUBLIC TRGlyphImageFormat TRGlyphImageGetFormat(TRGlyphImageRef image);
 
 /**
  * Returns the distance from the origin of the glyph to the left edge of the image. The origin is
  * the pen position, and the distance grows to the right.
+ *
+ * @param image
+ *      The image.
+ * @return
+ *      The distance from the origin of the glyph to the left edge of the image.
  */
 TR_PUBLIC TRInt32 TRGlyphImageGetLeft(TRGlyphImageRef image);
 
 /**
  * Returns the distance from the baseline of the glyph to the top edge of the image. The distance
  * grows upward, so it is positive for the part of the glyph that is above the baseline.
+ *
+ * @param image
+ *      The image.
+ * @return
+ *      The distance from the baseline of the glyph to the top edge of the image.
  */
 TR_PUBLIC TRInt32 TRGlyphImageGetTop(TRGlyphImageRef image);
 
 /**
  * Returns the width of the image in pixels.
+ *
+ * @param image
+ *      The image.
+ * @return
+ *      The width of the image in pixels.
  */
 TR_PUBLIC TRUInt32 TRGlyphImageGetWidth(TRGlyphImageRef image);
 
 /**
  * Returns the height of the image in pixels.
+ *
+ * @param image
+ *      The image.
+ * @return
+ *      The height of the image in pixels.
  */
 TR_PUBLIC TRUInt32 TRGlyphImageGetHeight(TRGlyphImageRef image);
 
 /**
  * Returns the pixels of the image. The pointer stays valid as long as the image is alive.
+ *
+ * @param image
+ *      The image.
+ * @return
+ *      The pixels of the image.
  */
 TR_PUBLIC const TRUInt8 *TRGlyphImageGetPixelsPtr(TRGlyphImageRef image);
 
 /**
  * Returns the size of the pixels in bytes.
+ *
+ * @param image
+ *      The image.
+ * @return
+ *      The size of the pixels in bytes.
  */
 TR_PUBLIC TRUInteger TRGlyphImageGetByteCount(TRGlyphImageRef image);
 
 /**
  * Returns the native data that was attached to the image, or `NULL` if there is none.
+ *
+ * @param image
+ *      The image.
+ * @return
+ *      The native data, or `NULL` if there is none.
  */
 TR_PUBLIC void *TRGlyphImageGetNativeData(TRGlyphImageRef image);
 
@@ -105,12 +149,21 @@ TR_PUBLIC TRBoolean TRGlyphImageSetNativeData(TRGlyphImageRef image, void *data,
     void (*destroy)(void *data));
 
 /**
- * Retains the image.
+ * Increments the reference count of an image.
+ *
+ * @param image
+ *      The image whose reference count will be incremented.
+ * @return
+ *      The same image passed in as the parameter.
  */
 TR_PUBLIC TRGlyphImageRef TRGlyphImageRetain(TRGlyphImageRef image);
 
 /**
- * Releases the image.
+ * Decrements the reference count of an image. The image will be deallocated when its reference
+ * count reaches zero, and its native data is destroyed.
+ *
+ * @param image
+ *      The image whose reference count will be decremented.
  */
 TR_PUBLIC void TRGlyphImageRelease(TRGlyphImageRef image);
 

@@ -56,6 +56,10 @@ enum {
     TRReplacementKindInline = 0,    /**< The replacement stays on the line of the text around it. */
     TRReplacementKindBlock = 1      /**< The replacement has a line of its own. */
 };
+/**
+ * A type to represent how a replacement is placed in the text, which is one of the
+ * `TRReplacementKind*` constants above.
+ */
 typedef TRUInt32 TRReplacementKind;
 
 /**
@@ -68,35 +72,57 @@ typedef const struct _TRReplacement *TRReplacementRef;
  * Creates a replacement.
  *
  * @param callbacks
- *      The callbacks, which are copied.
+ *      The callbacks, which are copied. It must not be `NULL`, but each of its functions may be.
  * @param userData
  *      An opaque pointer that is passed to the callbacks.
  * @param kind
  *      How the replacement is placed in the text.
  * @return
- *      New replacement, or `NULL` if the kind is not valid or on failure.
+ *      New replacement, or `NULL` if the callbacks are `NULL`, the kind is not valid or on failure.
  */
 TR_PUBLIC TRReplacementRef TRReplacementCreate(const TRReplacementCallbacks *callbacks,
     void *userData, TRReplacementKind kind);
 
 /**
  * Returns how the replacement is placed in the text.
+ *
+ * @param replacement
+ *      The replacement.
+ * @return
+ *      The kind that the replacement was created with.
  */
 TR_PUBLIC TRReplacementKind TRReplacementGetKind(TRReplacementRef replacement);
 
 /**
- * Computes the room of the replacement for the given layout width.
+ * Computes the room of the replacement for the given layout width, by calling the `computeRoom`
+ * callback. The room is zero if there is no such callback.
+ *
+ * @param replacement
+ *      The replacement.
+ * @param layoutWidth
+ *      The width of the layout in which the replacement is placed.
+ * @param room
+ *      Receives the room.
  */
 TR_PUBLIC void TRReplacementComputeRoom(TRReplacementRef replacement, TRFloat layoutWidth,
     TRReplacementRoom *room);
 
 /**
- * Retains the replacement.
+ * Increments the reference count of a replacement.
+ *
+ * @param replacement
+ *      The replacement whose reference count will be incremented.
+ * @return
+ *      The same replacement passed in as the parameter.
  */
 TR_PUBLIC TRReplacementRef TRReplacementRetain(TRReplacementRef replacement);
 
 /**
- * Releases the replacement.
+ * Decrements the reference count of a replacement. The replacement will be deallocated when its
+ * reference count reaches zero, which calls the `finalize` callback.
+ *
+ * @param replacement
+ *      The replacement whose reference count will be decremented.
  */
 TR_PUBLIC void TRReplacementRelease(TRReplacementRef replacement);
 

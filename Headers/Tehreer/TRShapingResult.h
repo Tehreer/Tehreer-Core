@@ -33,45 +33,93 @@ TR_EXTERN_C_BEGIN
 typedef const struct _TRShapingResult *TRShapingResultRef;
 
 /**
- * Returns the number of code units of the shaped text.
+ * Returns the number of code units of the shaped text, which is also the number of values in the
+ * cluster map.
+ *
+ * @param result
+ *      The shaping result.
+ * @return
+ *      The number of code units of the shaped text, which is also the number of values in the
+ *      cluster map.
  */
 TR_PUBLIC TRUInteger TRShapingResultGetCodeUnitCount(TRShapingResultRef result);
 
 /**
- * Returns whether the text was shaped in backward order.
+ * Returns whether the text was shaped in backward order, which means that its code units go against
+ * the direction in which its glyphs are written.
+ *
+ * @param result
+ *      The shaping result.
+ * @return
+ *      `TRTrue` if the text was shaped in backward order, `TRFalse` otherwise.
  */
 TR_PUBLIC TRBoolean TRShapingResultIsBackward(TRShapingResultRef result);
 
 /**
- * Returns whether the glyphs flow from right to left.
+ * Returns whether the glyphs flow from right to left, which is when the text is shaped forward in
+ * the right-to-left direction, or backward in the left-to-right one.
+ *
+ * @param result
+ *      The shaping result.
+ * @return
+ *      `TRTrue` if the glyphs flow from right to left, `TRFalse` otherwise.
  */
 TR_PUBLIC TRBoolean TRShapingResultIsRTL(TRShapingResultRef result);
 
 /**
- * Returns the number of glyphs.
+ * Returns the number of glyphs in the result.
+ *
+ * @param result
+ *      The shaping result.
+ * @return
+ *      The number of glyphs in the result.
  */
 TR_PUBLIC TRUInteger TRShapingResultGetGlyphCount(TRShapingResultRef result);
 
 /**
- * Returns the glyph IDs. The pointer stays valid as long as the result is alive.
+ * Returns the glyph IDs, one for each glyph. The pointer stays valid as long as the result is
+ * alive.
+ *
+ * @param result
+ *      The shaping result.
+ * @return
+ *      The glyph IDs, one for each glyph.
  */
 TR_PUBLIC const TRGlyphID *TRShapingResultGetGlyphIDsPtr(TRShapingResultRef result);
 
 /**
  * Returns the offsets of the glyphs from their pen positions, with the y axis pointing up as in
- * the font. The pointer stays valid as long as the result is alive.
+ * the font, one for each glyph. The pointer stays valid as long as the result is alive.
+ *
+ * @param result
+ *      The shaping result.
+ * @return
+ *      The offsets of the glyphs from their pen positions, with the y axis pointing up as in the
+ *      font, one for each glyph.
  */
 TR_PUBLIC const TRPoint *TRShapingResultGetGlyphOffsetsPtr(TRShapingResultRef result);
 
 /**
- * Returns the horizontal advances of the glyphs. The pointer stays valid as long as the result is
- * alive.
+ * Returns the horizontal advances of the glyphs, one for each glyph. The pointer stays valid as
+ * long as the result is alive.
+ *
+ * @param result
+ *      The shaping result.
+ * @return
+ *      The horizontal advances of the glyphs, one for each glyph.
  */
 TR_PUBLIC const TRFloat *TRShapingResultGetGlyphAdvancesPtr(TRShapingResultRef result);
 
 /**
- * Returns the glyph index of each code unit. If a code unit is a part of a cluster, it maps to the
- * first glyph of that cluster. The pointer stays valid as long as the result is alive.
+ * Returns the glyph index of each code unit, one for each code unit. If a code unit is a part of a
+ * cluster, it maps to the first glyph of that cluster. A code unit that no glyph is for takes the
+ * glyph of the code unit before it, or after it if the text was shaped backward. The pointer stays
+ * valid as long as the result is alive.
+ *
+ * @param result
+ *      The shaping result.
+ * @return
+ *      The glyph index of each code unit, one for each code unit.
  */
 TR_PUBLIC const TRUInteger *TRShapingResultGetClusterMapPtr(TRShapingResultRef result);
 
@@ -92,12 +140,21 @@ TR_PUBLIC void TRShapingResultGetCaretEdges(TRShapingResultRef result,
     const TRBoolean *caretStops, TRFloat *caretEdges);
 
 /**
- * Retains the shaping result.
+ * Increments the reference count of a shaping result.
+ *
+ * @param result
+ *      The shaping result whose reference count will be incremented.
+ * @return
+ *      The same shaping result passed in as the parameter.
  */
 TR_PUBLIC TRShapingResultRef TRShapingResultRetain(TRShapingResultRef result);
 
 /**
- * Releases the shaping result.
+ * Decrements the reference count of a shaping result. The result will be deallocated when its
+ * reference count reaches zero.
+ *
+ * @param result
+ *      The shaping result whose reference count will be decremented.
  */
 TR_PUBLIC void TRShapingResultRelease(TRShapingResultRef result);
 

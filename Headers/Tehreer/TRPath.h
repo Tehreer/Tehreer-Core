@@ -34,21 +34,84 @@ typedef const struct _TRPath *TRPathRef;
  * `TRTrue` to stop the enumeration after it returns.
  */
 typedef struct _TRPathCallbacks {
-    /** Starts a new contour at the given point. */
+    /**
+     * Starts a new contour at the given point.
+     *
+     * @param userData
+     *      The pointer that was passed to the enumeration.
+     * @param x
+     *      The x coordinate of the point.
+     * @param y
+     *      The y coordinate of the point.
+     * @param stop
+     *      Set it to `TRTrue` to stop the enumeration after the function returns.
+     */
     void (*moveTo)(void *userData, TRFloat x, TRFloat y, TRBoolean *stop);
 
-    /** Adds a straight line from the current point. */
+    /**
+     * Adds a straight line from the current point.
+     *
+     * @param userData
+     *      The pointer that was passed to the enumeration.
+     * @param x
+     *      The x coordinate of the end point.
+     * @param y
+     *      The y coordinate of the end point.
+     * @param stop
+     *      Set it to `TRTrue` to stop the enumeration after the function returns.
+     */
     void (*lineTo)(void *userData, TRFloat x, TRFloat y, TRBoolean *stop);
 
-    /** Adds a quadratic curve from the current point. */
+    /**
+     * Adds a quadratic curve from the current point.
+     *
+     * @param userData
+     *      The pointer that was passed to the enumeration.
+     * @param controlX
+     *      The x coordinate of the control point.
+     * @param controlY
+     *      The y coordinate of the control point.
+     * @param x
+     *      The x coordinate of the end point.
+     * @param y
+     *      The y coordinate of the end point.
+     * @param stop
+     *      Set it to `TRTrue` to stop the enumeration after the function returns.
+     */
     void (*quadTo)(void *userData, TRFloat controlX, TRFloat controlY, TRFloat x, TRFloat y,
         TRBoolean *stop);
 
-    /** Adds a cubic curve from the current point. */
+    /**
+     * Adds a cubic curve from the current point.
+     *
+     * @param userData
+     *      The pointer that was passed to the enumeration.
+     * @param control1X
+     *      The x coordinate of the first control point.
+     * @param control1Y
+     *      The y coordinate of the first control point.
+     * @param control2X
+     *      The x coordinate of the second control point.
+     * @param control2Y
+     *      The y coordinate of the second control point.
+     * @param x
+     *      The x coordinate of the end point.
+     * @param y
+     *      The y coordinate of the end point.
+     * @param stop
+     *      Set it to `TRTrue` to stop the enumeration after the function returns.
+     */
     void (*cubicTo)(void *userData, TRFloat control1X, TRFloat control1Y,
         TRFloat control2X, TRFloat control2Y, TRFloat x, TRFloat y, TRBoolean *stop);
 
-    /** Closes the current contour. */
+    /**
+     * Closes the current contour.
+     *
+     * @param userData
+     *      The pointer that was passed to the enumeration.
+     * @param stop
+     *      Set it to `TRTrue` to stop the enumeration after the function returns.
+     */
     void (*close)(void *userData, TRBoolean *stop);
 } TRPathCallbacks;
 
@@ -73,12 +136,21 @@ TR_PUBLIC TRBoolean TRPathEnumerate(TRPathRef path, const TRAffineTransform *tra
     const TRPathCallbacks *callbacks, void *userData);
 
 /**
- * Retains the path.
+ * Increments the reference count of a path.
+ *
+ * @param path
+ *      The path whose reference count will be incremented.
+ * @return
+ *      The same path passed in as the parameter.
  */
 TR_PUBLIC TRPathRef TRPathRetain(TRPathRef path);
 
 /**
- * Releases the path.
+ * Decrements the reference count of a path. The path will be deallocated when its reference count
+ * reaches zero.
+ *
+ * @param path
+ *      The path whose reference count will be decremented.
  */
 TR_PUBLIC void TRPathRelease(TRPathRef path);
 

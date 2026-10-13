@@ -25,12 +25,16 @@
 TR_EXTERN_C_BEGIN
 
 /**
- * Opaque reference to an immutable text object.
+ * Opaque reference to an immutable text object, which holds a string of code units in one encoding
+ * with attributes on its ranges. The text uses the attributes of Core, so it also gives the
+ * SheenBidi text that holds it; see `Tehreer/TRSheenBidi.h`.
  */
 typedef const struct _TRText *TRTextRef;
 
 /**
- *  Opaque reference to a mutable text object.
+ * Opaque reference to a mutable text object, which can be edited through the mutable text
+ * interface below. It is a text too, so it can be passed to the functions of the text object, and
+ * retained and released with `TRTextRetain()` and `TRTextRelease()`.
  */
 typedef struct _TRText *TRMutableTextRef;
 
@@ -44,17 +48,18 @@ typedef struct _TRText *TRMutableTextRef;
  * @param encoding
  *      String encoding (UTF-8, UTF-16, or UTF-32).
  * @return
- *      A reference to a text object if the call was successful, `NULL` otherwise.
+ *      A reference to a text object that the caller owns, or `NULL` if the string is `NULL` for a
+ *      length that is not zero, or on failure.
  */
 TR_PUBLIC TRTextRef TRTextCreate(const void *string, TRUInteger length, TRStringEncoding encoding);
 
 /**
- * Creates a new immutable text object that is an exact copy of the source text.
+ * Creates a new immutable text object that is an exact copy of the source text, with its attributes.
  *
  * @param text
  *      Source text object to copy.
  * @return
- *      New immutable copy, or `NULL` on failure.
+ *      New immutable copy that the caller owns, or `NULL` on failure.
  */
 TR_PUBLIC TRTextRef TRTextCreateCopy(TRTextRef text);
 
@@ -66,7 +71,8 @@ TR_PUBLIC TRTextRef TRTextCreateCopy(TRTextRef text);
  * @param text
  *      Source text object to copy (can be immutable or mutable).
  * @return
- *      New mutable text object with the same content and properties as the source.
+ *      New mutable text object that the caller owns, with the same content and attributes as the
+ *      source, or `NULL` on failure.
  */
 TR_PUBLIC TRMutableTextRef TRTextCreateMutableCopy(TRTextRef text);
 
@@ -115,7 +121,8 @@ TR_PUBLIC TRBoolean TRTextGetCodeUnits(TRTextRef text, TRUInteger index, TRUInte
 
 /**
  * Copies the attributes active at `index`, and the length of the run over which they apply (the
- * extent, starting at `index`, over which the attribute set stays the same).
+ * extent, starting at `index`, over which the attribute set stays the same). The list has an
+ * attribute for each type that is set at the index.
  *
  * For more complex queries (filtering by a specific attribute, or by group/scope), use
  * `TRTextGetSheenBidiText()` of `Tehreer/TRSheenBidi.h` to access the underlying `SBTextRef`.
@@ -161,18 +168,18 @@ TR_PUBLIC void TRTextRelease(TRTextRef text);
 
 /**
  * Creates a new mutable text object that starts empty but can be modified through the mutable text
- * interface.
+ * interface. The encoding of the code units is fixed for its lifetime.
  *
  * @param encoding
  *      Target encoding for the new text (UTF-8/16/32).
  * @return
- *      A reference to a mutable text object if the call was successful, `NULL` otherwise.
+ *      A reference to a mutable text object that the caller owns, or `NULL` on failure.
  */
 TR_PUBLIC TRMutableTextRef TRTextCreateMutable(TRStringEncoding encoding);
 
 /**
  * Signals the start of a batch of editing operations. While in editing mode, text analysis
- * is deferred until TRTextEndEditing() is called. This improves performance when making multiple
+ * is deferred until `TRTextEndEditing()` is called. This improves performance when making multiple
  * sequential modifications.
  *
  * @param text
@@ -201,6 +208,9 @@ TR_PUBLIC void TRTextEndEditing(TRMutableTextRef text);
  *      Number of code units to append.
  * @return
  *      `TRTrue` if the code units were appended, `TRFalse` if the buffer is `NULL`.
+ *
+ * @warning
+ *      The buffer must contain valid code units in the text's encoding format.
  */
 TR_PUBLIC TRBoolean TRTextAppendCodeUnits(TRMutableTextRef text, const void *codeUnitBuffer,
     TRUInteger codeUnitCount);
@@ -292,7 +302,9 @@ TR_PUBLIC TRBoolean TRTextReplaceCodeUnits(TRMutableTextRef text, TRUInteger ind
 
 /**
  * Applies the specified attribute with the given value to the range of code units. If the attribute
- * already exists in parts of the range, those values are replaced.
+ * already exists in parts of the range, those values are replaced. The attribute is copied. The
+ * text retains the typeface, replacement or font features that the attribute holds; the user data
+ * is a pointer that it only compares.
  *
  * @param text
  *      Mutable text object.
