@@ -142,8 +142,9 @@ TR_PUBLIC TRUInteger TRComposedFrameGetIndexOfLineAtPosition(TRComposedFrameRef 
  * lines is covered with the paddings of the lines too: the space after the text of the first line
  * up to the edge of the frame, the whole width of each line in between, and the space before the
  * text of the last line. The edges are those of the frame, and the padding of a line follows the
- * direction of its own paragraph. A rectangle is clipped to the width of the frame, and a
- * rectangle that is empty is not passed.
+ * direction of its own paragraph. A rectangle is clipped to the horizontal range from zero to the width of the frame, and a
+ * rectangle that is empty or has a NaN edge is not passed. The text that a truncated line cuts out
+ * has no rectangle of its own.
  *
  * @param frame
  *      The frame.

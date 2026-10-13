@@ -445,13 +445,13 @@ static TRComposedLine *CreateStartTruncatedLine(TRTypesetterRef typesetter, TRUI
         if (isAppended) {
             AppendTokenRuns(token, &list, tokenInsertIndex);
 
-            truncatedLine = MarkTruncated(LineResolverCreateLine(typesetter, truncatedStart, end, &list,
+            truncatedLine = MarkTruncated(LineResolverCreateLine(typesetter, start, end, &list,
                 GetBaseLevel(typesetter, truncatedStart)));
         } else {
             RunListFinalize(&list);
         }
     } else {
-        truncatedLine = LineResolverCreateSimpleLine(typesetter, truncatedStart, end, TRFalse, 0.0f);
+        truncatedLine = LineResolverCreateSimpleLine(typesetter, start, end, TRFalse, 0.0f);
     }
 
     return truncatedLine;
@@ -529,13 +529,13 @@ static TRComposedLine *CreateEndTruncatedLine(TRTypesetterRef typesetter, TRUInt
         if (isAppended) {
             AppendTokenRuns(token, &list, tokenInsertIndex);
 
-            truncatedLine = MarkTruncated(LineResolverCreateLine(typesetter, start, truncatedEnd, &list,
+            truncatedLine = MarkTruncated(LineResolverCreateLine(typesetter, start, end, &list,
                 GetBaseLevel(typesetter, start)));
         } else {
             RunListFinalize(&list);
         }
     } else {
-        truncatedLine = LineResolverCreateSimpleLine(typesetter, start, truncatedEnd, TRFalse, 0.0f);
+        truncatedLine = LineResolverCreateSimpleLine(typesetter, start, end, TRFalse, 0.0f);
     }
 
     return truncatedLine;

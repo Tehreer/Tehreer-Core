@@ -63,6 +63,7 @@ void FrameTests::run() {
     testSelection();
     testSelectionIsClipped();
     testSelectionPaddingFollowsEachLine();
+    testTruncatedSelection();
     testRangesAreChecked();
     testFramesOutliveResolver();
 }
@@ -266,7 +267,8 @@ void FrameTests::testTruncation() {
 
     TRComposedLineRef line = TRComposedFrameGetLine(frame, 0);
     assert(isNear(TRComposedLineGetWidth(line), A + B + 3.0f * Notdef));
-    assert((TRComposedLineGetCodeUnitEnd(line) - TRComposedLineGetCodeUnitStart(line)) == 2);
+    assert(TRComposedLineGetCodeUnitStart(line) == 0);
+    assert(TRComposedLineGetCodeUnitEnd(line) == 7);
     TRComposedFrameRelease(frame);
 
     /* A line that shows the token is not justified, as it would lose it. */
@@ -558,6 +560,62 @@ void FrameTests::testSelectionIsClipped() {
     assert(rects[0].size.width < A);
 
     TRComposedFrameRelease(frame);
+
+    /* A frame without width has no rectangles. */
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(0.0f, 100000.0f));
+    frame = f.frame();
+    rects.clear();
+    assert(TRComposedFrameEnumerateSelection(frame, 0, 3, collectRect, &rects));
+    assert(rects.empty());
+    TRComposedFrameRelease(frame);
+
+    /* The line of right-to-left text wider than the frame starts before the left edge. */
+    Fixture g(u"\u05E9");
+    TRFrameResolverSetFrameSize(g.resolver, makeSize(500.0f, 100000.0f));
+    frame = g.frame();
+    assert(TRComposedLineGetOrigin(TRComposedFrameGetLine(frame, 0)).x < 0.0f);
+    assert(TRComposedFrameEnumerateSelection(frame, 0, 1, collectRect, &rects));
+    assert(rects.size() == 1);
+    assert(isNear(rects[0].origin.x, 0.0f) && isNear(rects[0].size.width, 500.0f));
+    TRComposedFrameRelease(frame);
+}
+
+void FrameTests::testTruncatedSelection() {
+    const TRTruncationPlace places[] = {
+        TRTruncationPlaceEnd, TRTruncationPlaceStart, TRTruncationPlaceMiddle
+    };
+
+    for (TRTruncationPlace place : places) {
+        Fixture f(u"abc abc abc abc abc");
+        TRFrameResolverSetFrameSize(f.resolver, makeSize(3500.0f, 100000.0f));
+        TRFrameResolverSetTruncationEnabled(f.resolver, TRTrue);
+        TRFrameResolverSetTruncationPlace(f.resolver, place);
+        TRFrameResolverSetMaxLines(f.resolver, 2);
+
+        /* The truncated line covers the range of the frame, so every code unit has a line. */
+        TRComposedFrameRef frame = f.frame();
+        assert(TRComposedFrameGetCodeUnitEnd(frame) == 19);
+        assert(TRComposedLineIsTruncated(TRComposedFrameGetLine(frame, 1)));
+        assert(TRComposedLineGetCodeUnitEnd(TRComposedFrameGetLine(frame, 1)) == 19);
+        for (TRUInteger index = 0; index < 19; index++) {
+            assert(TRComposedFrameGetIndexOfLineForCodeUnit(frame, index) != TRInvalidIndex);
+        }
+
+        /* Every range is selected without trouble, within the frame. */
+        for (TRUInteger start = 0; start < 19; start++) {
+            for (TRUInteger end = start + 1; end <= 19; end++) {
+                vector<TRRect> rects;
+                assert(TRComposedFrameEnumerateSelection(frame, start, end - start, collectRect, &rects));
+
+                for (const TRRect &rect : rects) {
+                    assert(rect.origin.x >= 0.0f);
+                    assert(rect.origin.x + rect.size.width <= TRComposedFrameGetWidth(frame) + 0.01f);
+                }
+            }
+        }
+
+        TRComposedFrameRelease(frame);
+    }
 }
 
 void FrameTests::testSelectionPaddingFollowsEachLine() {

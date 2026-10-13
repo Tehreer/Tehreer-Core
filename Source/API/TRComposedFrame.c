@@ -80,14 +80,16 @@ static TRRect MakeRect(TRFloat left, TRFloat top, TRFloat right, TRFloat bottom)
 
 /*
  * Passes a rectangle to the function, unless it asked to stop. The rectangle is clipped to the
- * width of the frame, and it is skipped if nothing is left of it.
+ * width of the frame, and it is skipped if nothing is left of it or if it has a NaN edge.
  */
 static void AddSelectionRect(SelectionContext *context, TRRect rect)
 {
+    TRFloat rectRight = rect.origin.x + rect.size.width;
     TRFloat left = NumberMax(rect.origin.x, 0.0f);
-    TRFloat right = NumberMin(rect.origin.x + rect.size.width, context->frameWidth);
+    TRFloat right = NumberMin(rectRight, context->frameWidth);
 
-    if (!context->shouldStop && left < right) {
+    /* A comparison with NaN is false, so a rectangle with a NaN edge is skipped. */
+    if (!context->shouldStop && rect.origin.x < rectRight && left < right) {
         rect.origin.x = left;
         rect.size.width = right - left;
 
@@ -297,19 +299,19 @@ TRBoolean TRComposedFrameEnumerateSelection(TRComposedFrameRef frame, TRUInteger
         TRUInteger lastIndex = TRComposedFrameGetIndexOfLineForCodeUnit(frame, rangeEnd - 1);
         SelectionContext context;
 
-        /* The lines of the frame MUST cover each code unit of the range. */
-        TRAssert(firstIndex != TRInvalidIndex && lastIndex != TRInvalidIndex);
-
         context.line = NULL;
         context.frameWidth = frame->width;
         context.func = func;
         context.userData = userData;
         context.shouldStop = TRFalse;
 
-        if (firstIndex == lastIndex) {
-            AddSelectionParts(&context, GetFrameLine(frame, firstIndex), index, rangeEnd);
-        } else {
-            AddSelectionAcrossLines(&context, frame, index, rangeEnd, firstIndex, lastIndex);
+        /* A range that starts or ends at a code unit without a line has nothing to select. */
+        if (firstIndex != TRInvalidIndex && lastIndex != TRInvalidIndex) {
+            if (firstIndex == lastIndex) {
+                AddSelectionParts(&context, GetFrameLine(frame, firstIndex), index, rangeEnd);
+            } else {
+                AddSelectionAcrossLines(&context, frame, index, rangeEnd, firstIndex, lastIndex);
+            }
         }
     }
 

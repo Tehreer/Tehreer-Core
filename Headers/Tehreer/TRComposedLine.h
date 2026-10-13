@@ -211,8 +211,8 @@ TR_PUBLIC TRFloat TRComposedLineGetTrailingWhitespaceExtent(TRComposedLineRef li
 TR_PUBLIC TRBoolean TRComposedLineIsBlock(TRComposedLineRef line);
 
 /**
- * Returns whether the line shows a token in place of some of its text. Such a line cannot be
- * made again from its range, as that would show the text that was cut out.
+ * Returns whether the line shows a token in place of some of its text. Such a line covers the text
+ * that was cut out too, but cannot be made again from its range, as that would show it.
  *
  * @param line
  *      The line.
