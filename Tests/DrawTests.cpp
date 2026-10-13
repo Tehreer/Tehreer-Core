@@ -251,7 +251,7 @@ vector<Op> filter(const vector<Op> &ops, Op::Kind kind) {
     return result;
 }
 
-bool near(TRFloat a, TRFloat b, TRFloat tolerance = 1e-3f) {
+bool isNear(TRFloat a, TRFloat b, TRFloat tolerance = 1e-3f) {
     return fabsf(a - b) <= tolerance;
 }
 
@@ -606,7 +606,7 @@ void DrawTests::testRightToLeftRun() {
 
     /* The glyphs go from the left, and the last letter is the first glyph. */
     TRFloat width = TRGlyphRunGetWidth(run);
-    assert(near(width, A + B + C));
+    assert(isNear(width, A + B + C));
     assert(TRGlyphRunGetGlyphIDsPtr(run)[0] == 3 && TRGlyphRunGetGlyphIDsPtr(run)[2] == 1);
 
     vector<Placement> placements = expectedPlacements(run, TRGlyphImageKindFill, 1.0f);
@@ -651,7 +651,7 @@ void DrawTests::testSplitClusters() {
     vector<Placement> placements = expectedPlacements(run, TRGlyphImageKindFill, 1.0f);
     TRFloat width = TRGlyphRunGetWidth(run);
     TRFloat penX = roundPixel(20.0f - FlagAdvance / 2.0f);
-    assert(near(width, FlagAdvance));
+    assert(isNear(width, FlagAdvance));
     assert(placements.size() == 2 && recorder.ops.size() == 2);
     assert(recorder.ops[0].origin.x == penX + placements[0].origin.x);
     assert(recorder.ops[1].origin.x == penX + placements[1].origin.x);
@@ -976,8 +976,8 @@ void DrawTests::testPathOutput() {
         }
 
         assert(op.kind == Op::Path && op.hasPath);
-        assert(near(op.origin.x, 10.4f * 2.0f + advance));
-        assert(near(op.origin.y, 50.6f * 2.0f));
+        assert(isNear(op.origin.x, 10.4f * 2.0f + advance));
+        assert(isNear(op.origin.y, 50.6f * 2.0f));
         assert(op.style == TRDrawStyleFill && op.color == Red && !op.hasClip);
     }
 
@@ -1182,7 +1182,7 @@ void DrawTests::testDecorationsOfSplitClusters() {
     assert(rects.size() == 2);
 
     TRFloat width = TRGlyphRunGetWidth(run);
-    assert(near(width, Notdef / 2.0f + B));
+    assert(isNear(width, Notdef / 2.0f + B));
 
     for (const Op &rect : rects) {
         assert(rect.rect.origin.x == roundPixel(20.0f));

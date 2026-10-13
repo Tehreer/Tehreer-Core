@@ -177,11 +177,11 @@ void AttributeListTests::testRemoveAttribute() {
 
 void AttributeListTests::testOverwriteAttribute() {
     TRMutableTextRef text = createText();
-    TRAttribute small = makeTypeSize(8.0f);
+    TRAttribute smallSize = makeTypeSize(8.0f);
     TRAttribute large = makeTypeSize(20.0f);
     TRUInteger length = 0;
 
-    TRTextSetAttribute(text, 0, 6, &small);
+    TRTextSetAttribute(text, 0, 6, &smallSize);
     TRTextSetAttribute(text, 2, 2, &large);
 
     TRAttributeListRef list = TRTextCopyAttributes(text, 3, &length);

@@ -152,7 +152,7 @@ static void assertSize(TRGlyphImageRef image, int left, int top, uint32_t width,
     assert(TRGlyphImageGetHeight(image) == height);
 }
 
-static bool near(TRFloat a, TRFloat b, TRFloat tolerance = 1e-4f) {
+static bool isNear(TRFloat a, TRFloat b, TRFloat tolerance = 1e-4f) {
     return fabsf(a - b) <= tolerance;
 }
 
@@ -405,19 +405,19 @@ void RendererTests::testGlyphBoundingBox() {
 
     /* The top of the box is above the baseline, so it is negative with the y axis down. */
     TRRect box = TRRendererGetGlyphInkBox(f.renderer, GlyphA);
-    assert(near(box.origin.x, 1.0f) && near(box.origin.y, -17.0f));
-    assert(near(box.size.width, 15.0f) && near(box.size.height, 17.0f));
+    assert(isNear(box.origin.x, 1.0f) && isNear(box.origin.y, -17.0f));
+    assert(isNear(box.size.width, 15.0f) && isNear(box.size.height, 17.0f));
 
     box = TRRendererGetGlyphInkBox(f.renderer, GlyphB);
-    assert(near(box.origin.x, 2.0f) && near(box.origin.y, -24.0f));
-    assert(near(box.size.width, 15.0f) && near(box.size.height, 24.0f));
+    assert(isNear(box.origin.x, 2.0f) && isNear(box.origin.y, -24.0f));
+    assert(isNear(box.size.width, 15.0f) && isNear(box.size.height, 24.0f));
 
     /* The box is in the user space, so a render scale divides the pixels. */
     TRRendererSetTypeSize(f.renderer, 16.0f);
     TRRendererSetRenderScale(f.renderer, 2.0f);
     box = TRRendererGetGlyphInkBox(f.renderer, GlyphA);
-    assert(near(box.origin.x, 0.5f) && near(box.origin.y, -8.5f));
-    assert(near(box.size.width, 7.5f) && near(box.size.height, 8.5f));
+    assert(isNear(box.origin.x, 0.5f) && isNear(box.origin.y, -8.5f));
+    assert(isNear(box.size.width, 7.5f) && isNear(box.size.height, 8.5f));
 
     /* A glyph without an image has an empty box. */
     box = TRRendererGetGlyphInkBox(f.renderer, 0);
@@ -525,26 +525,26 @@ void RendererTests::testRunBoundingBox() {
 
     /* The rectangles are those of the placements: from 1 to 58 across, and from -24 to 0 down. */
     TRRect box = TRRendererGetRunInkBox(f.renderer, Run, NoOffsets, RunAdvances, 3);
-    assert(near(box.origin.x, 1.0f) && near(box.origin.y, -24.0f));
-    assert(near(box.size.width, 57.0f) && near(box.size.height, 24.0f));
+    assert(isNear(box.origin.x, 1.0f) && isNear(box.origin.y, -24.0f));
+    assert(isNear(box.size.width, 57.0f) && isNear(box.size.height, 24.0f));
 
     /* A single glyph gives the box of its own. */
     box = TRRendererGetRunInkBox(f.renderer, Run, NoOffsets, RunAdvances, 1);
-    assert(near(box.origin.x, 1.0f) && near(box.origin.y, -17.0f));
-    assert(near(box.size.width, 15.0f) && near(box.size.height, 17.0f));
+    assert(isNear(box.origin.x, 1.0f) && isNear(box.origin.y, -17.0f));
+    assert(isNear(box.size.width, 15.0f) && isNear(box.size.height, 17.0f));
 
     /* An offset moves the glyph and so its box. */
     const TRPoint offsets[] = { { 0, 10.0f }, { 0, 0 }, { 0, 0 } };
     box = TRRendererGetRunInkBox(f.renderer, Run, offsets, RunAdvances, 3);
-    assert(near(box.origin.y, -27.0f) && near(box.size.height, 27.0f));
+    assert(isNear(box.origin.y, -27.0f) && isNear(box.size.height, 27.0f));
 
     /* The user space divides the pixels by the render scale. */
     TRRendererSetTypeSize(f.renderer, 16.0f);
     TRRendererSetRenderScale(f.renderer, 2.0f);
     const TRFloat doubled[] = { 10.0f, 11.0f, 9.0f };
     box = TRRendererGetRunInkBox(f.renderer, Run, NoOffsets, doubled, 3);
-    assert(near(box.origin.x, 0.5f) && near(box.origin.y, -12.0f));
-    assert(near(box.size.width, 28.5f) && near(box.size.height, 12.0f));
+    assert(isNear(box.origin.x, 0.5f) && isNear(box.origin.y, -12.0f));
+    assert(isNear(box.size.width, 28.5f) && isNear(box.size.height, 12.0f));
 }
 
 void RendererTests::testRunBoundingBoxRightToLeft() {
@@ -556,8 +556,8 @@ void RendererTests::testRunBoundingBoxRightToLeft() {
      * 60, so that it is in the coordinates that the run has from its start.
      */
     TRRect box = TRRendererGetRunInkBox(f.renderer, Run, NoOffsets, RunAdvances, 3);
-    assert(near(box.origin.x, 1.0f) && near(box.origin.y, -24.0f));
-    assert(near(box.size.width, 55.0f) && near(box.size.height, 24.0f));
+    assert(isNear(box.origin.x, 1.0f) && isNear(box.origin.y, -24.0f));
+    assert(isNear(box.size.width, 55.0f) && isNear(box.size.height, 24.0f));
 }
 
 void RendererTests::testEmptyRuns() {
@@ -628,8 +628,8 @@ static void assertSameEvents(const vector<PathEvent> &actual, const vector<PathE
         assert(actual[i].points.size() == expected[i].points.size());
 
         for (size_t j = 0; j < actual[i].points.size(); j++) {
-            assert(near(actual[i].points[j].x, expected[i].points[j].x, 1e-3f));
-            assert(near(actual[i].points[j].y, expected[i].points[j].y, 1e-3f));
+            assert(isNear(actual[i].points[j].x, expected[i].points[j].x, 1e-3f));
+            assert(isNear(actual[i].points[j].y, expected[i].points[j].y, 1e-3f));
         }
     }
 }
@@ -655,8 +655,8 @@ void RendererTests::testPathPlacements() {
     TRRendererEnumeratePathPlacements(f.renderer, Run, offsets, RunAdvances, 3, collect, &placed);
     assert(placed.size() == 3);
     assert(placed[0].index == 0 && placed[0].origin.x == 0.0f && placed[0].origin.y == 0.0f);
-    assert(near(placed[1].origin.x, 20.0f * 1.5f + 2.0f * 1.5f) && near(placed[1].origin.y, -5.0f * 1.5f));
-    assert(near(placed[2].origin.x, 42.0f * 1.5f) && placed[2].hasPath);
+    assert(isNear(placed[1].origin.x, 20.0f * 1.5f + 2.0f * 1.5f) && isNear(placed[1].origin.y, -5.0f * 1.5f));
+    assert(isNear(placed[2].origin.x, 42.0f * 1.5f) && placed[2].hasPath);
 
     /* A glyph without an outline is skipped. */
     placed.clear();
@@ -668,8 +668,8 @@ void RendererTests::testPathPlacements() {
     TRRendererSetWritingDirection(f.renderer, TRWritingDirectionRightToLeft);
     TRRendererEnumeratePathPlacements(f.renderer, Run, NoOffsets, RunAdvances, 3, collect, &placed);
     assert(placed.size() == 3);
-    assert(near(placed[0].origin.x, -20.0f * 1.5f) && near(placed[1].origin.x, -42.0f * 1.5f));
-    assert(near(placed[2].origin.x, -60.0f * 1.5f));
+    assert(isNear(placed[0].origin.x, -20.0f * 1.5f) && isNear(placed[1].origin.x, -42.0f * 1.5f));
+    assert(isNear(placed[2].origin.x, -60.0f * 1.5f));
 
     /* It stops when the function says so. */
     size_t calls = 0;
@@ -860,7 +860,7 @@ void RendererTests::testBitmapGlyphs() {
     getPlacements(f.renderer, TRGlyphImageKindFill, &glyphID, &offset, &advance, 1, &placement);
     assert(placement.image == image);
     assert(placement.scaleX == 1.0f && placement.scaleY == 1.0f);
-    assert(near(placement.origin.x, (TRFloat)left) && near(placement.origin.y, (TRFloat)-top));
+    assert(isNear(placement.origin.x, (TRFloat)left) && isNear(placement.origin.y, (TRFloat)-top));
     releasePlacements(&placement, 1);
 
     /* A bigger size finds the same image, as it is, and the placement tells how to scale it. */
@@ -873,30 +873,30 @@ void RendererTests::testBitmapGlyphs() {
 
     getPlacements(f.renderer, TRGlyphImageKindFill, &glyphID, &offset, &advance, 1, &placement);
     assert(placement.image == image);
-    assert(near(placement.scaleX, 2.0f) && near(placement.scaleY, 2.0f));
-    assert(near(placement.origin.x, 2.0f * left) && near(placement.origin.y, -2.0f * top));
+    assert(isNear(placement.scaleX, 2.0f) && isNear(placement.scaleY, 2.0f));
+    assert(isNear(placement.origin.x, 2.0f * left) && isNear(placement.origin.y, -2.0f * top));
     releasePlacements(&placement, 1);
 
     /* The boxes are in the scaled size. */
     TRRect box = TRRendererGetGlyphInkBox(f.renderer, glyphID);
-    assert(near(box.size.width, 2.0f * width) && near(box.size.height, 2.0f * height));
-    assert(near(box.origin.x, 2.0f * left) && near(box.origin.y, -2.0f * top));
+    assert(isNear(box.size.width, 2.0f * width) && isNear(box.size.height, 2.0f * height));
+    assert(isNear(box.origin.x, 2.0f * left) && isNear(box.origin.y, -2.0f * top));
 
     TRRect runBox = TRRendererGetRunInkBox(f.renderer, &glyphID, &offset, &advance, 1);
-    assert(near(runBox.size.width, 2.0f * width) && near(runBox.size.height, 2.0f * height));
+    assert(isNear(runBox.size.width, 2.0f * width) && isNear(runBox.size.height, 2.0f * height));
 
     /* A smaller size is scaled down, and the render scale does not change what the image holds. */
     TRRendererSetTypeSize(f.renderer, 54.5f);
     getPlacements(f.renderer, TRGlyphImageKindFill, &glyphID, &offset, &advance, 1, &placement);
     assert(placement.image == image);
-    assert(near(placement.scaleX, 0.5f) && near(placement.scaleY, 0.5f));
+    assert(isNear(placement.scaleX, 0.5f) && isNear(placement.scaleY, 0.5f));
     releasePlacements(&placement, 1);
 
     TRRendererSetTypeSize(f.renderer, 27.25f);
     TRRendererSetRenderScale(f.renderer, 2.0f);
     getPlacements(f.renderer, TRGlyphImageKindFill, &glyphID, &offset, &advance, 1, &placement);
     assert(placement.image == image);
-    assert(near(placement.scaleX, 0.5f) && near(placement.scaleY, 0.5f));
+    assert(isNear(placement.scaleX, 0.5f) && isNear(placement.scaleY, 0.5f));
     releasePlacements(&placement, 1);
     TRRendererSetRenderScale(f.renderer, 1.0f);
     assert(TRGlyphCacheGetSize(f.cache) == cacheSize);

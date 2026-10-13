@@ -57,7 +57,7 @@ typedef Once *OnceRef;
 TR_PRIVATE BOOL CALLBACK WinOnceCallback(PINIT_ONCE InitOnce, PVOID Parameter, PVOID *Context);
 
 #define OnceMake()                  INIT_ONCE_STATIC_INIT
-#define OnceExecute(once, func)     InitOnceExecuteOnce(once, WinOnceCallback, func, NULL)
+#define OnceExecute(once, func)     InitOnceExecuteOnce(once, WinOnceCallback, (PVOID)(void (*)(void))(func), NULL)
 
 #elif defined(HAS_ATOMIC_UINT_SUPPORT)
 

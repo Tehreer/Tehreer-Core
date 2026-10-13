@@ -107,9 +107,13 @@ void AllocatorTests::testSplitBlockAlignment() {
 
     AllocatorSplitBlock(block, sizes, 4, pointers);
 
+    ptrdiff_t expected = 0;
+
     for (size_t i = 0; i < 4; i++) {
         auto offset = static_cast<uint8_t *>(pointers[i]) - block;
-        assert(offset == static_cast<ptrdiff_t>(i * unit));
+        assert(offset == expected);
+
+        expected += static_cast<ptrdiff_t>((sizes[i] + unit - 1) / unit * unit);
     }
 }
 

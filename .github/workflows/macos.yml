@@ -1,0 +1,67 @@
+name: macOS CI
+
+on:
+  push:
+    branches: [master, develop]
+    paths-ignore:
+      - '*.md'
+  pull_request:
+    types: [opened, synchronize]
+    paths-ignore:
+      - '*.md'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cmake:
+    name: CMake - ${{ matrix.name }}
+    runs-on: macos-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compiler: gcc
+            name: GCC
+          - compiler: clang
+            name: Clang
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Setup Compiler
+        run: |
+          if [ "${{ matrix.compiler }}" = "gcc" ]; then
+            echo "CC=gcc" >> $GITHUB_ENV
+            echo "CXX=g++" >> $GITHUB_ENV
+          else
+            echo "CC=clang" >> $GITHUB_ENV
+            echo "CXX=clang++" >> $GITHUB_ENV
+          fi
+
+      - name: Build in Release Mode
+        run: |
+          cmake -S . -B build-release \
+            -DTR_CONFIG_UNITY=ON \
+            -DFT_REQUIRE_PNG=ON \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-release --parallel
+
+      - name: Build in Debug mode
+        run: |
+          cmake -S. -B build-debug \
+            -DTR_CONFIG_UNITY=OFF \
+            -DFT_REQUIRE_PNG=ON \
+            -DENABLE_ASAN=ON \
+            -DENABLE_UBSAN=ON \
+            -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build-debug --parallel
+
+      - name: Run Tests (Debug)
+        run: ctest --test-dir build-debug --output-on-failure

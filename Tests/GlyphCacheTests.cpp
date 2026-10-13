@@ -516,7 +516,9 @@ void GlyphCacheTests::testClearAndCapacity() {
     TRGlyphCacheClear(cache);
     TRGlyphCacheSetCapacity(cache, 10);
     assert(TRGlyphCacheGetCapacity(cache) == 10);
-    assert(TRRendererCopyGlyphImage(renderer, GlyphA) != nullptr);
+    TRGlyphImageRef image = TRRendererCopyGlyphImage(renderer, GlyphA);
+    assert(image != nullptr);
+    TRGlyphImageRelease(image);
     assert(TRGlyphCacheGetSize(cache) <= 10);
 
     TRRendererRelease(renderer);
@@ -597,7 +599,8 @@ void GlyphCacheTests::testConcurrentLookups() {
     TRTypefaceRef blackFace = TRTypefaceCreateWithVariation(typeface, black, 2);
 
     /* What each lookup has to give, found without any contention. */
-    TRRendererRef reference = createRenderer(typeface, TRGlyphCacheCreate(Megabyte), 32.0f);
+    TRGlyphCacheRef referenceCache = TRGlyphCacheCreate(Megabyte);
+    TRRendererRef reference = createRenderer(typeface, referenceCache, 32.0f);
     TRGlyphImageRef expected = TRRendererCopyGlyphImage(reference, GlyphB);
     uint32_t width = TRGlyphImageGetWidth(expected);
     uint32_t height = TRGlyphImageGetHeight(expected);
@@ -647,6 +650,7 @@ void GlyphCacheTests::testConcurrentLookups() {
 
     TRGlyphImageRelease(expected);
     TRRendererRelease(reference);
+    TRGlyphCacheRelease(referenceCache);
     TRGlyphCacheRelease(cache);
     TRTypefaceRelease(blackFace);
     TRTypefaceRelease(typeface);

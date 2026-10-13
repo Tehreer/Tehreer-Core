@@ -1,0 +1,64 @@
+name: Windows CI
+
+on:
+  push:
+    branches: [master, develop]
+    paths-ignore:
+      - '*.md'
+  pull_request:
+    types: [opened, synchronize]
+    paths-ignore:
+      - '*.md'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cmake:
+    name: CMake - MSVC ${{ matrix.platform }}
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: x64
+            triplet: x64-windows-static-md
+          - platform: Win32
+            triplet: x86-windows-static-md
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Install libpng
+        run: vcpkg install libpng:${{ matrix.triplet }}
+
+      - name: Build in Release Mode
+        run: |
+          cmake -S . -B Release `
+            -A ${{ matrix.platform }} `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} `
+            -DFT_REQUIRE_PNG=ON `
+            -DTR_CONFIG_UNITY=ON
+          cmake --build Release --config Release --parallel
+
+      - name: Build in Debug Mode
+        run: |
+          cmake -S. -B Debug `
+            -A ${{ matrix.platform }} `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} `
+            -DFT_REQUIRE_PNG=ON `
+            -DTR_CONFIG_UNITY=OFF `
+            -DENABLE_ASAN=ON `
+            -DENABLE_UBSAN=ON
+          cmake --build Debug --config Debug --parallel
+
+      - name: Run Tests (Debug)
+        run: ctest --test-dir Debug --build-config Debug --output-on-failure

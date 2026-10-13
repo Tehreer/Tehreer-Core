@@ -241,29 +241,29 @@ void ShapingEngineTests::testTypeSize() {
     TRShapingResultRelease(result);
 
     /* Advances are not rounded to whole pixels. */
-    TRShapingEngineRef small = createEngine(typeface, 10.0f);
-    result = shape16(small, u"a", 1);
+    TRShapingEngineRef smallEngine = createEngine(typeface, 10.0f);
+    result = shape16(smallEngine, u"a", 1);
     TRFloat advance = glyphAdvances(result)[0];
     assert(fabsf(advance - 1114.0f * 10.0f / 2048.0f) < 1e-4f);
     TRShapingResultRelease(result);
 
     /* A size that is not positive collapses the glyphs. */
-    TRShapingEngineSetTypeSize(small, 0.0f);
-    result = shape16(small, u"abc", 3);
+    TRShapingEngineSetTypeSize(smallEngine, 0.0f);
+    result = shape16(smallEngine, u"abc", 3);
     assert(TRShapingResultGetGlyphCount(result) == 3);
     for (TRFloat value : glyphAdvances(result)) {
         assert(value == 0.0f);
     }
     TRShapingResultRelease(result);
 
-    TRShapingEngineSetTypeSize(small, -12.0f);
-    result = shape16(small, u"abc", 3);
+    TRShapingEngineSetTypeSize(smallEngine, -12.0f);
+    result = shape16(smallEngine, u"abc", 3);
     for (TRFloat value : glyphAdvances(result)) {
         assert(value == 0.0f);
     }
     TRShapingResultRelease(result);
 
-    TRShapingEngineRelease(small);
+    TRShapingEngineRelease(smallEngine);
     TRShapingEngineRelease(half);
     TRTypefaceRelease(typeface);
 }

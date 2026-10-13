@@ -154,7 +154,7 @@ void AdvanceCacheTests::testLastGlyph() {
 
 void AdvanceCacheTests::testConcurrentAccess() {
     constexpr size_t NumThreads = 8;
-    constexpr TRGlyphID GlyphCount = 2000;
+    static constexpr TRGlyphID GlyphCount = 2000;
 
     AdvanceCache cache;
     AdvanceCacheInitialize(&cache, GlyphCount);
