@@ -30,6 +30,7 @@
 #include <Tehreer/TRGlyphCache.h>
 #include <Tehreer/TRGlyphImage.h>
 #include <Tehreer/TRGlyphRun.h>
+#include <Tehreer/TRLineIndex.h>
 #include <Tehreer/TRPath.h>
 #include <Tehreer/TRRenderer.h>
 #include <Tehreer/TRReplacement.h>
