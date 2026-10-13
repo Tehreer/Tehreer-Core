@@ -30,8 +30,6 @@
 #include <Tehreer/TRGlyphCache.h>
 #include <Tehreer/TRGlyphImage.h>
 #include <Tehreer/TRGlyphRun.h>
-#include <Tehreer/TRNamedStyle.h>
-#include <Tehreer/TRPalette.h>
 #include <Tehreer/TRPath.h>
 #include <Tehreer/TRRenderer.h>
 #include <Tehreer/TRReplacement.h>
@@ -42,7 +40,6 @@
 #include <Tehreer/TRTypeface.h>
 #include <Tehreer/TRTypefaceManager.h>
 #include <Tehreer/TRTypesetter.h>
-#include <Tehreer/TRVariationAxis.h>
 #include <Tehreer/TRVersion.h>
 
 #endif

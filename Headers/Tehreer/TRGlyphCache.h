@@ -43,36 +43,66 @@ TR_PUBLIC TRGlyphCacheRef TRGlyphCacheCreate(TRUInteger capacity);
 /**
  * Returns the cache that renderers use by default. It has a capacity of 8 MB, lives as long as the
  * process does, and must not be released by the caller.
+ *
+ * @return
+ *      The default glyph cache.
  */
 TR_PUBLIC TRGlyphCacheRef TRGlyphCacheGetDefault(void);
 
 /**
  * Returns the capacity of the cache in bytes.
+ *
+ * @param cache
+ *      The cache.
+ * @return
+ *      The size in bytes up to which the cache keeps glyphs.
  */
 TR_PUBLIC TRUInteger TRGlyphCacheGetCapacity(TRGlyphCacheRef cache);
 
 /**
  * Changes the capacity of the cache, and drops glyphs if it is exceeded now.
+ *
+ * @param cache
+ *      The cache.
+ * @param capacity
+ *      The size in bytes up to which the cache keeps glyphs.
  */
 TR_PUBLIC void TRGlyphCacheSetCapacity(TRGlyphCacheRef cache, TRUInteger capacity);
 
 /**
  * Returns the number of bytes that the cache holds at the moment.
+ *
+ * @param cache
+ *      The cache.
+ * @return
+ *      The number of bytes that the cache holds.
  */
 TR_PUBLIC TRUInteger TRGlyphCacheGetSize(TRGlyphCacheRef cache);
 
 /**
  * Drops everything that the cache holds.
+ *
+ * @param cache
+ *      The cache.
  */
 TR_PUBLIC void TRGlyphCacheClear(TRGlyphCacheRef cache);
 
 /**
- * Retains the cache.
+ * Increments the reference count of a cache.
+ *
+ * @param cache
+ *      The cache whose reference count will be incremented.
+ * @return
+ *      The same cache passed in as the parameter.
  */
 TR_PUBLIC TRGlyphCacheRef TRGlyphCacheRetain(TRGlyphCacheRef cache);
 
 /**
- * Releases the cache.
+ * Decrements the reference count of a cache. The cache will be deallocated when its reference count
+ * reaches zero.
+ *
+ * @param cache
+ *      The cache whose reference count will be decremented.
  */
 TR_PUBLIC void TRGlyphCacheRelease(TRGlyphCacheRef cache);
 

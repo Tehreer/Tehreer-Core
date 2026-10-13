@@ -39,6 +39,10 @@ enum {
     TRDrawStyleStroke = 1,          /**< The outlines are drawn with the stroke color. */
     TRDrawStyleFillStroke = 2       /**< The glyphs are filled, and then their outlines drawn. */
 };
+/**
+ * A type to represent what is produced for the glyphs, which is one of the `TRDrawStyle*`
+ * constants above.
+ */
 typedef TRUInt32 TRDrawStyle;
 
 /**

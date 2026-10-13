@@ -46,49 +46,103 @@ typedef struct _TRComposedFrame *TRComposedFrameRef;
 typedef void (*TRSelectionFunc)(void *userData, TRRect rect, TRBoolean *stop);
 
 /**
- * Returns the index of the first code unit that the frame covers, and the index after the last one.
+ * Returns the index of the first code unit that the frame covers.
+ *
+ * @param frame
+ *      The frame.
+ * @return
+ *      The index of the first code unit that the frame covers.
  */
 TR_PUBLIC TRUInteger TRComposedFrameGetCodeUnitStart(TRComposedFrameRef frame);
+
+/**
+ * Returns the index after the last code unit that the frame covers.
+ *
+ * @param frame
+ *      The frame.
+ * @return
+ *      The index after the last code unit that the frame covers.
+ */
 TR_PUBLIC TRUInteger TRComposedFrameGetCodeUnitEnd(TRComposedFrameRef frame);
 
 /**
  * Returns the width of the frame.
+ *
+ * @param frame
+ *      The frame.
+ * @return
+ *      The width of the frame.
  */
 TR_PUBLIC TRFloat TRComposedFrameGetWidth(TRComposedFrameRef frame);
 
 /**
  * Returns the height of the frame.
+ *
+ * @param frame
+ *      The frame.
+ * @return
+ *      The height of the frame.
  */
 TR_PUBLIC TRFloat TRComposedFrameGetHeight(TRComposedFrameRef frame);
 
 /**
  * Returns the number of lines in the frame.
+ *
+ * @param frame
+ *      The frame.
+ * @return
+ *      The number of lines in the frame.
  */
 TR_PUBLIC TRUInteger TRComposedFrameGetLineCount(TRComposedFrameRef frame);
 
 /**
- * Returns a line of the frame, which stays valid as long as the frame does, or `NULL` if the index
- * is not less than the line count.
+ * Returns a line of the frame, which is not retained for the caller, and stays valid as long as
+ * the frame does.
+ *
+ * @param frame
+ *      The frame.
+ * @param index
+ *      The index of the line, less than `TRComposedFrameGetLineCount()`.
+ * @return
+ *      The line, or `NULL` if the index is not less than the line count.
  */
 TR_PUBLIC TRComposedLineRef TRComposedFrameGetLine(TRComposedFrameRef frame, TRUInteger index);
 
 /**
  * Returns the index of the line that has a code unit, or `TRInvalidIndex` if there is none, as for
  * a code unit that is not within the range of the frame.
+ *
+ * @param frame
+ *      The frame.
+ * @param codeUnitIndex
+ *      The index of the code unit.
+ * @return
+ *      The index of the line.
  */
 TR_PUBLIC TRUInteger TRComposedFrameGetIndexOfLineForCodeUnit(TRComposedFrameRef frame,
     TRUInteger codeUnitIndex);
 
 /**
  * Returns the index of the line that suits a position best: the line whose top and bottom have its
- * y, or the last line if there is none. A frame always has at least one line.
+ * y, or the last line if there is none. A frame always has at least one line. Only the y of the
+ * position is considered.
+ *
+ * @param frame
+ *      The frame.
+ * @param position
+ *      The position in the coordinates of the frame.
+ * @return
+ *      The index of the line, which is the first one if more than one has the y.
  */
 TR_PUBLIC TRUInteger TRComposedFrameGetIndexOfLineAtPosition(TRComposedFrameRef frame,
     TRPoint position);
 
 /**
  * Passes the rectangles that cover a range of code units to the function. A range that spans
- * lines is covered with the paddings of the lines too.
+ * lines is covered with the paddings of the lines too: the space after the text of the first line
+ * up to the edge of the frame, the whole width of each line in between, and the space before the
+ * text of the last line. The edges are those of the frame, and the padding follows the direction of
+ * the paragraph of the last line.
  *
  * @param frame
  *      The frame.
@@ -126,11 +180,19 @@ TR_PUBLIC void TRComposedFrameDraw(TRComposedFrameRef frame, TRRendererRef rende
 
 /**
  * Increments the reference count of a frame.
+ *
+ * @param frame
+ *      The frame whose reference count will be incremented.
+ * @return
+ *      The same frame passed in as the parameter.
  */
 TR_PUBLIC TRComposedFrameRef TRComposedFrameRetain(TRComposedFrameRef frame);
 
 /**
  * Decrements the reference count of a frame, and destroys it when the count reaches zero.
+ *
+ * @param frame
+ *      The frame whose reference count will be decremented.
  */
 TR_PUBLIC void TRComposedFrameRelease(TRComposedFrameRef frame);
 

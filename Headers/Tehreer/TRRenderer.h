@@ -32,21 +32,29 @@ TR_EXTERN_C_BEGIN
  * The shape at the ends of an open stroked line.
  */
 enum {
-    TRStrokeCapButt = 0,
-    TRStrokeCapRound = 1,
-    TRStrokeCapSquare = 2
+    TRStrokeCapButt = 0,        /**< The line ends exactly at the end point. */
+    TRStrokeCapRound = 1,       /**< The line ends with a semicircle around the end point. */
+    TRStrokeCapSquare = 2       /**< The line extends beyond the end point by the stroke radius. */
 };
+/**
+ * A type to represent the shape at the ends of stroked lines, which is one of the `TRStrokeCap*`
+ * constants above.
+ */
 typedef TRUInt32 TRStrokeCap;
 
 /**
  * The shape at the corners of a stroked line.
  */
 enum {
-    TRStrokeJoinRound = 0,
-    TRStrokeJoinBevel = 1,
+    TRStrokeJoinRound = 0,          /**< The corner is rounded. */
+    TRStrokeJoinBevel = 1,          /**< The corner is cut off flat. */
     TRStrokeJoinMiterVariable = 2,  /**< Falls back to a bevel when the miter is too long. */
     TRStrokeJoinMiterFixed = 3      /**< Clips the miter at the limit. */
 };
+/**
+ * A type to represent the shape at the corners of stroked lines, which is one of the
+ * `TRStrokeJoin*` constants above.
+ */
 typedef TRUInt32 TRStrokeJoin;
 
 /**
@@ -56,6 +64,10 @@ enum {
     TRGlyphImageKindFill = 0,       /**< The images that are painted to fill the glyphs. */
     TRGlyphImageKindStroke = 1      /**< The images of the outlines of the glyphs. */
 };
+/**
+ * A type to represent the kind of glyph images that are wanted, which is one of the
+ * `TRGlyphImageKind*` constants above.
+ */
 typedef TRUInt32 TRGlyphImageKind;
 
 /**
@@ -111,72 +123,141 @@ typedef struct _TRRenderer *TRRendererRef;
 TR_PUBLIC TRRendererRef TRRendererCreate(void);
 
 /**
- * Sets the glyph cache to use. The renderer retains it. `NULL` selects the default cache.
+ * Sets the glyph cache to use. The renderer retains it.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param cache
+ *      The glyph cache, or `NULL` to select the default cache.
  */
 TR_PUBLIC void TRRendererSetGlyphCache(TRRendererRef renderer, TRGlyphCacheRef cache);
 
 /**
- * Sets the typeface of the glyphs. The renderer retains it.
+ * Sets the typeface of the glyphs. The renderer retains it. No image, path or placement is made
+ * while it is `NULL`.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param typeface
+ *      The typeface, or `NULL` to clear it.
  */
 TR_PUBLIC void TRRendererSetTypeface(TRRendererRef renderer, TRTypefaceRef typeface);
 
 /**
- * Sets the size of the em square, in the unit of the user space.
+ * Sets the size of the em square, in the unit of the user space. The default is 16.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param typeSize
+ *      The size of the em square.
  */
 TR_PUBLIC void TRRendererSetTypeSize(TRRendererRef renderer, TRFloat typeSize);
 
 /**
- * Sets the horizontal scale of the glyphs.
+ * Sets the horizontal scale of the glyphs, which is applied to the type size. The default is 1.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param scaleX
+ *      The horizontal scale.
  */
 TR_PUBLIC void TRRendererSetScaleX(TRRendererRef renderer, TRFloat scaleX);
 
 /**
- * Sets the vertical scale of the glyphs.
+ * Sets the vertical scale of the glyphs, which is applied to the type size. The default is 1.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param scaleY
+ *      The vertical scale.
  */
 TR_PUBLIC void TRRendererSetScaleY(TRRendererRef renderer, TRFloat scaleY);
 
 /**
  * Sets the horizontal skew of the glyphs: the distance that a point moves to the right for each
- * unit that it is above the baseline. Slanted text has a positive skew.
+ * unit that it is above the baseline. Slanted text has a positive skew. The default is 0. It does
+ * not apply to the images of a font that has only bitmap strikes.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param skewX
+ *      The horizontal skew.
  */
 TR_PUBLIC void TRRendererSetSkewX(TRRendererRef renderer, TRFloat skewX);
 
 /**
- * Sets the number of pixels in a unit of the user space.
+ * Sets the number of pixels in a unit of the user space. The default is 1.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param renderScale
+ *      The number of pixels in a unit.
  */
 TR_PUBLIC void TRRendererSetRenderScale(TRRendererRef renderer, TRFloat renderScale);
 
 /**
  * Sets the direction of the runs that are passed in. In right-to-left runs, the pen moves to the
- * left before a glyph is placed.
+ * left before a glyph is placed. The default is left to right.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param writingDirection
+ *      The direction of the runs.
  */
 TR_PUBLIC void TRRendererSetWritingDirection(TRRendererRef renderer,
     TRWritingDirection writingDirection);
 
 /**
- * Sets the color that is used for the glyphs, or the parts of them, that follow the foreground.
+ * Sets the color that is used for the glyphs, or the parts of them, that follow the foreground. The
+ * images that fill the glyphs are made in it. The default is opaque black.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param foregroundColor
+ *      The foreground color.
  */
 TR_PUBLIC void TRRendererSetForegroundColor(TRRendererRef renderer, TRColor foregroundColor);
 
 /**
  * Sets the radius of the stroked lines, in the unit of the user space: how far the stroke reaches
  * from the outline of a glyph, so a stroked line is twice as wide. It is as many pixels as it is,
- * without the render scale. The default is 0.5.
+ * without the render scale. The default is 0.5. A negative radius is taken as zero.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param strokeRadius
+ *      The radius of the stroked lines.
  */
 TR_PUBLIC void TRRendererSetStrokeRadius(TRRendererRef renderer, TRFloat strokeRadius);
 
 /**
- * Sets the shape at the ends of stroked lines.
+ * Sets the shape at the ends of stroked lines. The default is `TRStrokeCapButt`.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param strokeCap
+ *      The shape at the ends.
  */
 TR_PUBLIC void TRRendererSetStrokeCap(TRRendererRef renderer, TRStrokeCap strokeCap);
 
 /**
- * Sets the shape at the corners of stroked lines.
+ * Sets the shape at the corners of stroked lines. The default is `TRStrokeJoinRound`.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param strokeJoin
+ *      The shape at the corners.
  */
 TR_PUBLIC void TRRendererSetStrokeJoin(TRRendererRef renderer, TRStrokeJoin strokeJoin);
 
 /**
- * Sets the limit of the length of miters, as a ratio of the stroke width.
+ * Sets the limit of the length of miters, as a ratio of the stroke width. The default is 1. A
+ * negative limit is taken as zero.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param strokeMiter
+ *      The limit of the miters.
  */
 TR_PUBLIC void TRRendererSetStrokeMiter(TRRendererRef renderer, TRFloat strokeMiter);
 
@@ -218,7 +299,12 @@ TR_PUBLIC void TRRendererSetDrawCallbacks(TRRendererRef renderer, const TRDrawCa
 
 /**
  * Returns whether the glyphs are big enough to be rendered, which takes at least one pixel in each
- * direction.
+ * direction. It is the size of the em square multiplied by the scale and the render scale.
+ *
+ * @param renderer
+ *      The renderer.
+ * @return
+ *      `TRTrue` if the em square takes at least one pixel horizontally and vertically.
  */
 TR_PUBLIC TRBoolean TRRendererIsRenderable(TRRendererRef renderer);
 
@@ -226,6 +312,12 @@ TR_PUBLIC TRBoolean TRRendererIsRenderable(TRRendererRef renderer);
  * Copies the image that fills a glyph from the glyph cache. The image of a glyph of a bitmap font
  * is the one of its nearest strike, which is not scaled to the type size.
  *
+ * The image is made in the foreground color of the renderer for the parts that follow it.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param glyphID
+ *      The ID of the glyph.
  * @return
  *      The image, which the caller owns and has to release, or `NULL` if there is no typeface or
  *      the glyph has no image, such as a space.
@@ -233,8 +325,16 @@ TR_PUBLIC TRBoolean TRRendererIsRenderable(TRRendererRef renderer);
 TR_PUBLIC TRGlyphImageRef TRRendererCopyGlyphImage(TRRendererRef renderer, TRGlyphID glyphID);
 
 /**
- * Copies the image of the outline of a glyph from the glyph cache, which the caller owns and has to
- * release, or `NULL`. A glyph of a bitmap font has no outline.
+ * Copies the image of the outline of a glyph from the glyph cache, as stroked with the radius, cap,
+ * join and miter of the renderer.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param glyphID
+ *      The ID of the glyph.
+ * @return
+ *      The image, which the caller owns and has to release, or `NULL` if there is no typeface or
+ *      the glyph has no outline, as a glyph of a bitmap font.
  */
 TR_PUBLIC TRGlyphImageRef TRRendererCopyStrokeImage(TRRendererRef renderer, TRGlyphID glyphID);
 
@@ -243,6 +343,10 @@ TR_PUBLIC TRGlyphImageRef TRRendererCopyStrokeImage(TRRendererRef renderer, TRGl
  * the pen position on the baseline. Enumerate it with a transform that scales it by the inverse of
  * the render scale to get it in the user space.
  *
+ * @param renderer
+ *      The renderer.
+ * @param glyphID
+ *      The ID of the glyph.
  * @return
  *      The path, which the caller owns and has to release, or `NULL` if there is no typeface or the
  *      glyph has no outline.
@@ -251,7 +355,14 @@ TR_PUBLIC TRPathRef TRRendererCopyGlyphPath(TRRendererRef renderer, TRGlyphID gl
 
 /**
  * Returns the ink box of a glyph: the box around its image when it is placed at its pen position,
- * in the user space with the y axis pointing downward. It is empty if the glyph has no image.
+ * in the user space with the y axis pointing downward.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param glyphID
+ *      The ID of the glyph.
+ * @return
+ *      The box, which is empty if the glyph has no image.
  */
 TR_PUBLIC TRRect TRRendererGetGlyphInkBox(TRRendererRef renderer, TRGlyphID glyphID);
 
@@ -261,6 +372,8 @@ TR_PUBLIC TRRect TRRendererGetGlyphInkBox(TRRendererRef renderer, TRGlyphID glyp
  * run is shifted by the advance of the run, unlike the placements. It is empty if no glyph has an
  * image.
  *
+ * @param renderer
+ *      The renderer.
  * @param glyphIDs
  *      The glyphs, in the order of the writing direction.
  * @param offsets
@@ -269,6 +382,8 @@ TR_PUBLIC TRRect TRRendererGetGlyphInkBox(TRRendererRef renderer, TRGlyphID glyp
  *      The advances of the glyphs.
  * @param count
  *      Number of glyphs.
+ * @return
+ *      The ink box of the run.
  */
 TR_PUBLIC TRRect TRRendererGetRunInkBox(TRRendererRef renderer, const TRGlyphID *glyphIDs,
     const TRPoint *offsets, const TRFloat *advances, TRUInteger count);
@@ -283,14 +398,22 @@ TR_PUBLIC TRRect TRRendererGetRunInkBox(TRRendererRef renderer, const TRGlyphID 
  * The images are retained only while the function is being called, so nothing has to be released
  * by the caller.
  *
+ * @param renderer
+ *      The renderer.
  * @param kind
  *      The kind of the images to find.
+ * @param glyphIDs
+ *      The glyphs, in the order of the writing direction.
+ * @param offsets
+ *      The offsets of the glyphs from their pen positions, with the y axis pointing up.
+ * @param advances
+ *      The advances of the glyphs.
+ * @param count
+ *      Number of glyphs.
  * @param func
  *      The function to call for each image.
  * @param userData
  *      An opaque pointer that is passed to the function.
- *
- * The other parameters are those of `TRRendererGetRunInkBox()`.
  */
 TR_PUBLIC void TRRendererEnumerateGlyphPlacements(TRRendererRef renderer, TRGlyphImageKind kind,
     const TRGlyphID *glyphIDs, const TRPoint *offsets, const TRFloat *advances, TRUInteger count,
@@ -301,19 +424,41 @@ TR_PUBLIC void TRRendererEnumerateGlyphPlacements(TRRendererRef renderer, TRGlyp
  * space and with the y axis pointing downward. The positions are not rounded, and are relative to
  * the pen in the same way as those of `TRRendererEnumerateGlyphPlacements()`.
  *
- * The other parameters are those of `TRRendererGetRunInkBox()`.
+ * @param renderer
+ *      The renderer.
+ * @param glyphIDs
+ *      The glyphs, in the order of the writing direction.
+ * @param offsets
+ *      The offsets of the glyphs from their pen positions, with the y axis pointing up.
+ * @param advances
+ *      The advances of the glyphs.
+ * @param count
+ *      Number of glyphs.
+ * @param callbacks
+ *      The functions that receive the contours of each outline.
+ * @param userData
+ *      An opaque pointer that is passed to the callbacks.
  */
 TR_PUBLIC void TRRendererEnumerateGlyphPaths(TRRendererRef renderer, const TRGlyphID *glyphIDs,
     const TRPoint *offsets, const TRFloat *advances, TRUInteger count,
     const TRPathCallbacks *callbacks, void *userData);
 
 /**
- * Retains the renderer.
+ * Increments the reference count of a renderer.
+ *
+ * @param renderer
+ *      The renderer whose reference count will be incremented.
+ * @return
+ *      The same renderer passed in as the parameter.
  */
 TR_PUBLIC TRRendererRef TRRendererRetain(TRRendererRef renderer);
 
 /**
- * Releases the renderer.
+ * Decrements the reference count of a renderer. The renderer will be deallocated when its
+ * reference count reaches zero.
+ *
+ * @param renderer
+ *      The renderer whose reference count will be decremented.
  */
 TR_PUBLIC void TRRendererRelease(TRRendererRef renderer);
 

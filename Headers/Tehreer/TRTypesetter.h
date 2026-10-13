@@ -32,6 +32,9 @@ enum {
     TRBreakModeLine = 0,        /**< Lines break at the places that Unicode allows. */
     TRBreakModeCharacter = 1    /**< Lines break between any two characters (grapheme clusters). */
 };
+/**
+ * A type to represent how lines are broken, which is one of the `TRBreakMode*` constants above.
+ */
 typedef TRUInt32 TRBreakMode;
 
 /**
@@ -42,6 +45,10 @@ enum {
     TRTruncationPlaceMiddle = 1,    /**< The text in the middle of the line is cut out. */
     TRTruncationPlaceEnd = 2        /**< The text at the end of the line is cut out. */
 };
+/**
+ * A type to represent where text is cut out of a line, which is one of the `TRTruncationPlace*`
+ * constants above.
+ */
 typedef TRUInt32 TRTruncationPlace;
 
 /**
@@ -66,18 +73,25 @@ typedef const struct _TRTypesetter *TRTypesetterRef;
  * @param text
  *      The text to typeset.
  * @param defaultAttributes
- *      Attributes to use where the text has none, or `NULL`. Only the typeface, point size, scales,
- *      baseline offset and obliqueness are looked at.
+ *      Attributes to use where the text has none, or `NULL`. Only the ones that decide how the
+ *      text is shaped are looked at: the typeface, type size, scales, baseline offset,
+ *      obliqueness, replacement, language and font features. A negative type size is taken as
+ *      zero.
  * @param defaultAttributeCount
  *      Number of default attributes.
  * @return
- *      New typesetter, or `NULL` if some text has no typeface or on failure.
+ *      New typesetter, or `NULL` if the text is `NULL`, some text has no typeface or on failure.
  */
 TR_PUBLIC TRTypesetterRef TRTypesetterCreate(TRTextRef text,
     const TRAttribute *defaultAttributes, TRUInteger defaultAttributeCount);
 
 /**
  * Returns the number of code units in the text.
+ *
+ * @param typesetter
+ *      The typesetter.
+ * @return
+ *      The number of code units in the text of the typesetter.
  */
 TR_PUBLIC TRUInteger TRTypesetterGetCodeUnitCount(TRTypesetterRef typesetter);
 
@@ -111,8 +125,16 @@ TR_PUBLIC TRUInteger TRTypesetterSuggestForwardBreak(TRTypesetterRef typesetter,
  * Otherwise the index of the first code unit of the line that fits is returned, at least one
  * character before the end. A line break may not cross a paragraph.
  *
- * The parameters are those of `TRTypesetterSuggestForwardBreak()`.
- *
+ * @param typesetter
+ *      The typesetter.
+ * @param index
+ *      The index of the first code unit of the range to break.
+ * @param length
+ *      The number of code units of the range to break, which MUST NOT be zero.
+ * @param extent
+ *      The extent that the line has to fit in.
+ * @param breakMode
+ *      The way to break the line.
  * @return
  *      The index (inclusive) that starts the line, or `TRInvalidIndex` if the range is empty or is
  *      not within the text.
@@ -130,7 +152,8 @@ TR_PUBLIC TRUInteger TRTypesetterSuggestBackwardBreak(TRTypesetterRef typesetter
  * @param index
  *      The index of the first code unit of the line.
  * @param length
- *      The number of code units of the line, which MUST NOT be zero. The range of the line has to be
+ *      The number of code units of the line, which MUST NOT be zero. The range of the line has to
+ *      be
  *      within the text.
  * @return
  *      New line, or `NULL` if the range is empty or is not within the text, or on failure.
@@ -148,7 +171,8 @@ TR_PUBLIC TRComposedLineRef TRTypesetterCreateSimpleLine(TRTypesetterRef typeset
  * @param index
  *      The index of the first code unit of the line.
  * @param length
- *      The number of code units of the line, which MUST NOT be zero. The range of the line has to be
+ *      The number of code units of the line, which MUST NOT be zero. The range of the line has to
+ *      be
  *      within the text.
  * @param layoutWidth
  *      The width of the frame.
@@ -167,7 +191,8 @@ TR_PUBLIC TRComposedLineRef TRTypesetterCreateFrameLine(TRTypesetterRef typesett
  * @param index
  *      The index of the first code unit of the line that is truncated.
  * @param length
- *      The number of code units of the line that is truncated, which MUST NOT be zero. The range has
+ *      The number of code units of the line that is truncated, which MUST NOT be zero. The range
+ *      has
  *      to be within the text.
  * @param truncationPlace
  *      The place where text is cut out.
@@ -194,7 +219,8 @@ TR_PUBLIC TRComposedLineRef TRTypesetterCreateTruncationToken(TRTypesetterRef ty
  * @param index
  *      The index of the first code unit of the line.
  * @param length
- *      The number of code units of the line, which MUST NOT be zero. The range of the line has to be
+ *      The number of code units of the line, which MUST NOT be zero. The range of the line has to
+ *      be
  *      within the text.
  * @param extent
  *      The extent at which the truncation begins.
@@ -220,7 +246,8 @@ TR_PUBLIC TRComposedLineRef TRTypesetterCreateTruncatedLine(TRTypesetterRef type
  * @param index
  *      The index of the first code unit of the line.
  * @param length
- *      The number of code units of the line, which MUST NOT be zero. The range of the line has to be
+ *      The number of code units of the line, which MUST NOT be zero. The range of the line has to
+ *      be
  *      within the text.
  * @param justificationFactor
  *      How much of the extra space is used: 1 or more stretches the line fully, anything less does
@@ -235,12 +262,21 @@ TR_PUBLIC TRComposedLineRef TRTypesetterCreateJustifiedLine(TRTypesetterRef type
     TRUInteger index, TRUInteger length, TRFloat justificationFactor, TRFloat justificationExtent);
 
 /**
- * Retains the typesetter.
+ * Increments the reference count of a typesetter.
+ *
+ * @param typesetter
+ *      The typesetter whose reference count will be incremented.
+ * @return
+ *      The same typesetter passed in as the parameter.
  */
 TR_PUBLIC TRTypesetterRef TRTypesetterRetain(TRTypesetterRef typesetter);
 
 /**
- * Releases the typesetter.
+ * Decrements the reference count of a typesetter. The typesetter will be deallocated when its
+ * reference count reaches zero.
+ *
+ * @param typesetter
+ *      The typesetter whose reference count will be decremented.
  */
 TR_PUBLIC void TRTypesetterRelease(TRTypesetterRef typesetter);
 

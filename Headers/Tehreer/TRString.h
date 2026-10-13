@@ -21,17 +21,28 @@
 
 TR_EXTERN_C_BEGIN
 
+/**
+ * The encoding of the code units of a string.
+ */
 enum {
     TRStringEncodingUTF8  = 0,  /**< An 8-bit representation of Unicode code points. */
     TRStringEncodingUTF16 = 1,  /**< 16-bit UTF encoding in native endianness. */
     TRStringEncodingUTF32 = 2   /**< 32-bit UTF encoding in native endianness. */
 };
+/**
+ * A type to represent the encoding of the code units of a string, which is one of the
+ * `TRStringEncoding*` constants above.
+ */
 typedef TRUInt32 TRStringEncoding;
 
+/**
+ * A view of a string that someone else owns. It holds a pointer to the code units, their count and
+ * their encoding, but it does not own or copy them, so the buffer must outlive the view.
+ */
 typedef struct _TRStringView {
-    const void *buffer;
-    TRUInteger length;
-    TRStringEncoding encoding;
+    const void *buffer;             /**< The code units of the string, in the given encoding. */
+    TRUInteger length;              /**< The number of code units, not of bytes or characters. */
+    TRStringEncoding encoding;      /**< The encoding of the code units. */
 } TRStringView;
 
 TR_EXTERN_C_END

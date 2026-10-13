@@ -27,8 +27,8 @@ TR_EXTERN_C_BEGIN
  * have some, such as `salt`.
  */
 typedef struct _TROpenTypeFeature {
-    TRTag tag;
-    TRUInt32 value;
+    TRTag tag;              /**< The tag of the feature, e.g. `liga`. */
+    TRUInt32 value;         /**< The setting: 0 turns the feature off, 1 on. */
 } TROpenTypeFeature;
 
 /**
@@ -53,11 +53,21 @@ TR_PUBLIC TRFontFeaturesRef TRFontFeaturesCreate(const TROpenTypeFeature *featur
 
 /**
  * Returns the settings of the set, in the order that they were given.
+ *
+ * @param features
+ *      The set of feature settings.
+ * @return
+ *      The settings of the set, in the order that they were given.
  */
 TR_PUBLIC const TROpenTypeFeature *TRFontFeaturesGetItemsPtr(TRFontFeaturesRef features);
 
 /**
  * Returns the number of settings in the set.
+ *
+ * @param features
+ *      The set of feature settings.
+ * @return
+ *      The number of settings in the set.
  */
 TR_PUBLIC TRUInteger TRFontFeaturesGetCount(TRFontFeaturesRef features);
 

@@ -118,10 +118,30 @@ typedef TRUInt32                    TRTag;
   | ((TRUInt32)(TRUInt8)(d))        \
 )
 
+/**
+ * A type to represent the identifier of a glyph in a typeface.
+ */
 typedef TRUInt16                    TRGlyphID;
 
+/**
+ * A type to represent a color as four 8-bit channels packed into a 32-bit integer. The alpha
+ * channel occupies the highest byte, followed by the red, the green and the blue channels.
+ */
 typedef TRUInt32                    TRColor;
 
+/**
+ * Makes a color from its channels, in the layout of `TRColor`. Each channel is expected to be in
+ * the range from 0 to 255; the values are not clamped.
+ *
+ * @param a
+ *      The alpha channel.
+ * @param r
+ *      The red channel.
+ * @param g
+ *      The green channel.
+ * @param b
+ *      The blue channel.
+ */
 #define TRColorMake(a, r, g, b)     \
 (                                   \
     ((TRUInt32)(a) << 24)           \
