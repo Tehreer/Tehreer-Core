@@ -35,10 +35,7 @@ TR_EXTERN_C_BEGIN
  * line. The edges of the box are rounded outward to integers. The boxes of the lines can overlap.
  *
  * The boxes are grouped into bands that are 512 units tall, and a line is kept in every band that
- * its box touches. A locator takes at most 2^22 bands, which are 2^31 units (about 2.1 billion) of
- * height, and at most 2^24 entries in the bands, where an entry is a band that a line touches. A
- * frame that is ten million units tall takes about 20 thousand bands. A locator is immutable, and it
- * can be used from any thread. It does not retain
+ * its box touches. A locator is immutable, and it can be used from any thread. It does not retain
  * the frame it was made from.
  */
 typedef struct _TRLineLocator *TRLineLocatorRef;
@@ -67,8 +64,7 @@ typedef void (*TRLineLocatorFunc)(void *userData, TRUInteger lineIndex, TRBoolea
  *      The renderer that decides how the glyphs are measured.
  * @return
  *      New locator that the caller owns, or `NULL` if the frame or the renderer is `NULL`, if the
- *      boxes of the lines exceed the limit of the bands or of the entries given above (for example
- *      when lines are placed billions of units apart, or a box is not finite), or on failure.
+ *      boxes need more than 2^22 bands or entries, or on failure.
  */
 TR_PUBLIC TRLineLocatorRef TRLineLocatorCreate(TRComposedFrameRef frame, TRRendererRef renderer);
 
@@ -113,18 +109,15 @@ TR_PUBLIC TRBoolean TRLineLocatorGetLineBox(TRLineLocatorRef locator, TRUInteger
  *      The line locator.
  * @param rect
  *      The rectangle in the coordinates of the frame. Its width and height MUST NOT be negative.
- *      It can be bigger than the frame, or lie outside of it, in which case no line is passed. Its
- *      origin and size can be infinite: an infinite size extends the rectangle to infinity in that
- *      direction, so a rectangle with a negative infinite origin and an infinite size covers every
- *      position of that axis.
+ *      It can be bigger than the frame, or lie outside of it, in which case no line is passed. An
+ *      infinite size extends the rectangle without a bound.
  * @param func
  *      The function to call for each line, which can stop the enumeration.
  * @param userData
  *      An opaque pointer that is passed to the function.
  * @return
  *      `TRTrue` if the enumeration is done, or stopped, `TRFalse` if the function is `NULL`, or the
- *      origin or the size of the rectangle is not a number, or a size is negative, in which case
- *      nothing is passed.
+ *      rectangle has a negative size or is not a number, in which case nothing is passed.
  */
 TR_PUBLIC TRBoolean TRLineLocatorEnumerateLines(TRLineLocatorRef locator, TRRect rect,
     TRLineLocatorFunc func, void *userData);

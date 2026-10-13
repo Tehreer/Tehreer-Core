@@ -33,19 +33,8 @@
 /* The height of a band, in the units of the frame. */
 #define BandHeight      512.0
 
-/*
- * The greatest number of bands that a locator takes: 2^22, which are 2^31 units, about 2.1 billion,
- * of height. A frame that is ten million units tall takes about 20 thousand bands. The starts of
- * the bands take 8 bytes each, so at most 32 MB.
- */
+/* The greatest number of bands, and of entries in them: 2^22, which are 2^31 units of height. */
 #define MaxBandCount    ((double)(1 << 22))
-
-/*
- * The greatest number of entries in the bands: 2^24, which take at most 128 MB. A frame whose lines
- * have boxes of a height of a few bands needs a small multiple of its line count. Both limits also
- * keep the sums of the sizes of the chunks far from overflowing.
- */
-#define MaxEntryCount   ((double)(1 << 24))
 
 /*
  * The bands cover the boxes without a gap, from the band of the top of the topmost box, which is
@@ -144,10 +133,7 @@ static TRUInteger GetBandOffset(const TRLineLocator *locator, double band)
     return (TRUInteger)(band - locator->firstBand);
 }
 
-/*
- * Tells if the bands take no more bands and entries than the limits. The counts are summed as
- * doubles, so they cannot wrap, and a box that is not finite does not pass the comparisons.
- */
+/* Tells if the bands take a number of bands and entries that the locator can have. */
 static TRBoolean BandsAreSupported(const TRRect *boxes, TRUInteger lineCount, double *firstBand,
     TRUInteger *bandCount, TRUInteger *entryCount)
 {
@@ -177,7 +163,7 @@ static TRBoolean BandsAreSupported(const TRRect *boxes, TRUInteger lineCount, do
 
     span = maxBand - minBand + 1.0;
 
-    if (span <= MaxBandCount && entries <= MaxEntryCount) {
+    if (span <= MaxBandCount && entries <= MaxBandCount) {
         *firstBand = minBand;
         *bandCount = (TRUInteger)span;
         *entryCount = (TRUInteger)entries;
@@ -318,10 +304,7 @@ static void EnumerateBandLines(const TRLineLocator *locator, TRUInteger offset, 
     }
 }
 
-/*
- * Passes the lines of the bands from one offset to another, and stops after the band in which the
- * function asked to stop.
- */
+/* Passes the lines of the bands from one offset to another, until the function stops. */
 static void EnumerateBands(const TRLineLocator *locator, TRUInteger firstOffset,
     TRUInteger lastOffset, double topBand, const TRRect *rect, TRFloat rectRight,
     TRFloat rectBottom, TRLineLocatorFunc func, void *userData)
@@ -344,9 +327,8 @@ static TRBoolean GetRectEdge(TRFloat origin, TRFloat size, TRFloat *edge)
 {
     TRBoolean isValid = TRFalse;
 
-    /* The size is not a number, or is negative, if it fails the comparison. */
     if (origin == origin && size >= 0.0f) {
-        /* The sum is not a number if the origin is negative infinity and the size is infinite. */
+        /* The sum of an infinite origin and size is not a number. */
         *edge = (size == HUGE_VAL ? HUGE_VAL : origin + size);
         isValid = TRTrue;
     }
