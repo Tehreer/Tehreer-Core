@@ -241,6 +241,11 @@ TRRendererRef TRRendererCreate(void)
     return renderer;
 }
 
+TRGlyphCacheRef TRRendererGetGlyphCache(TRRendererRef renderer)
+{
+    return GetCache(renderer);
+}
+
 void TRRendererSetGlyphCache(TRRendererRef renderer, TRGlyphCacheRef cache)
 {
     if (cache) {
@@ -251,6 +256,11 @@ void TRRendererSetGlyphCache(TRRendererRef renderer, TRGlyphCacheRef cache)
     }
 
     renderer->cache = cache;
+}
+
+TRTypefaceRef TRRendererGetTypeface(TRRendererRef renderer)
+{
+    return renderer->typeface;
 }
 
 void TRRendererSetTypeface(TRRendererRef renderer, TRTypefaceRef typeface)
@@ -265,9 +275,19 @@ void TRRendererSetTypeface(TRRendererRef renderer, TRTypefaceRef typeface)
     renderer->typeface = typeface;
 }
 
+TRFloat TRRendererGetTypeSize(TRRendererRef renderer)
+{
+    return renderer->typeSize;
+}
+
 void TRRendererSetTypeSize(TRRendererRef renderer, TRFloat typeSize)
 {
     renderer->typeSize = typeSize;
+}
+
+TRFloat TRRendererGetScaleX(TRRendererRef renderer)
+{
+    return renderer->scaleX;
 }
 
 void TRRendererSetScaleX(TRRendererRef renderer, TRFloat scaleX)
@@ -275,9 +295,19 @@ void TRRendererSetScaleX(TRRendererRef renderer, TRFloat scaleX)
     renderer->scaleX = scaleX;
 }
 
+TRFloat TRRendererGetScaleY(TRRendererRef renderer)
+{
+    return renderer->scaleY;
+}
+
 void TRRendererSetScaleY(TRRendererRef renderer, TRFloat scaleY)
 {
     renderer->scaleY = scaleY;
+}
+
+TRFloat TRRendererGetSkewX(TRRendererRef renderer)
+{
+    return renderer->skewX;
 }
 
 void TRRendererSetSkewX(TRRendererRef renderer, TRFloat skewX)
@@ -285,9 +315,19 @@ void TRRendererSetSkewX(TRRendererRef renderer, TRFloat skewX)
     renderer->skewX = skewX;
 }
 
+TRFloat TRRendererGetRenderScale(TRRendererRef renderer)
+{
+    return renderer->renderScale;
+}
+
 void TRRendererSetRenderScale(TRRendererRef renderer, TRFloat renderScale)
 {
     renderer->renderScale = renderScale;
+}
+
+TRWritingDirection TRRendererGetWritingDirection(TRRendererRef renderer)
+{
+    return renderer->writingDirection;
 }
 
 void TRRendererSetWritingDirection(TRRendererRef renderer, TRWritingDirection writingDirection)
@@ -295,9 +335,19 @@ void TRRendererSetWritingDirection(TRRendererRef renderer, TRWritingDirection wr
     renderer->writingDirection = writingDirection;
 }
 
+TRColor TRRendererGetForegroundColor(TRRendererRef renderer)
+{
+    return renderer->foregroundColor;
+}
+
 void TRRendererSetForegroundColor(TRRendererRef renderer, TRColor foregroundColor)
 {
     renderer->foregroundColor = foregroundColor;
+}
+
+TRFloat TRRendererGetStrokeRadius(TRRendererRef renderer)
+{
+    return renderer->strokeRadius;
 }
 
 void TRRendererSetStrokeRadius(TRRendererRef renderer, TRFloat strokeRadius)
@@ -305,9 +355,19 @@ void TRRendererSetStrokeRadius(TRRendererRef renderer, TRFloat strokeRadius)
     renderer->strokeRadius = strokeRadius;
 }
 
+TRStrokeCap TRRendererGetStrokeCap(TRRendererRef renderer)
+{
+    return renderer->strokeCap;
+}
+
 void TRRendererSetStrokeCap(TRRendererRef renderer, TRStrokeCap strokeCap)
 {
     renderer->strokeCap = strokeCap;
+}
+
+TRStrokeJoin TRRendererGetStrokeJoin(TRRendererRef renderer)
+{
+    return renderer->strokeJoin;
 }
 
 void TRRendererSetStrokeJoin(TRRendererRef renderer, TRStrokeJoin strokeJoin)
@@ -315,9 +375,19 @@ void TRRendererSetStrokeJoin(TRRendererRef renderer, TRStrokeJoin strokeJoin)
     renderer->strokeJoin = strokeJoin;
 }
 
+TRFloat TRRendererGetStrokeMiter(TRRendererRef renderer)
+{
+    return renderer->strokeMiter;
+}
+
 void TRRendererSetStrokeMiter(TRRendererRef renderer, TRFloat strokeMiter)
 {
     renderer->strokeMiter = strokeMiter;
+}
+
+TRColor TRRendererGetStrokeColor(TRRendererRef renderer)
+{
+    return renderer->strokeColor;
 }
 
 void TRRendererSetStrokeColor(TRRendererRef renderer, TRColor strokeColor)
@@ -325,9 +395,24 @@ void TRRendererSetStrokeColor(TRRendererRef renderer, TRColor strokeColor)
     renderer->strokeColor = strokeColor;
 }
 
+TRDrawStyle TRRendererGetDrawStyle(TRRendererRef renderer)
+{
+    return renderer->drawStyle;
+}
+
 void TRRendererSetDrawStyle(TRRendererRef renderer, TRDrawStyle drawStyle)
 {
     renderer->drawStyle = drawStyle;
+}
+
+void TRRendererGetDrawCallbacks(TRRendererRef renderer, TRDrawCallbacks *callbacks)
+{
+    *callbacks = renderer->drawCallbacks;
+}
+
+void *TRRendererGetDrawUserData(TRRendererRef renderer)
+{
+    return renderer->drawUserData;
 }
 
 void TRRendererSetDrawCallbacks(TRRendererRef renderer, const TRDrawCallbacks *callbacks,

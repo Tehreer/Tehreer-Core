@@ -123,6 +123,17 @@ typedef struct _TRRenderer *TRRendererRef;
 TR_PUBLIC TRRendererRef TRRendererCreate(void);
 
 /**
+ * Returns the glyph cache that the renderer finds glyphs in. It is the default cache unless one
+ * was set. The caller does not own it.
+ *
+ * @param renderer
+ *      The renderer.
+ * @return
+ *      The glyph cache, which is never `NULL`.
+ */
+TR_PUBLIC TRGlyphCacheRef TRRendererGetGlyphCache(TRRendererRef renderer);
+
+/**
  * Sets the glyph cache to use. The renderer retains it.
  *
  * @param renderer
@@ -131,6 +142,16 @@ TR_PUBLIC TRRendererRef TRRendererCreate(void);
  *      The glyph cache, or `NULL` to select the default cache.
  */
 TR_PUBLIC void TRRendererSetGlyphCache(TRRendererRef renderer, TRGlyphCacheRef cache);
+
+/**
+ * Returns the typeface of the glyphs. The caller does not own it.
+ *
+ * @param renderer
+ *      The renderer.
+ * @return
+ *      The typeface, or `NULL` if it is not set.
+ */
+TR_PUBLIC TRTypefaceRef TRRendererGetTypeface(TRRendererRef renderer);
 
 /**
  * Sets the typeface of the glyphs. The renderer retains it. No image, path or placement is made
@@ -144,6 +165,16 @@ TR_PUBLIC void TRRendererSetGlyphCache(TRRendererRef renderer, TRGlyphCacheRef c
 TR_PUBLIC void TRRendererSetTypeface(TRRendererRef renderer, TRTypefaceRef typeface);
 
 /**
+ * Returns the size of the em square, in the unit of the user space.
+ *
+ * @param renderer
+ *      The renderer.
+ * @return
+ *      The size of the em square.
+ */
+TR_PUBLIC TRFloat TRRendererGetTypeSize(TRRendererRef renderer);
+
+/**
  * Sets the size of the em square, in the unit of the user space. The default is 16.
  *
  * @param renderer
@@ -152,6 +183,16 @@ TR_PUBLIC void TRRendererSetTypeface(TRRendererRef renderer, TRTypefaceRef typef
  *      The size of the em square.
  */
 TR_PUBLIC void TRRendererSetTypeSize(TRRendererRef renderer, TRFloat typeSize);
+
+/**
+ * Returns the horizontal scale of the glyphs, which is applied to the type size.
+ *
+ * @param renderer
+ *      The renderer.
+ * @return
+ *      The horizontal scale.
+ */
+TR_PUBLIC TRFloat TRRendererGetScaleX(TRRendererRef renderer);
 
 /**
  * Sets the horizontal scale of the glyphs, which is applied to the type size. The default is 1.
@@ -164,6 +205,16 @@ TR_PUBLIC void TRRendererSetTypeSize(TRRendererRef renderer, TRFloat typeSize);
 TR_PUBLIC void TRRendererSetScaleX(TRRendererRef renderer, TRFloat scaleX);
 
 /**
+ * Returns the vertical scale of the glyphs, which is applied to the type size.
+ *
+ * @param renderer
+ *      The renderer.
+ * @return
+ *      The vertical scale.
+ */
+TR_PUBLIC TRFloat TRRendererGetScaleY(TRRendererRef renderer);
+
+/**
  * Sets the vertical scale of the glyphs, which is applied to the type size. The default is 1.
  *
  * @param renderer
@@ -172,6 +223,16 @@ TR_PUBLIC void TRRendererSetScaleX(TRRendererRef renderer, TRFloat scaleX);
  *      The vertical scale.
  */
 TR_PUBLIC void TRRendererSetScaleY(TRRendererRef renderer, TRFloat scaleY);
+
+/**
+ * Returns the horizontal skew of the glyphs.
+ *
+ * @param renderer
+ *      The renderer.
+ * @return
+ *      The horizontal skew.
+ */
+TR_PUBLIC TRFloat TRRendererGetSkewX(TRRendererRef renderer);
 
 /**
  * Sets the horizontal skew of the glyphs: the distance that a point moves to the right for each
@@ -186,6 +247,16 @@ TR_PUBLIC void TRRendererSetScaleY(TRRendererRef renderer, TRFloat scaleY);
 TR_PUBLIC void TRRendererSetSkewX(TRRendererRef renderer, TRFloat skewX);
 
 /**
+ * Returns the number of pixels in a unit of the user space.
+ *
+ * @param renderer
+ *      The renderer.
+ * @return
+ *      The number of pixels in a unit.
+ */
+TR_PUBLIC TRFloat TRRendererGetRenderScale(TRRendererRef renderer);
+
+/**
  * Sets the number of pixels in a unit of the user space. The default is 1.
  *
  * @param renderer
@@ -194,6 +265,16 @@ TR_PUBLIC void TRRendererSetSkewX(TRRendererRef renderer, TRFloat skewX);
  *      The number of pixels in a unit.
  */
 TR_PUBLIC void TRRendererSetRenderScale(TRRendererRef renderer, TRFloat renderScale);
+
+/**
+ * Returns the direction of the runs that are passed in.
+ *
+ * @param renderer
+ *      The renderer.
+ * @return
+ *      The direction of the runs.
+ */
+TR_PUBLIC TRWritingDirection TRRendererGetWritingDirection(TRRendererRef renderer);
 
 /**
  * Sets the direction of the runs that are passed in. In right-to-left runs, the pen moves to the
@@ -208,6 +289,17 @@ TR_PUBLIC void TRRendererSetWritingDirection(TRRendererRef renderer,
     TRWritingDirection writingDirection);
 
 /**
+ * Returns the color that is used for the glyphs, or the parts of them, that follow the
+ * foreground.
+ *
+ * @param renderer
+ *      The renderer.
+ * @return
+ *      The foreground color.
+ */
+TR_PUBLIC TRColor TRRendererGetForegroundColor(TRRendererRef renderer);
+
+/**
  * Sets the color that is used for the glyphs, or the parts of them, that follow the foreground. The
  * images that fill the glyphs are made in it. The default is opaque black.
  *
@@ -217,6 +309,17 @@ TR_PUBLIC void TRRendererSetWritingDirection(TRRendererRef renderer,
  *      The foreground color.
  */
 TR_PUBLIC void TRRendererSetForegroundColor(TRRendererRef renderer, TRColor foregroundColor);
+
+/**
+ * Returns the radius of the stroked lines, as it was set. A negative radius is taken as zero when
+ * drawing.
+ *
+ * @param renderer
+ *      The renderer.
+ * @return
+ *      The radius of the stroked lines.
+ */
+TR_PUBLIC TRFloat TRRendererGetStrokeRadius(TRRendererRef renderer);
 
 /**
  * Sets the radius of the stroked lines, in the unit of the user space: how far the stroke reaches
@@ -231,6 +334,16 @@ TR_PUBLIC void TRRendererSetForegroundColor(TRRendererRef renderer, TRColor fore
 TR_PUBLIC void TRRendererSetStrokeRadius(TRRendererRef renderer, TRFloat strokeRadius);
 
 /**
+ * Returns the shape at the ends of stroked lines.
+ *
+ * @param renderer
+ *      The renderer.
+ * @return
+ *      The shape at the ends.
+ */
+TR_PUBLIC TRStrokeCap TRRendererGetStrokeCap(TRRendererRef renderer);
+
+/**
  * Sets the shape at the ends of stroked lines. The default is `TRStrokeCapButt`.
  *
  * @param renderer
@@ -241,6 +354,16 @@ TR_PUBLIC void TRRendererSetStrokeRadius(TRRendererRef renderer, TRFloat strokeR
 TR_PUBLIC void TRRendererSetStrokeCap(TRRendererRef renderer, TRStrokeCap strokeCap);
 
 /**
+ * Returns the shape at the corners of stroked lines.
+ *
+ * @param renderer
+ *      The renderer.
+ * @return
+ *      The shape at the corners.
+ */
+TR_PUBLIC TRStrokeJoin TRRendererGetStrokeJoin(TRRendererRef renderer);
+
+/**
  * Sets the shape at the corners of stroked lines. The default is `TRStrokeJoinRound`.
  *
  * @param renderer
@@ -249,6 +372,17 @@ TR_PUBLIC void TRRendererSetStrokeCap(TRRendererRef renderer, TRStrokeCap stroke
  *      The shape at the corners.
  */
 TR_PUBLIC void TRRendererSetStrokeJoin(TRRendererRef renderer, TRStrokeJoin strokeJoin);
+
+/**
+ * Returns the limit of the length of miters, as it was set. A negative limit is taken as zero when
+ * drawing.
+ *
+ * @param renderer
+ *      The renderer.
+ * @return
+ *      The limit of the miters.
+ */
+TR_PUBLIC TRFloat TRRendererGetStrokeMiter(TRRendererRef renderer);
 
 /**
  * Sets the limit of the length of miters, as a ratio of the stroke width. The default is 1. A
@@ -262,6 +396,17 @@ TR_PUBLIC void TRRendererSetStrokeJoin(TRRendererRef renderer, TRStrokeJoin stro
 TR_PUBLIC void TRRendererSetStrokeMiter(TRRendererRef renderer, TRFloat strokeMiter);
 
 /**
+ * Returns the color that is used for the outlines of the glyphs when the draw style strokes
+ * them.
+ *
+ * @param renderer
+ *      The renderer.
+ * @return
+ *      The color of the outlines.
+ */
+TR_PUBLIC TRColor TRRendererGetStrokeColor(TRRendererRef renderer);
+
+/**
  * Sets the color that is used for the outlines of the glyphs when the draw style strokes them. The
  * default is opaque black.
  *
@@ -273,6 +418,16 @@ TR_PUBLIC void TRRendererSetStrokeMiter(TRRendererRef renderer, TRFloat strokeMi
 TR_PUBLIC void TRRendererSetStrokeColor(TRRendererRef renderer, TRColor strokeColor);
 
 /**
+ * Returns what the draw functions of glyph runs, lines and frames produce for the glyphs.
+ *
+ * @param renderer
+ *      The renderer.
+ * @return
+ *      Whether the glyphs are filled, their outlines are stroked, or both.
+ */
+TR_PUBLIC TRDrawStyle TRRendererGetDrawStyle(TRRendererRef renderer);
+
+/**
  * Sets what the draw functions of glyph runs, lines and frames produce for the glyphs. The default
  * is `TRDrawStyleFill`.
  *
@@ -282,6 +437,27 @@ TR_PUBLIC void TRRendererSetStrokeColor(TRRendererRef renderer, TRColor strokeCo
  *      Whether to fill the glyphs, stroke their outlines, or both.
  */
 TR_PUBLIC void TRRendererSetDrawStyle(TRRendererRef renderer, TRDrawStyle drawStyle);
+
+/**
+ * Copies the functions that the draw functions call. All of them are `NULL` if no callbacks are
+ * set.
+ *
+ * @param renderer
+ *      The renderer.
+ * @param callbacks
+ *      The structure that receives the callbacks.
+ */
+TR_PUBLIC void TRRendererGetDrawCallbacks(TRRendererRef renderer, TRDrawCallbacks *callbacks);
+
+/**
+ * Returns the opaque pointer that is passed to the draw callbacks.
+ *
+ * @param renderer
+ *      The renderer.
+ * @return
+ *      The user data that was set with the callbacks, or `NULL`.
+ */
+TR_PUBLIC void *TRRendererGetDrawUserData(TRRendererRef renderer);
 
 /**
  * Sets the functions that the draw functions call. The callbacks are copied, and `NULL` clears

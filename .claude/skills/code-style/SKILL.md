@@ -90,6 +90,8 @@ From top to bottom, after includes, macros, and type definitions:
 2. **Internal functions** (`TR_INTERNAL`): declared in a `Source/` header. Same order as their declaration in that header.
 3. **Public API functions** (`TR_PUBLIC` in `Headers/Tehreer/`): at the end of the file, in exactly the order of their declaration in the public header.
 
+Write the getter and the setter of a property together, the setter directly after its getter (`TRRendererGetTypeSize`, then `TRRendererSetTypeSize`), in the public header and in the `.c` file alike, and keep the properties in one order. Do not put the setters in one block and the getters in another. A getter that belongs to a setter with several parameters (`TRRendererGetDrawCallbacks` and `TRRendererGetDrawUserData` for `TRRendererSetDrawCallbacks`) goes in front of that setter. The Doxygen block moves with its function.
+
 Private structs and typedefs (callback contexts, helper records) are declared at the top of the file, right after the includes, before the first function, never next to the function that uses them.
 
 Never interleave the groups. Do not add forward declarations to get around ordering; if a private helper must call a later function, reorder or restructure.
