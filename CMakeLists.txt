@@ -201,6 +201,9 @@ target_link_libraries(Tehreer
     SheenBidi
 )
 set_target_properties(Tehreer PROPERTIES
+  C_STANDARD 90
+  C_STANDARD_REQUIRED ON
+  C_EXTENSIONS OFF
   VERSION ${PROJECT_VERSION}
   SOVERSION ${PROJECT_VERSION_MAJOR}
 )
@@ -449,7 +452,7 @@ if(BUILD_TESTS)
   endforeach()
 
   if(ENABLE_COVERAGE)
-    if(CMAKE_CXX_COMPILER_ID MATRHES "MSVC")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
       message(WARNING "Code coverage is not supported with MSVC")
     else()
       target_compile_options(Tehreer PUBLIC --coverage -fprofile-update=atomic)
