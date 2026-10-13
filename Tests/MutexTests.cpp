@@ -82,9 +82,10 @@ void MutexTests::testTryLock() {
     auto result = MutexTryLock(&mutex);
     assert(result == TRTrue);
 
-    // Second try should fail
-    result = MutexTryLock(&mutex);
-    assert(result == TRFalse);
+    // Another thread cannot take it, though the owner could on some platforms
+    bool otherAcquired = true;
+    thread([&]() { otherAcquired = MutexTryLock(&mutex) != 0; }).join();
+    assert(!otherAcquired);
     MutexUnlock(&mutex);
 
     // Try again after unlock
