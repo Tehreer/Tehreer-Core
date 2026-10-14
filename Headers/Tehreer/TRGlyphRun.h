@@ -406,7 +406,8 @@ TR_PUBLIC TRUInteger TRGlyphRunGetClusterEnd(TRGlyphRunRef run, TRUInteger codeU
  *      The index of the code unit, from the start of the run less its start extra length to the end
  *      of the run plus its end extra length.
  * @param distance
- *      Receives the distance.
+ *      Receives the distance. It MUST NOT be `NULL`, as it is written to whenever the distance is
+ *      given.
  * @return
  *      `TRTrue` if the distance was given, `TRFalse` if the code unit is out of the run and its
  *      clusters.
@@ -440,6 +441,7 @@ TR_PUBLIC TRUInteger TRGlyphRunGetCodeUnitIndex(TRGlyphRunRef run, TRFloat dista
  *      The run.
  * @param renderer
  *      A renderer with the glyph cache to use, and with the settings that are not the run's.
+ *      It MUST NOT be `NULL`, unless the run is a replacement, which does not use it.
  * @return
  *      The ink box. For a replacement, which is not drawn from glyphs, it is the box of its width
  *      and height at the origin.

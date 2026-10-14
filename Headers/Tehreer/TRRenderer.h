@@ -279,7 +279,8 @@ TR_PUBLIC TRWritingDirection TRRendererGetWritingDirection(TRRendererRef rendere
 
 /**
  * Sets the direction of the runs that are passed in. In right-to-left runs, the pen moves to the
- * left before a glyph is placed. The default is left to right.
+ * left before a glyph is placed. The default is left to right. A value that is not valid is kept
+ * as it is, and the runs are treated as left to right.
  *
  * @param renderer
  *      The renderer.
@@ -312,8 +313,8 @@ TR_PUBLIC TRColor TRRendererGetForegroundColor(TRRendererRef renderer);
 TR_PUBLIC void TRRendererSetForegroundColor(TRRendererRef renderer, TRColor foregroundColor);
 
 /**
- * Returns the radius of the stroked lines, as it was set. A negative radius is taken as zero when
- * drawing.
+ * Returns the radius of the stroked lines, as it was set. A negative or NaN radius is taken as zero
+ * when drawing.
  *
  * @param renderer
  *      The renderer.
@@ -325,7 +326,7 @@ TR_PUBLIC TRFloat TRRendererGetStrokeRadius(TRRendererRef renderer);
 /**
  * Sets the radius of the stroked lines, in the unit of the user space: how far the stroke reaches
  * from the outline of a glyph, so a stroked line is twice as wide. It is as many pixels as it is,
- * without the render scale. The default is 0.5. A negative radius is taken as zero.
+ * without the render scale. The default is 0.5. A negative or NaN radius is taken as zero.
  *
  * @param renderer
  *      The renderer.
@@ -345,7 +346,9 @@ TR_PUBLIC void TRRendererSetStrokeRadius(TRRendererRef renderer, TRFloat strokeR
 TR_PUBLIC TRStrokeCap TRRendererGetStrokeCap(TRRendererRef renderer);
 
 /**
- * Sets the shape at the ends of stroked lines. The default is `TRStrokeCapButt`.
+ * Sets the shape at the ends of stroked lines. The default is `TRStrokeCapButt`. A value that is
+ * not one of the `TRStrokeCap*` constants is kept and returned as it is, and the stroked images are
+ * still made with it; the shape that it gives is not specified.
  *
  * @param renderer
  *      The renderer.
@@ -365,7 +368,9 @@ TR_PUBLIC void TRRendererSetStrokeCap(TRRendererRef renderer, TRStrokeCap stroke
 TR_PUBLIC TRStrokeJoin TRRendererGetStrokeJoin(TRRendererRef renderer);
 
 /**
- * Sets the shape at the corners of stroked lines. The default is `TRStrokeJoinRound`.
+ * Sets the shape at the corners of stroked lines. The default is `TRStrokeJoinRound`. A value that
+ * is not one of the `TRStrokeJoin*` constants is kept and returned as it is, and the stroked
+ * images are still made with it; the shape that it gives is not specified.
  *
  * @param renderer
  *      The renderer.
@@ -375,8 +380,8 @@ TR_PUBLIC TRStrokeJoin TRRendererGetStrokeJoin(TRRendererRef renderer);
 TR_PUBLIC void TRRendererSetStrokeJoin(TRRendererRef renderer, TRStrokeJoin strokeJoin);
 
 /**
- * Returns the limit of the length of miters, as it was set. A negative limit is taken as zero when
- * drawing.
+ * Returns the limit of the length of miters, as it was set. A negative or NaN limit is taken as
+ * zero when drawing.
  *
  * @param renderer
  *      The renderer.
@@ -387,7 +392,7 @@ TR_PUBLIC TRFloat TRRendererGetStrokeMiter(TRRendererRef renderer);
 
 /**
  * Sets the limit of the length of miters, as a ratio of the stroke width. The default is 1. A
- * negative limit is taken as zero.
+ * negative or NaN limit is taken as zero.
  *
  * @param renderer
  *      The renderer.
@@ -522,7 +527,8 @@ TR_PUBLIC TRDrawStyle TRRendererGetDrawStyle(TRRendererRef renderer);
 
 /**
  * Sets what the draw functions of glyph runs, lines and frames produce for the glyphs. The default
- * is `TRDrawStyleFill`.
+ * is `TRDrawStyleFill`. A value that is not one of the `TRDrawStyle*` constants is kept and
+ * returned as it is, and the glyphs are filled and stroked as with `TRDrawStyleFillStroke`.
  *
  * @param renderer
  *      The renderer.

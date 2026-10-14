@@ -153,9 +153,10 @@ TR_PUBLIC TRUInteger TRComposedFrameGetIndexOfLineAtPosition(TRComposedFrameRef 
  * @param length
  *      The number of code units of the range.
  * @param func
- *      The function to call for each rectangle, which can stop the enumeration.
+ *      The function to call for each rectangle, which can stop the enumeration. It MUST NOT be
+ *      `NULL` if the range is within the frame and is not empty, as it is called then.
  * @param userData
- *      An opaque pointer that is passed to the function.
+ *      An opaque pointer that is passed to the function, which can be `NULL`.
  * @return
  *      `TRTrue` if the enumeration is done, or stopped, `TRFalse` if the range is not within the
  *      range of the frame, in which case nothing is passed.
