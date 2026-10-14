@@ -125,6 +125,7 @@ Full rules and examples: `.claude/skills/code-style/SKILL.md`.
 
 - Apache 2.0 license block at the top of every file
 - **Public API:** Doxygen `/** ... */` with `@param`, `@return`; backtick-quoted type names
+- Full documentation rules for public and internal code: `.claude/skills/document-code/SKILL.md`
 
 ```c
 /**
@@ -237,7 +238,7 @@ CMake build **one standalone executable per suite** (e.g. `AtomicTests`, `OnceTe
 
 ## Commits and Branches
 
-- `master` is the stable/release branch; `develop` is the integration branch for ongoing work — base new work on `develop` unless told otherwise.
+- Development happens in both `main` and `develop`; base new work on whichever branch the task targets, and ask when it is not clear.
 - Subject lines commonly use a bracketed scope tag followed by an imperative summary: `[lib] ...`, `[test] ...`, `[cmake] ...`, `[ci] ...`. Omit the tag only when a change doesn't fit a single scope (e.g. `Update README`).
 
 ## Agent Guidelines
@@ -245,13 +246,13 @@ CMake build **one standalone executable per suite** (e.g. `AtomicTests`, `OnceTe
 ### Do
 
 - Match naming, brace style, and include patterns in the nearest file
-- Add Doxygen documentation to new public API in `Headers/Tehreer/`
+- Add Doxygen documentation to new public API in `Headers/Tehreer/`, following `.claude/skills/document-code/SKILL.md`
 - Put internal struct definitions in `Source/` headers only
 - Run tests with unity mode **off** after substantive library changes
 - Use `TRAssert` with a preceding `/* ... MUST ... */` comment for invariants
 - Keep changes minimal and focused on the task at hand
 - Update CMake file lists when files are added/removed/renamed
-- Base branch work on `develop`; use a `[scope]` commit tag matching the area touched
+- Base branch work on `main` or `develop` as the task targets; use a `[scope]` commit tag matching the area touched
 - Follow the Create Rule of Core Foundation for ownership (`Create`/`Copy` return an owned reference, `Get` does not), and take an index and a length instead of a `TRRange` in the public API, returning `NULL`, `TRFalse` or `TRInvalidIndex` for what is not valid (see `.claude/skills/code-style/SKILL.md`, sections 15 to 17)
 
 ### Don't
