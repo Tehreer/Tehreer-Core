@@ -39,6 +39,7 @@ void BreakClassifierTests::run() {
     testLineBreaks();
     testMandatoryBreaks();
     testGraphemeBreaks();
+    testWordBreaks();
     testSurrogatePairs();
     testEncodingsAgree();
     testForwardSearch();
@@ -137,6 +138,29 @@ void BreakClassifierTests::testGraphemeBreaks() {
     /* A Hangul syllable written with conjoining jamo is a single cluster. */
     classifier = create16(u"\u1100\u1161\u11A8x", 4);
     assert((breaksOf(classifier, BreakTypeGrapheme) == vector<size_t>{ 3, 4 }));
+    BreakClassifierRelease(classifier);
+}
+
+void BreakClassifierTests::testWordBreaks() {
+    /* Words, spaces and punctuation marks are segments of their own. */
+    BreakClassifierRef classifier = create16(u"hello, world", 12);
+    assert((breaksOf(classifier, BreakTypeWord) == vector<size_t>{ 5, 6, 7, 12 }));
+    BreakClassifierRelease(classifier);
+
+    /* The letters of a script that is written from right to left make words too. */
+    classifier = create16(u"\u0633\u0644\u0627\u0645 \u062F\u0646\u06CC\u0627", 9);
+    assert((breaksOf(classifier, BreakTypeWord) == vector<size_t>{ 4, 5, 9 }));
+    BreakClassifierRelease(classifier);
+
+    /* No word is cut between two surrogates. */
+    classifier = create16(u"a\U0001F600" "b", 4);
+    assert(!BreakClassifierHasBreak(classifier, BreakTypeWord, 2));
+    BreakClassifierRelease(classifier);
+
+    /* The encoding does not change the breaks, which are found for the code units of it. */
+    const char *utf8 = "ab cd";
+    classifier = BreakClassifierCreate(utf8, 5, TRStringEncodingUTF8);
+    assert((breaksOf(classifier, BreakTypeWord) == vector<size_t>{ 2, 3, 5 }));
     BreakClassifierRelease(classifier);
 }
 

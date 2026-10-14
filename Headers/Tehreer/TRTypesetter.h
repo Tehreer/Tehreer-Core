@@ -30,10 +30,20 @@ TR_EXTERN_C_BEGIN
  */
 enum {
     TRBreakModeLine = 0,        /**< Lines break at the places that Unicode allows. */
-    TRBreakModeCharacter = 1    /**< Lines break between any two characters (grapheme clusters). */
+    TRBreakModeCharacter = 1,   /**< Lines break between any two characters (grapheme clusters). */
+    TRBreakModeWord = 2         /**< Lines break between the word segments of Unicode (UAX #29). */
 };
 /**
  * A type to represent how lines are broken, which is one of the `TRBreakMode*` constants above.
+ *
+ * `TRBreakModeWord` cuts a text into the segments that Unicode defines for words: a word of
+ * letters, a run of spaces and a punctuation mark are segments of their own. Other than the line
+ * mode, it does not fall back to characters, so a segment that is wider than the extent is taken as
+ * a whole. Because of that, an extent of zero gives the next segment going forward and the previous
+ * one going backward, which is how words are walked. It works in `TRTypesetterSuggestForwardBreak()`,
+ * `TRTypesetterSuggestBackwardBreak()` and, since they use them, in the truncation of lines and of
+ * frames, where the text is cut between segments. A value that is none of the constants is taken as
+ * `TRBreakModeLine`.
  */
 typedef TRUInt32 TRBreakMode;
 
@@ -99,8 +109,8 @@ TR_PUBLIC TRUInteger TRTypesetterGetCodeUnitCount(TRTypesetterRef typesetter);
  * Suggests where to break a line forward from the start of a range. The measurement goes from the
  * first code unit to the last. If the whole range fits in the extent, its end is returned.
  * Otherwise the index of the first code unit that does not fit is returned, at least one character
- * after the start. A line break may not cross a paragraph, so the suggestion stops at the end of
- * the paragraph that the range starts in.
+ * after the start, or a whole segment in `TRBreakModeWord`. A line break may not cross a paragraph,
+ * so the suggestion stops at the end of the paragraph that the range starts in.
  *
  * @param typesetter
  *      The typesetter.
@@ -123,7 +133,8 @@ TR_PUBLIC TRUInteger TRTypesetterSuggestForwardBreak(TRTypesetterRef typesetter,
  * Suggests where to break a line backward from the end of a range. The measurement goes from the
  * last code unit to the first. If the whole range fits in the extent, its start is returned.
  * Otherwise the index of the first code unit of the line that fits is returned, at least one
- * character before the end. A line break may not cross a paragraph.
+ * character before the end, or a whole segment in `TRBreakModeWord`. A line break may not cross a
+ * paragraph.
  *
  * @param typesetter
  *      The typesetter.

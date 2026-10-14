@@ -44,6 +44,10 @@ void BreakResolverTests::run() {
     testBackwardAtLeastOneCharacter();
     testBackwardStopsAtParagraph();
     testSurrogatePairsAreNotCut();
+    testForwardWordBreaks();
+    testBackwardWordBreaks();
+    testWordBreaksInScripts();
+    testWordBreaksStopAtParagraph();
     testMixedSizes();
     testBlocksEndLinesBeforeThem();
     testBlockLines();
@@ -218,6 +222,88 @@ void BreakResolverTests::testSurrogatePairsAreNotCut() {
     /* Only one of the characters fits next to the 'a'. */
     assert(f.forward(0, 4, 2100.0f, TRBreakModeCharacter) == 3);
     assert(f.forward(0, 4, 2000.0f, TRBreakModeCharacter) == 1);
+}
+
+void BreakResolverTests::testForwardWordBreaks() {
+    /* The segments are "ab", ",", " ", "c", " " and "ab", with 2263, 908, 908, 1072, 908 and 2263. */
+    Fixture f(u"ab, c ab");
+
+    /* An extent of zero gives the next segment, whatever it is. */
+    assert(f.forward(0, 8, 0.0f, TRBreakModeWord) == 2);
+    assert(f.forward(2, 8, 0.0f, TRBreakModeWord) == 3);
+    assert(f.forward(3, 8, 0.0f, TRBreakModeWord) == 4);
+    assert(f.forward(4, 8, 0.0f, TRBreakModeWord) == 5);
+
+    /* A segment that is too wide is taken as a whole, and is not cut into characters. */
+    assert(f.forward(0, 8, 100.0f, TRBreakModeWord) == 2);
+    assert(f.forward(0, 8, 2262.0f, TRBreakModeWord) == 2);
+    assert(f.forward(0, 8, 2263.0f, TRBreakModeWord) == 2);
+
+    /* The segments that fit are kept, and the space that overflows is not counted. */
+    assert(f.forward(0, 8, 5150.0f, TRBreakModeWord) == 4);
+    assert(f.forward(0, 8, 5151.0f, TRBreakModeWord) == 6);
+    assert(f.forward(0, 8, 100000.0f, TRBreakModeWord) == 8);
+    assert(f.forward(0, 8, 8322.0f, TRBreakModeWord) == 8);
+
+    /* The line mode would have kept the comma with the word. */
+    assert(f.forward(0, 8, 100.0f) == 1);
+    assert(f.forward(0, 8, 100.0f, 7) == f.forward(0, 8, 100.0f));
+
+    /* The range limits the segments. */
+    assert(f.forward(0, 1, 0.0f, TRBreakModeWord) == 1);
+    assert(f.forward(6, 8, 0.0f, TRBreakModeWord) == 8);
+}
+
+void BreakResolverTests::testBackwardWordBreaks() {
+    Fixture f(u"ab, c ab");
+
+    assert(f.backward(0, 8, 0.0f, TRBreakModeWord) == 6);
+    assert(f.backward(0, 6, 0.0f, TRBreakModeWord) == 5);
+    assert(f.backward(0, 5, 0.0f, TRBreakModeWord) == 4);
+    assert(f.backward(0, 4, 0.0f, TRBreakModeWord) == 3);
+    assert(f.backward(0, 3, 0.0f, TRBreakModeWord) == 2);
+    assert(f.backward(0, 2, 0.0f, TRBreakModeWord) == 0);
+
+    assert(f.backward(0, 8, 100.0f, TRBreakModeWord) == 6);
+    assert(f.backward(0, 8, 2263.0f, TRBreakModeWord) == 5);
+    assert(f.backward(0, 8, 100000.0f, TRBreakModeWord) == 0);
+    assert(f.backward(3, 8, 100000.0f, TRBreakModeWord) == 3);
+    assert(f.backward(7, 8, 0.0f, TRBreakModeWord) == 7);
+}
+
+void BreakResolverTests::testWordBreaksInScripts() {
+    /* Urdu: the segments are two words of four letters and the space between them. */
+    Fixture f(u"سلام دنیا");
+
+    assert(f.forward(0, 9, 0.0f, TRBreakModeWord) == 4);
+    assert(f.forward(4, 9, 0.0f, TRBreakModeWord) == 5);
+    assert(f.forward(5, 9, 0.0f, TRBreakModeWord) == 9);
+    assert(f.forward(0, 9, 3632.0f, TRBreakModeWord) == 5);
+    assert(f.forward(0, 9, 3631.0f, TRBreakModeWord) == 4);
+
+    assert(f.backward(0, 9, 0.0f, TRBreakModeWord) == 5);
+    assert(f.backward(0, 5, 0.0f, TRBreakModeWord) == 4);
+    assert(f.backward(0, 4, 0.0f, TRBreakModeWord) == 0);
+
+    /* A pair of surrogates is never cut. */
+    Fixture g(u"a\U0001F600 b");
+    assert(g.forward(0, 5, 0.0f, TRBreakModeWord) == 1);
+    assert(g.forward(1, 5, 0.0f, TRBreakModeWord) == 3);
+    assert(g.forward(1, 5, 100000.0f, TRBreakModeWord) == 5);
+    assert(g.backward(0, 5, 0.0f, TRBreakModeWord) == 4);
+    assert(g.backward(0, 3, 0.0f, TRBreakModeWord) == 1);
+    assert(g.backward(1, 3, 0.0f, TRBreakModeWord) == 1);
+}
+
+void BreakResolverTests::testWordBreaksStopAtParagraph() {
+    Fixture f(u"ab\ncd");
+
+    assert(f.forward(0, 5, 100000.0f, TRBreakModeWord) == 3);
+    assert(f.forward(3, 5, 100000.0f, TRBreakModeWord) == 5);
+    assert(f.forward(2, 5, 0.0f, TRBreakModeWord) == 3);
+    assert(f.backward(0, 5, 100000.0f, TRBreakModeWord) == 3);
+    assert(f.backward(0, 3, 100000.0f, TRBreakModeWord) == 0);
+    assert(f.backward(0, 3, 0.0f, TRBreakModeWord) == 2);
 }
 
 void BreakResolverTests::testMixedSizes() {

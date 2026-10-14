@@ -27,13 +27,14 @@
  */
 enum {
     BreakTypeLine = 1 << 0,         /* A line may be broken here. */
-    BreakTypeGrapheme = 1 << 1      /* A grapheme cluster boundary. */
+    BreakTypeGrapheme = 1 << 1,     /* A grapheme cluster boundary. */
+    BreakTypeWord = 1 << 2          /* A word boundary. */
 };
 typedef TRUInt8 BreakType;
 
 /**
- * Classifies the boundaries of a text into line breaks and grapheme cluster boundaries, according
- * to Unicode Standard Annex #14 and #29. It is immutable once created, so it can be shared between
+ * Classifies the boundaries of a text into line breaks, grapheme cluster boundaries and word
+ * boundaries, according to Unicode Standard Annex #14 and #29. It is immutable once created, so it can be shared between
  * threads.
  *
  * A break is identified by the index of the code unit that follows it, so a break at index `i`
