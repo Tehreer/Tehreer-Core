@@ -30,7 +30,7 @@ TR_EXTERN_C_BEGIN
  * It is what a frame resolver makes. The origin of each line is relative to the top left of the
  * frame, and the y axis points downward. A frame is immutable, and it can be used from any thread.
  */
-typedef struct _TRComposedFrame *TRComposedFrameRef;
+typedef const struct _TRComposedFrame *TRComposedFrameRef;
 
 /**
  * The function that gets the rectangles of a selection.

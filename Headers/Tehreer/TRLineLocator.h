@@ -41,7 +41,7 @@ TR_EXTERN_C_BEGIN
  * can be used from any thread. It does not retain
  * the frame it was made from.
  */
-typedef struct _TRLineLocator *TRLineLocatorRef;
+typedef const struct _TRLineLocator *TRLineLocatorRef;
 
 /**
  * The function that gets the lines whose boxes intersect a rectangle.

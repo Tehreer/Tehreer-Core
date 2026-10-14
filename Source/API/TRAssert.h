@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef TEHREER_API_ASSERT_H
-#define TEHREER_API_ASSERT_H
+#ifndef _TEHREER_API_ASSERT_H
+#define _TEHREER_API_ASSERT_H
 
 #include <assert.h>
 

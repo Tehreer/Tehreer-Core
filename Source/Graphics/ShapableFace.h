@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef _TEHREER_SHAPABLE_FACE_H
-#define _TEHREER_SHAPABLE_FACE_H
+#ifndef _TEHREER_GRAPHICS_SHAPABLE_FACE_H
+#define _TEHREER_GRAPHICS_SHAPABLE_FACE_H
 
 #include <hb.h>
 
