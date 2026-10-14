@@ -482,8 +482,8 @@ TRGlyphImageRef TRRendererCopyStrokeImage(TRRendererRef renderer, TRGlyphID glyp
     TRGlyphCacheRef cache = GetCache(renderer);
 
     if (renderer->typeface && cache) {
-        TRFloat radius = (renderer->strokeRadius > 0.0f ? renderer->strokeRadius : 0.0f);
-        TRFloat miter = (renderer->strokeMiter > 0.0f ? renderer->strokeMiter : 0.0f);
+        TRFloat radius = NumberMax(renderer->strokeRadius, 0.0f);
+        TRFloat miter = NumberMax(renderer->strokeMiter, 0.0f);
         TRFloat scaleX, scaleY;
         GlyphDataKey key;
         GlyphStrokeKey strokeKey;
