@@ -54,7 +54,8 @@ typedef struct _TRText *TRMutableTextRef;
 TR_PUBLIC TRTextRef TRTextCreate(const void *string, TRUInteger length, TRStringEncoding encoding);
 
 /**
- * Creates a new immutable text object that is an exact copy of the source text, with its attributes.
+ * Creates a new immutable text object that is an exact copy of the source text, with its
+ * attributes.
  *
  * @param text
  *      Source text object to copy.

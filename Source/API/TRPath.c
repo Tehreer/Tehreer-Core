@@ -27,6 +27,14 @@
 
 #include "TRPath.h"
 
+typedef struct _Enumeration {
+    const TRPathCallbacks *callbacks;
+    void *userData;
+    const TRAffineTransform *transform;
+    TRBoolean isOpen;
+    TRBoolean shouldStop;
+} Enumeration;
+
 static void FinalizePath(ObjectRef object)
 {
     TRPath *path = object;
@@ -35,14 +43,6 @@ static void FinalizePath(ObjectRef object)
     /* The outline functions only use the memory allocator of the library, so no lock is needed. */
     FT_Outline_Done(freetype->library, &path->outline);
 }
-
-typedef struct _Enumeration {
-    const TRPathCallbacks *callbacks;
-    void *userData;
-    const TRAffineTransform *transform;
-    TRBoolean isOpen;
-    TRBoolean shouldStop;
-} Enumeration;
 
 static void MapPoint(const Enumeration *enumeration, const FT_Vector *vector,
     TRFloat *outX, TRFloat *outY)

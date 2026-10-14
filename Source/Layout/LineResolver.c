@@ -45,6 +45,16 @@ typedef struct _VisualRun {
     TRUInt8 level;
 } VisualRun;
 
+/* The part of a range that is skipped by a truncation, and where the token goes. */
+typedef struct _TruncationHandler {
+    TRTypesetterRef typesetter;
+    RunList *list;
+    TRUInteger skipStart;
+    TRUInteger skipEnd;
+    TRUInteger leadingTokenIndex;
+    TRUInteger trailingTokenIndex;
+} TruncationHandler;
+
 /* Adds the visual runs of a range that is inside a paragraph. */
 static TRBoolean AddVisualRuns(SBTextRef sbText, TRUInteger start, TRUInteger end,
     Array *visualRuns)
@@ -232,16 +242,6 @@ static TRUInteger AppendPaintedRuns(TRTypesetterRef typesetter, RunList *list, T
 
     return insertIndex;
 }
-
-/* The part of a range that is skipped by a truncation, and where the token goes. */
-typedef struct _TruncationHandler {
-    TRTypesetterRef typesetter;
-    RunList *list;
-    TRUInteger skipStart;
-    TRUInteger skipEnd;
-    TRUInteger leadingTokenIndex;
-    TRUInteger trailingTokenIndex;
-} TruncationHandler;
 
 /* Handles the first part of the characters, which comes before the skipped ones. */
 static void AppendRunBeforeSkip(TruncationHandler *handler, const VisualRun *visualRun)
@@ -715,7 +715,8 @@ TR_INTERNAL TRComposedLine *LineResolverCreateLine(TRTypesetterRef typesetter, T
         line = TRComposedLineCreate(&typesetter->buffer, start, end, runs, runCount,
             paragraphLevel);
 
-        /* The line took the references of the runs, and the memory of the list is still the list's. */
+        /* The line took the references of the runs, and the memory of the list is still the
+         * list's. */
         ArrayResize(&list->runs, 0);
         RunListFinalize(list);
     }

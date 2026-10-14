@@ -36,6 +36,17 @@
 
 #include "TRRenderer.h"
 
+/*
+ * The position of the glyph at an index in pixels. The pen is moved before the glyph in the
+ * reverse mode of right-to-left runs, and after it otherwise. The caller keeps the pen and the
+ * total advance, which MUST start from zero.
+ */
+typedef struct _RunPen {
+    TRBoolean isReverse;
+    TRFloat penX;
+    TRFloat totalAdvance;
+} RunPen;
+
 /* ---------- Glyph Cache and Scale ---------- */
 
 static void FinalizeRenderer(ObjectRef object)
@@ -116,17 +127,6 @@ static void GetImageScale(const TRRenderer *renderer, TRFloat *scaleX, TRFloat *
 }
 
 /* ---------- Run Pen ---------- */
-
-/*
- * The position of the glyph at an index in pixels. The pen is moved before the glyph in the
- * reverse mode of right-to-left runs, and after it otherwise. The caller keeps the pen and the
- * total advance, which MUST start from zero.
- */
-typedef struct _RunPen {
-    TRBoolean isReverse;
-    TRFloat penX;
-    TRFloat totalAdvance;
-} RunPen;
 
 static void BeginGlyph(const TRRenderer *renderer, RunPen *pen, const TRPoint *offsets,
     const TRFloat *advances, TRUInteger index, TRFloat *outOffsetX, TRFloat *outOffsetY,

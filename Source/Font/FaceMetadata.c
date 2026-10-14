@@ -392,10 +392,10 @@ static void ReadBitmapStrikes(FT_Face ftFace, RawMetadata *rawMetadata)
 }
 
 /*
- * FreeType checks that the palette table holds the counts that it declares, but not that the palettes
- * add up to a size that is reasonable, as all of them may refer to the same colors. A table of a few
- * hundred kilobytes can therefore declare billions of colors. A face with more colors than this
- * limit is treated as if it had no palettes.
+ * FreeType checks that the palette table holds the counts that it declares, but not that the
+ * palettes add up to a size that is reasonable, as all of them may refer to the same colors. A
+ * table of a few hundred kilobytes can therefore declare billions of colors. A face with more
+ * colors than this limit is treated as if it had no palettes.
  */
 enum {
     MaxPaletteColorCount = 0x100000

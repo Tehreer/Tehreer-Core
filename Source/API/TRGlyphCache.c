@@ -45,7 +45,8 @@
 #define InitialBucketCount  64
 #define DefaultCapacity     (8 * 1024 * 1024)
 
-/* The least size that FreeType can set is one pixel in each direction, which is 64 in 26.6 format. */
+/* The least size that FreeType can set is one pixel in each direction, which is 64 in 26.6
+ * format. */
 #define MinimumPixelSize    64
 
 enum {
@@ -79,6 +80,8 @@ typedef struct _GlyphCacheEntry {
     TRGlyphImageRef image;
     TRPathRef path;
 } GlyphCacheEntry;
+
+static TRGlyphCacheRef DefaultCache;
 
 /*
  * A smaller size is refused by FreeType without an error that reaches the callers, and the face
@@ -142,7 +145,8 @@ static void SetupKey(CacheKey *key, TRUInt32 kind, const GlyphDataKey *dataKey, 
     key->glyphID = glyphID;
 }
 
-/* The cache MUST be locked by the caller for all of the functions below, until the rendering ones. */
+/* The cache MUST be locked by the caller for all of the functions below, until the rendering
+ * ones. */
 
 static void UnlinkFromList(TRGlyphCacheRef cache, GlyphCacheEntry *entry)
 {
@@ -489,45 +493,19 @@ static TRGlyphImageRef CopyColorImage(TRGlyphCacheRef cache, const GlyphDataKey 
 
 /* The public part. */
 
-static TRGlyphCacheRef DefaultCache;
-
 static void FinalizeGlyphCache(ObjectRef object)
 {
-    TRGlyphCacheFinalize(object);
+    TRGlyphCache *cache = object;
+
+    TRGlyphCacheClear(cache);
+
+    ArrayFinalize(&cache->buckets);
+    MutexDestroy(&cache->mutex);
 }
 
 static void InitDefaultCache(void)
 {
     DefaultCache = TRGlyphCacheCreate(DefaultCapacity);
-}
-
-TR_INTERNAL TRBoolean TRGlyphCacheInitialize(TRGlyphCacheRef cache, TRUInteger capacity)
-{
-    TRBoolean isInitialized = TRFalse;
-
-
-    ArrayInitialize(&cache->buckets, sizeof(GlyphCacheEntry *));
-
-    if (ArrayResize(&cache->buckets, InitialBucketCount)) {
-        MutexInit(&cache->mutex);
-        cache->capacity = capacity;
-        cache->size = 0;
-        cache->entryCount = 0;
-        cache->firstEntry = NULL;
-        cache->lastEntry = NULL;
-
-        isInitialized = TRTrue;
-    }
-
-    return isInitialized;
-}
-
-TR_INTERNAL void TRGlyphCacheFinalize(TRGlyphCacheRef cache)
-{
-    TRGlyphCacheClear(cache);
-
-    ArrayFinalize(&cache->buckets);
-    MutexDestroy(&cache->mutex);
 }
 
 TR_INTERNAL TRGlyphImageRef TRGlyphCacheCopyImage(TRGlyphCacheRef cache, const GlyphDataKey *key,
@@ -646,15 +624,25 @@ TRGlyphCacheRef TRGlyphCacheCreate(TRUInteger capacity)
 {
     const TRUInteger size = sizeof(TRGlyphCache);
     void *pointer = NULL;
-    TRGlyphCacheRef cache;
+    TRGlyphCache *cache = NULL;
+    Array buckets;
 
-    cache = ObjectCreate(&size, 1, &pointer, FinalizeGlyphCache);
+    ArrayInitialize(&buckets, sizeof(GlyphCacheEntry *));
 
-    if (cache && !TRGlyphCacheInitialize(cache, capacity)) {
-        /* Nothing was initialized, so it must not be finalized as a cache. */
-        cache->_base.finalize = NULL;
-        ObjectRelease(cache);
-        cache = NULL;
+    if (ArrayResize(&buckets, InitialBucketCount)) {
+        cache = ObjectCreate(&size, 1, &pointer, FinalizeGlyphCache);
+
+        if (cache) {
+            cache->buckets = buckets;
+            MutexInit(&cache->mutex);
+            cache->capacity = capacity;
+            cache->size = 0;
+            cache->entryCount = 0;
+            cache->firstEntry = NULL;
+            cache->lastEntry = NULL;
+        } else {
+            ArrayFinalize(&buckets);
+        }
     }
 
     return cache;
