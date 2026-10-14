@@ -33,6 +33,7 @@ private:
     void testShapeLatin();
     void testEncodings();
     void testTypeSize();
+    void testNonFiniteTypeSize();
     void testMissingGlyph();
     void testRightToLeft();
     void testBackwardOrder();

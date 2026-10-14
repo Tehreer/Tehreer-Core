@@ -246,6 +246,7 @@ if(BUILD_TESTS)
     MemoryTests
     MutexTests
     NameWriterTests
+    NumberTests
     ObjectTests
     OnceTests
     RenderableFaceTests
@@ -418,6 +419,10 @@ if(BUILD_TESTS)
   set(NameWriterTests
     Tests/NameWriterTests.h
     Tests/NameWriterTests.cpp
+  )
+  set(NumberTests
+    Tests/NumberTests.h
+    Tests/NumberTests.cpp
   )
   set(SpinOnceTests
     Tests/SpinOnceTests.h
