@@ -229,6 +229,15 @@ static TRBoolean ActivateFont(FT_Face ftFace, const FontParams *fontParams,
     return isActivated;
 }
 
+static void DoneFreeTypeFace(FT_Face ftFace)
+{
+    FreeTypeRef freetype = FreeTypeGetDefault();
+
+    MutexLock(&freetype->mutex);
+    FT_Done_Face(ftFace);
+    MutexUnlock(&freetype->mutex);
+}
+
 static void FinalizeFreeTypeFaces(RenderableFaceRef renderableFace)
 {
     FreeTypeRef freetype = FreeTypeGetDefault();
@@ -259,6 +268,7 @@ static void FinalizeRenderableFace(ObjectRef object)
 
     FaceMetadataRelease(renderableFace->metadata);
     FinalizeFreeTypeFaces(renderableFace);
+    MutexDestroy(&renderableFace->_fallbackMutex);
     FontDataRelease(renderableFace->_fontData);
 }
 
@@ -391,30 +401,51 @@ static void ReadStrikeoutMetrics(FT_Face ftFace, FaceMetrics *metrics)
     }
 }
 
+/* Takes the ownership of the FT face and the metadata only if it returns a face. */
+static RenderableFaceRef CreateRenderableFace(FontDataRef fontData, TRUInteger faceIndex,
+    FT_Face ftFace, FaceMetadataRef metadata)
+{
+    const TRUInteger size = sizeof(RenderableFace);
+    void *pointer = NULL;
+
+    RenderableFace *renderableFace = ObjectCreate(&size, 1, &pointer, FinalizeRenderableFace);
+
+    if (renderableFace) {
+        renderableFace->_fontData = FontDataRetain(fontData);
+        renderableFace->faceIndex = faceIndex;
+
+        InitializeFacePool(renderableFace->_facePool, RawFacePoolSize);
+        renderableFace->_facePool[0].ftFace = ftFace;
+        AtomicUIntInit(&renderableFace->_faceStack, FaceStackMake(0, 1));
+
+        MutexInit(&renderableFace->_fallbackMutex);
+        renderableFace->_fallbackFace = NULL;
+
+        renderableFace->metadata = metadata;
+        renderableFace->glyphCount = ftFace->num_glyphs;
+    }
+
+    return renderableFace;
+}
+
 TR_INTERNAL RenderableFaceRef RenderableFaceCreate(FontDataRef fontData, TRUInteger faceIndex)
 {
     FT_Face ftFace = FontDataCreateFTFace(fontData, faceIndex);
     RenderableFace *renderableFace = NULL;
 
     if (ftFace) {
-        const TRUInteger size = sizeof(RenderableFace);
-        void *pointer = NULL;
+        FaceMetadataRef metadata = FaceMetadataCreate(ftFace);
 
-        renderableFace = ObjectCreate(&size, 1, &pointer, FinalizeRenderableFace);
+        if (metadata) {
+            renderableFace = CreateRenderableFace(fontData, faceIndex, ftFace, metadata);
 
-        if (renderableFace) {
-            renderableFace->_fontData = FontDataRetain(fontData);
-            renderableFace->faceIndex = faceIndex;
+            if (!renderableFace) {
+                FaceMetadataRelease(metadata);
+            }
+        }
 
-            InitializeFacePool(renderableFace->_facePool, RawFacePoolSize);
-            renderableFace->_facePool[0].ftFace = ftFace;
-            AtomicUIntInit(&renderableFace->_faceStack, FaceStackMake(0, 1));
-
-            MutexInit(&renderableFace->_fallbackMutex);
-            renderableFace->_fallbackFace = NULL;
-
-            renderableFace->metadata = FaceMetadataCreate(ftFace);
-            renderableFace->glyphCount = ftFace->num_glyphs;
+        if (!renderableFace) {
+            DoneFreeTypeFace(ftFace);
         }
     }
 
