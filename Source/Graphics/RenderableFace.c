@@ -377,9 +377,9 @@ static void ReadTableMetrics(FT_Face ftFace, FaceMetrics *metrics)
     }
 
     if (hheaTable) {
-        metrics->ascent = (hheaTable->Ascender > 0 ? hheaTable->Ascender : 0);
-        metrics->descent = (hheaTable->Descender < 0 ? -hheaTable->Descender : 0);
-        metrics->leading = (hheaTable->Line_Gap > 0 ? hheaTable->Line_Gap : 0);
+        metrics->ascent = hheaTable->Ascender;
+        metrics->descent = -hheaTable->Descender;
+        metrics->leading = hheaTable->Line_Gap;
     }
 
     if (postTable) {

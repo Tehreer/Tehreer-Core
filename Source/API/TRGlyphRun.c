@@ -576,12 +576,12 @@ static void DrawDecorations(TRGlyphRunRef glyphRun, TRRendererRef renderer, TRPo
         if (isUnderlined && unitsPerEM > 0) {
             DrawDecorationBand(renderer, color, baseline.x, right, baseline.y,
                 TRTypefaceGetUnderlinePosition(typeface),
-                (TRInt32)TRTypefaceGetUnderlineThickness(typeface), unitScale);
+                TRTypefaceGetUnderlineThickness(typeface), unitScale);
         }
         if (isStruckThrough && unitsPerEM > 0) {
             DrawDecorationBand(renderer, color, baseline.x, right, baseline.y,
                 TRTypefaceGetStrikeoutPosition(typeface),
-                (TRInt32)TRTypefaceGetStrikeoutThickness(typeface), unitScale);
+                TRTypefaceGetStrikeoutThickness(typeface), unitScale);
         }
     }
 }
