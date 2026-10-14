@@ -33,7 +33,14 @@
 /* The ellipsis character and the dots that stand in for it. */
 #define EllipsisCodePoint   0x2026
 
-static TRUInteger EncodeDots(TRStringEncoding encoding, TRUInt8 *buffer)
+/* The code units of a default token, which are aligned for every encoding. */
+typedef union _TokenBuffer {
+    TRUInt8 utf8[3];
+    TRUInt16 utf16[3];
+    TRUInt32 utf32[3];
+} TokenBuffer;
+
+static TRUInteger EncodeDots(TRStringEncoding encoding, TokenBuffer *buffer)
 {
     TRUInteger length = 0;
     TRUInteger index;
@@ -41,21 +48,21 @@ static TRUInteger EncodeDots(TRStringEncoding encoding, TRUInt8 *buffer)
     switch (encoding) {
     case TRStringEncodingUTF8:
         for (index = 0; index < 3; index++) {
-            buffer[index] = '.';
+            buffer->utf8[index] = '.';
         }
         length = 3;
         break;
 
     case TRStringEncodingUTF16:
         for (index = 0; index < 3; index++) {
-            ((TRUInt16 *)buffer)[index] = '.';
+            buffer->utf16[index] = '.';
         }
         length = 3;
         break;
 
     case TRStringEncodingUTF32:
         for (index = 0; index < 3; index++) {
-            ((TRUInt32 *)buffer)[index] = '.';
+            buffer->utf32[index] = '.';
         }
         length = 3;
         break;
@@ -64,25 +71,25 @@ static TRUInteger EncodeDots(TRStringEncoding encoding, TRUInt8 *buffer)
     return length;
 }
 
-static TRUInteger EncodeEllipsis(TRStringEncoding encoding, TRUInt8 *buffer)
+static TRUInteger EncodeEllipsis(TRStringEncoding encoding, TokenBuffer *buffer)
 {
     TRUInteger length = 0;
 
     switch (encoding) {
     case TRStringEncodingUTF8:
-        buffer[0] = 0xE2;
-        buffer[1] = 0x80;
-        buffer[2] = 0xA6;
+        buffer->utf8[0] = 0xE2;
+        buffer->utf8[1] = 0x80;
+        buffer->utf8[2] = 0xA6;
         length = 3;
         break;
 
     case TRStringEncodingUTF16:
-        ((TRUInt16 *)buffer)[0] = EllipsisCodePoint;
+        buffer->utf16[0] = EllipsisCodePoint;
         length = 1;
         break;
 
     case TRStringEncodingUTF32:
-        ((TRUInt32 *)buffer)[0] = EllipsisCodePoint;
+        buffer->utf32[0] = EllipsisCodePoint;
         length = 1;
         break;
     }
@@ -121,19 +128,19 @@ TR_INTERNAL TRComposedLine *TokenResolverCreateTokenLine(TRTypesetterRef typeset
         TextRunRef suitableRun;
         TRTextRef tokenText;
         TRAttribute attributes[2];
-        TRUInt8 defaultToken[3 * sizeof(TRUInt32)];
+        TokenBuffer defaultToken;
 
         suitableRun = TRTypesetterGetRun(typesetter, runIndex);
 
         if (!tokenString || tokenLength == 0) {
             /* The ellipsis character is used if the typeface has it, and three dots if not. */
             tokenEncoding = typesetter->buffer.encoding;
-            tokenString = defaultToken;
+            tokenString = &defaultToken;
 
             if (TRTypefaceGetGlyphID(suitableRun->typeface, EllipsisCodePoint) == 0) {
-                tokenLength = EncodeDots(tokenEncoding, defaultToken);
+                tokenLength = EncodeDots(tokenEncoding, &defaultToken);
             } else {
-                tokenLength = EncodeEllipsis(tokenEncoding, defaultToken);
+                tokenLength = EncodeEllipsis(tokenEncoding, &defaultToken);
             }
         }
 

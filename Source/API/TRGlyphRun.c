@@ -91,18 +91,18 @@ typedef struct _GlyphPass {
     TRColor color;
 } GlyphPass;
 
-#define RUN             0
-#define ADVANCES        1
-#define CLUSTER_MAP     2
-#define CARET_EDGES     3
-#define COUNT           4
-
 static void FinalizeGlyphRun(ObjectRef object)
 {
     TRGlyphRun *glyphRun = object;
 
     TextRunRelease(glyphRun->textRun);
 }
+
+#define RUN             0
+#define ADVANCES        1
+#define CLUSTER_MAP     2
+#define CARET_EDGES     3
+#define COUNT           4
 
 static TRGlyphRun *AllocateGlyphRun(TextRunRef textRun, TRUInteger codeUnitStart,
     TRUInteger codeUnitEnd, TRUInteger startExtra, TRUInteger endExtra, TRBoolean hasAdvances,

@@ -149,7 +149,7 @@ TR_INTERNAL TRFloat TRTypesetterMeasureRange(TRTypesetterRef typesetter, TRUInte
 
         do {
             TextRunRef textRun = TRTypesetterGetRun(typesetter, runIndex);
-            TRUInteger segmentEnd = (end < textRun->codeUnitEnd ? end : textRun->codeUnitEnd);
+            TRUInteger segmentEnd = NumberMin(end, textRun->codeUnitEnd);
 
             extent += TextRunGetDistance(textRun, start, segmentEnd);
 

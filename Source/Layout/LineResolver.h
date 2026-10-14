@@ -24,12 +24,11 @@
 #include <API/TRComposedLine.h>
 #include <API/TRGlyphRun.h>
 #include <API/TRTypesetter.h>
+#include <Core/Array.h>
 
 /* A growable list of glyph runs, which owns the references that it holds. */
 typedef struct _RunList {
-    TRGlyphRun **items;
-    TRUInteger count;
-    TRUInteger capacity;
+    Array runs;
     TRBoolean hasFailed;
 } RunList;
 

@@ -243,6 +243,7 @@ if(BUILD_TESTS)
     GlyphCacheTests
     GlyphImageTests
     LineLocatorTests
+    MalformedFontTests
     MemoryTests
     MutexTests
     NameWriterTests
@@ -351,6 +352,10 @@ if(BUILD_TESTS)
   set(SFNTUtilitiesTests
     Tests/SFNTUtilitiesTests.h
     Tests/SFNTUtilitiesTests.cpp
+  )
+  set(MalformedFontTests
+    Tests/MalformedFontTests.h
+    Tests/MalformedFontTests.cpp
   )
   set(FaceMetadataTests
     Tests/FaceMetadataTests.h

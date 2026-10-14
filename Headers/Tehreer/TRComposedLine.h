@@ -254,7 +254,8 @@ TR_PUBLIC TRGlyphRunRef TRComposedLineGetGlyphRun(TRComposedLineRef line, TRUInt
  * @param codeUnitIndex
  *      The index of the code unit, from the start of the line to its end.
  * @param distance
- *      Receives the distance.
+ *      Receives the distance. It MUST NOT be `NULL`, as it is written to whenever the distance is
+ *      given.
  * @return
  *      `TRTrue` if the distance was given, `TRFalse` if the code unit is out of the line, in which
  *      case `distance` is left as it was.
@@ -274,9 +275,10 @@ TR_PUBLIC TRBoolean TRComposedLineGetCodeUnitDistance(TRComposedLineRef line,
  * @param length
  *      The number of code units of the range.
  * @param func
- *      The function to call for each part, which can stop the enumeration.
+ *      The function to call for each part, which can stop the enumeration. It MUST NOT be `NULL`
+ *      if the range is within the line and is not empty, as it is called then.
  * @param userData
- *      An opaque pointer that is passed to the function.
+ *      An opaque pointer that is passed to the function, which can be `NULL`.
  * @return
  *      `TRTrue` if the enumeration is done, or stopped, `TRFalse` if the range is not within the
  *      line, in which case nothing is passed.
@@ -287,7 +289,8 @@ TR_PUBLIC TRBoolean TRComposedLineEnumerateEdges(TRComposedLineRef line, TRUInte
 /**
  * Returns the code unit boundary that is closest to a distance from the start of the line. The
  * start of the line is its left edge. A distance before it gives the start of the code units of the
- * line, and one past its end gives the boundary at the end of the last run.
+ * line, and one past its end gives the boundary at the end of the last run. A NaN
+ * distance gives the start of the code units of the line, as a distance before it does.
  *
  * @param line
  *      The line.
@@ -302,7 +305,7 @@ TR_PUBLIC TRUInteger TRComposedLineGetCodeUnitIndex(TRComposedLineRef line, TRFl
  * Returns how far to move the start of the line so that it is aligned. The extent that is not taken
  * by the line, without its trailing whitespace, is multiplied by the flush factor. For a
  * right-to-left paragraph, the trailing whitespace is subtracted too, since it lies before the
- * text on the screen.
+ * text on the screen. The offset is NaN if the flush factor or the extent is NaN.
  *
  * @param line
  *      The line.
@@ -324,7 +327,8 @@ TR_PUBLIC TRFloat TRComposedLineGetPenOffset(TRComposedLineRef line, TRFloat flu
  * @param line
  *      The line.
  * @param renderer
- *      The renderer that decides how the glyphs are measured.
+ *      The renderer that decides how the glyphs are measured. It MUST NOT be `NULL`, as every run
+ *      that is not a replacement uses it.
  * @return
  *      The union of the ink boxes of the runs that have one, or an empty rectangle at the origin if
  *      none has.

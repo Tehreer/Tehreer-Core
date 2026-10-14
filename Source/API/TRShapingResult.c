@@ -24,13 +24,6 @@
 
 #include "TRShapingResult.h"
 
-#define RESULT          0
-#define GLYPH_IDS       1
-#define GLYPH_OFFSETS   2
-#define GLYPH_ADVANCES  3
-#define CLUSTER_MAP     4
-#define COUNT           5
-
 /* Returns the index in the buffer of the glyph at the given index in the writing direction. */
 #define BufferIndex(result_, index_)    \
     ((result_)->isRTL ? (result_)->glyphCount - (index_) - 1 : (index_))
@@ -82,6 +75,13 @@ static void BuildClusterMap(TRShapingResult *result, const hb_glyph_info_t *info
         }
     }
 }
+
+#define RESULT          0
+#define GLYPH_IDS       1
+#define GLYPH_OFFSETS   2
+#define GLYPH_ADVANCES  3
+#define CLUSTER_MAP     4
+#define COUNT           5
 
 TR_INTERNAL TRShapingResultRef TRShapingResultCreate(hb_buffer_t *hbBuffer,
     TRUInteger codeUnitCount, TRFloat sizeByEm, TRBoolean isBackward, TRBoolean isRTL)

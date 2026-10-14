@@ -25,6 +25,25 @@
 
 #define InitialCapacity     8
 
+/* Makes room for one more item, doubling the capacity if the array is full. */
+static TRBoolean ReserveItemSpace(ArrayRef array)
+{
+    TRBoolean hasSpace = (array->_count < array->_capacity);
+
+    if (!hasSpace) {
+        TRUInteger capacity = (array->_capacity ? array->_capacity * 2 : InitialCapacity);
+        void *items = AllocatorReallocateBlock(array->_items, capacity * array->_itemSize);
+
+        if (items) {
+            array->_items = items;
+            array->_capacity = capacity;
+            hasSpace = TRTrue;
+        }
+    }
+
+    return hasSpace;
+}
+
 TR_INTERNAL void ArrayInitialize(ArrayRef array, TRUInteger itemSize)
 {
     array->_items = NULL;
@@ -90,20 +109,8 @@ TR_INTERNAL TRBoolean ArrayResize(ArrayRef array, TRUInteger count)
 TR_INTERNAL TRBoolean ArrayAppend(ArrayRef array, const void *item)
 {
     TRBoolean isAppended = TRFalse;
-    TRBoolean hasSpace = (array->_count < array->_capacity);
 
-    if (!hasSpace) {
-        TRUInteger capacity = (array->_capacity ? array->_capacity * 2 : InitialCapacity);
-        void *items = AllocatorReallocateBlock(array->_items, capacity * array->_itemSize);
-
-        if (items) {
-            array->_items = items;
-            array->_capacity = capacity;
-            hasSpace = TRTrue;
-        }
-    }
-
-    if (hasSpace) {
+    if (ReserveItemSpace(array)) {
         memcpy((TRUInt8 *)array->_items + (array->_count * array->_itemSize), item,
             array->_itemSize);
         array->_count += 1;
@@ -111,4 +118,23 @@ TR_INTERNAL TRBoolean ArrayAppend(ArrayRef array, const void *item)
     }
 
     return isAppended;
+}
+
+TR_INTERNAL TRBoolean ArrayInsert(ArrayRef array, TRUInteger index, const void *item)
+{
+    TRBoolean isInserted = TRFalse;
+
+    /* The index MUST NOT be greater than the count. */
+    TRAssert(index <= array->_count);
+
+    if (ReserveItemSpace(array)) {
+        TRUInt8 *slot = (TRUInt8 *)array->_items + (index * array->_itemSize);
+
+        memmove(slot + array->_itemSize, slot, (array->_count - index) * array->_itemSize);
+        memcpy(slot, item, array->_itemSize);
+        array->_count += 1;
+        isInserted = TRTrue;
+    }
+
+    return isInserted;
 }
