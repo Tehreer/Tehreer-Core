@@ -34,14 +34,6 @@
 #include "TRTypeface.h"
 
 
-#define TYPEFACE            0
-#define RAW_COORDINATES     1
-#define FACE_COORDINATES    2
-#define RAW_COLORS          3
-#define FACE_COLORS         4
-#define FULL_NAME           5
-#define COUNT               6
-
 static void FinalizeTypeface(ObjectRef object)
 {
     TRTypeface *typeface = object;
@@ -49,6 +41,14 @@ static void FinalizeTypeface(ObjectRef object)
     ShapableFaceRelease(typeface->shapableFace);
     RenderableFaceRelease(typeface->renderableFace);
 }
+
+#define TYPEFACE            0
+#define RAW_COORDINATES     1
+#define FACE_COORDINATES    2
+#define RAW_COLORS          3
+#define FACE_COLORS         4
+#define FULL_NAME           5
+#define COUNT               6
 
 static TRTypeface *AllocateTypeface(TRUInteger variationAxisCount, TRUInteger paletteEntryCount,
     TRUInteger fullNameUnits)

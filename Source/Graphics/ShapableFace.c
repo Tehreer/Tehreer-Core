@@ -191,28 +191,36 @@ static void FinalizeShapableFace(ObjectRef object)
     RenderableFaceRelease(shapableFace->renderableFace);
 }
 
+#define SHAPABLE_FACE   0
+#define COORDINATES     1
+#define COUNT           2
+
 static ShapableFaceRef AllocateShapableFace(TRUInteger coordinateCount)
 {
-    void *pointers[2] = { NULL };
-    TRUInteger sizes[2];
+    void *pointers[COUNT] = { NULL };
+    TRUInteger sizes[COUNT];
     ShapableFaceRef shapableFace;
 
-    sizes[0] = sizeof(ShapableFace);
-    sizes[1] = sizeof(FT_Fixed) * coordinateCount;
+    sizes[SHAPABLE_FACE] = sizeof(ShapableFace);
+    sizes[COORDINATES] = sizeof(FT_Fixed) * coordinateCount;
 
-    shapableFace = ObjectCreate(sizes, 2, pointers, FinalizeShapableFace);
+    shapableFace = ObjectCreate(sizes, COUNT, pointers, FinalizeShapableFace);
 
     if (shapableFace) {
         shapableFace->renderableFace = NULL;
         shapableFace->rootFace = NULL;
         shapableFace->hbFace = NULL;
         shapableFace->hbFont = NULL;
-        shapableFace->coordinates = pointers[1];
+        shapableFace->coordinates = pointers[COORDINATES];
         shapableFace->coordinateCount = coordinateCount;
     }
 
     return shapableFace;
 }
+
+#undef SHAPABLE_FACE
+#undef COORDINATES
+#undef COUNT
 
 TR_INTERNAL ShapableFaceRef ShapableFaceCreate(RenderableFaceRef renderableFace)
 {
