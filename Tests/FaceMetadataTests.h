@@ -35,6 +35,7 @@ private:
     void testVariableColorFace();
     void testPalettes();
     void testPaletteFlags();
+    void testOversizedPalettes();
     void testIndependentOfFace();
     void testRetainRelease();
 };
