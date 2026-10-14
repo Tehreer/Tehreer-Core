@@ -164,15 +164,14 @@ Tests are built only with unity mode **off**:
 
 ```bash
 cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Debug \
-  -DTR_CONFIG_UNITY=OFF \
-  -DCMAKE_C_STANDARD=90 -DCMAKE_C_EXTENSIONS=OFF
+  -DTR_CONFIG_UNITY=OFF
 cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
 Single suite: `./build/FooTests`.
 
-If FreeType fails to compile because of `-DCMAKE_C_STANDARD=90`, configure without it for running tests, and check library C89 compliance per file instead:
+The `Tehreer` target is already built as strict C89 (see `CMakeLists.txt`); do not pass `-DCMAKE_C_STANDARD=90` globally, because it breaks bundled dependencies. To check C89 compliance of a single file:
 
 ```bash
 clang -std=c89 -pedantic -Wall -Wextra -fsyntax-only -ISource -IHeaders <deps include dirs> Source/Core/Foo.c

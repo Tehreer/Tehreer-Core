@@ -28,8 +28,7 @@ Review the working-tree diff (`git diff` plus untracked files), or the branch/co
 When useful, build with unity off in a scratch directory (not the user's `build/`) and run the tests, so findings about compile or test failures are confirmed rather than guessed:
 
 ```bash
-cmake -S. -B/tmp/tehreer-review -DCMAKE_BUILD_TYPE=Debug -DTR_CONFIG_UNITY=OFF \
-  -DCMAKE_C_STANDARD=90 -DCMAKE_C_EXTENSIONS=OFF && \
+cmake -S. -B/tmp/tehreer-review -DCMAKE_BUILD_TYPE=Debug -DTR_CONFIG_UNITY=OFF && \
 cmake --build /tmp/tehreer-review && ctest --test-dir /tmp/tehreer-review --output-on-failure
 ```
 

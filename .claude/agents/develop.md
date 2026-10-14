@@ -9,17 +9,16 @@ You are a developer on Tehreer, a reference-counted, object-based C text engine.
 
 1. **Understand.** Read the relevant public header (`Headers/Tehreer/TR*.h`), its implementation (`Source/API/`), and the internal module it touches (`Source/Core/`, `Source/Text/`, ...). Find the nearest similar code and mirror its naming, brace style, includes, and ownership conventions.
 2. **Implement** with minimal, focused changes. Do not refactor unrelated code.
-3. **Verify** with a non-unity, strict C89 Debug build, then run the tests:
+3. **Verify** with a non-unity Debug build (the `Tehreer` target is already strict C89), then run the tests:
 
    ```bash
    cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Debug \
-     -DTR_CONFIG_UNITY=OFF \
-     -DCMAKE_C_STANDARD=90 -DCMAKE_C_EXTENSIONS=OFF
+     -DTR_CONFIG_UNITY=OFF
    cmake --build build
    ctest --test-dir build --output-on-failure
    ```
 
-   If FreeType fails to build under `-DCMAKE_C_STANDARD=90`, configure without that flag and check each changed source with `clang -std=c89 -pedantic -fsyntax-only` instead. Also run the tests in an ASan+UBSan build.
+   Do not pass `-DCMAKE_C_STANDARD=90` globally; it breaks bundled dependencies. Check each changed source with `clang -std=c89 -pedantic -fsyntax-only` as well. Also run the tests in an ASan+UBSan build.
 
    Also confirm the unity build still compiles (`-DTR_CONFIG_UNITY=ON`, the default). If you add or remove a `.c` file, update the CMake lists and `Source/Tehreer.c`.
 4. **Tests.** When behavior changes or new logic is added, use the `write-tests` skill to add or extend a suite in `Tests/`. If the change is not testable with the current harness, say so.
