@@ -206,24 +206,24 @@ TR_PUBLIC TRUInt32 TRTypefaceGetUnitsPerEM(TRTypefaceRef typeface);
  * @return
  *      The distance from the baseline to the top of the line, in font units.
  */
-TR_PUBLIC TRUInt32 TRTypefaceGetAscent(TRTypefaceRef typeface);
+TR_PUBLIC TRInt32 TRTypefaceGetAscent(TRTypefaceRef typeface);
 
 /**
  * Returns the distance from the baseline to the bottom of the line, in font units, as a positive
- * number. It follows the variation coordinates of the typeface.
+ * number for a descender below the baseline. It follows the variation coordinates of the typeface.
  *
  * @param typeface
  *      The typeface.
  * @return
  *      The distance from the baseline to the bottom of the line, in font units, as a positive
- *      number.
+ *      number for a descender below the baseline.
  */
-TR_PUBLIC TRUInt32 TRTypefaceGetDescent(TRTypefaceRef typeface);
+TR_PUBLIC TRInt32 TRTypefaceGetDescent(TRTypefaceRef typeface);
 
 /**
  * Returns the extra space between two lines, in font units, which is the part of the line height
  * of the font that exceeds the sum of the ascent and the descent. It is zero if the font has no
- * such part.
+ * such part, and it is as stored in the font if the font gives it directly.
  *
  * @param typeface
  *      The typeface.
@@ -231,7 +231,7 @@ TR_PUBLIC TRUInt32 TRTypefaceGetDescent(TRTypefaceRef typeface);
  *      The extra space between two lines, in font units, which is the part of the line height of
  *      the font that exceeds the sum of the ascent and the descent.
  */
-TR_PUBLIC TRUInt32 TRTypefaceGetLeading(TRTypefaceRef typeface);
+TR_PUBLIC TRInt32 TRTypefaceGetLeading(TRTypefaceRef typeface);
 
 /**
  * Returns the number of glyphs in the typeface.
@@ -489,7 +489,7 @@ TR_PUBLIC TRInt32 TRTypefaceGetUnderlinePosition(TRTypefaceRef typeface);
  * @return
  *      The thickness of the underline, in font units.
  */
-TR_PUBLIC TRUInt32 TRTypefaceGetUnderlineThickness(TRTypefaceRef typeface);
+TR_PUBLIC TRInt32 TRTypefaceGetUnderlineThickness(TRTypefaceRef typeface);
 
 /**
  * Returns the position of the strikeout relative to the baseline, in font units. It is zero if the

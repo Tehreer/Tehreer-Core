@@ -336,14 +336,14 @@ static void ReadFaceMetrics(FT_Face ftFace, FaceMetrics *metrics)
     TRInt32 extent = ftFace->ascender - ftFace->descender;
 
     metrics->unitsPerEM = ftFace->units_per_EM;
-    metrics->ascent = NumberMax(ftFace->ascender, 0);
-    metrics->descent = NumberMax(-ftFace->descender, 0);
+    metrics->ascent = ftFace->ascender;
+    metrics->descent = -ftFace->descender;
     metrics->leading = 0;
     if (ftFace->height > extent) {
         metrics->leading = ftFace->height - extent;
     }
     metrics->underlinePosition = ftFace->underline_position;
-    metrics->underlineThickness = NumberMax(ftFace->underline_thickness, 0);
+    metrics->underlineThickness = ftFace->underline_thickness;
 
     metrics->xMin = ftFace->bbox.xMin;
     metrics->yMin = ftFace->bbox.yMin;
@@ -367,14 +367,14 @@ static void ReadTableMetrics(FT_Face ftFace, FaceMetrics *metrics)
     }
 
     if (hheaTable) {
-        metrics->ascent = (hheaTable->Ascender > 0 ? hheaTable->Ascender : 0);
-        metrics->descent = (hheaTable->Descender < 0 ? -hheaTable->Descender : 0);
-        metrics->leading = (hheaTable->Line_Gap > 0 ? hheaTable->Line_Gap : 0);
+        metrics->ascent = hheaTable->Ascender;
+        metrics->descent = -hheaTable->Descender;
+        metrics->leading = hheaTable->Line_Gap;
     }
 
     if (postTable) {
         metrics->underlinePosition = postTable->underlinePosition;
-        metrics->underlineThickness = NumberMax(postTable->underlineThickness, 0);
+        metrics->underlineThickness = postTable->underlineThickness;
     }
 }
 

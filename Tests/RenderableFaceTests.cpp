@@ -307,9 +307,9 @@ void RenderableFaceTests::testNegativeMetrics() {
     FaceMetrics metrics = {};
     RenderableFaceGetMetrics(face, nullptr, &metrics);
 
-    assert(metrics.ascent == 0);
-    assert(metrics.descent == 0);
-    assert(metrics.underlineThickness == 0);
+    assert(metrics.ascent == -100);
+    assert(metrics.descent == -100);
+    assert(metrics.underlineThickness == -50);
 
     RenderableFaceRelease(face);
     FontDataRelease(fontData);

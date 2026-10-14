@@ -52,11 +52,11 @@ typedef struct _TRTypeface {
     TRUInt16 *fullNameUnits;
 
     TRUInt32 unitsPerEM;
-    TRUInt32 ascent;
-    TRUInt32 descent;
-    TRUInt32 leading;
+    TRInt32 ascent;
+    TRInt32 descent;
+    TRInt32 leading;
     TRInt32 underlinePosition;
-    TRUInt32 underlineThickness;
+    TRInt32 underlineThickness;
     TRInt32 strikeoutPosition;
     TRInt32 strikeoutThickness;
     TRInt32 xMin;

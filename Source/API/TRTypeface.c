@@ -314,17 +314,17 @@ TRUInt32 TRTypefaceGetUnitsPerEM(TRTypefaceRef typeface)
     return typeface->unitsPerEM;
 }
 
-TRUInt32 TRTypefaceGetAscent(TRTypefaceRef typeface)
+TRInt32 TRTypefaceGetAscent(TRTypefaceRef typeface)
 {
     return typeface->ascent;
 }
 
-TRUInt32 TRTypefaceGetDescent(TRTypefaceRef typeface)
+TRInt32 TRTypefaceGetDescent(TRTypefaceRef typeface)
 {
     return typeface->descent;
 }
 
-TRUInt32 TRTypefaceGetLeading(TRTypefaceRef typeface)
+TRInt32 TRTypefaceGetLeading(TRTypefaceRef typeface)
 {
     return typeface->leading;
 }
@@ -492,7 +492,7 @@ TRInt32 TRTypefaceGetUnderlinePosition(TRTypefaceRef typeface)
     return typeface->underlinePosition;
 }
 
-TRUInt32 TRTypefaceGetUnderlineThickness(TRTypefaceRef typeface)
+TRInt32 TRTypefaceGetUnderlineThickness(TRTypefaceRef typeface)
 {
     return typeface->underlineThickness;
 }
