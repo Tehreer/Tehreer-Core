@@ -36,6 +36,7 @@ void MemoryTests::run() {
     testAllocateBlock();
     testAllocateMultipleBlocks();
     testAllocateChunks();
+    testAllocateOverflow();
     testFinalizeEmpty();
 }
 
@@ -99,6 +100,28 @@ void MemoryTests::testAllocateChunks() {
     memset(pointers[0], 0x11, sizes[0]);
     memset(pointers[2], 0x22, sizes[2]);
     assert(static_cast<uint8_t *>(pointers[0])[sizes[0] - 1] == 0x11);
+
+    MemoryFinalize(&memory);
+}
+
+void MemoryTests::testAllocateOverflow() {
+    constexpr TRUInteger maxSize = static_cast<TRUInteger>(-1);
+    constexpr TRUInteger half = (maxSize / 2) + 1;
+    const TRUInteger sizes[] = { half, half };
+    void *pointers[2] = { nullptr, nullptr };
+
+    Memory memory = MemoryMake();
+
+    /* The header makes the size wrap around, and so does the sum of the chunks. */
+    assert(MemoryAllocateBlock(&memory, maxSize) == nullptr);
+    assert(MemoryAllocateChunks(&memory, sizes, 2, pointers) == TRFalse);
+    assert(pointers[0] == nullptr);
+    assert(pointers[1] == nullptr);
+    assert(memory._list == nullptr);
+
+    /* A failed allocation leaves the memory usable. */
+    assert(MemoryAllocateBlock(&memory, 16) != nullptr);
+    assert(MemoryAllocateBlock(&memory, maxSize) == nullptr);
 
     MemoryFinalize(&memory);
 }

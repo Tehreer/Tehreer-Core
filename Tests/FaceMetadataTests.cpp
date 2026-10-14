@@ -17,7 +17,11 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <fstream>
+#include <iterator>
 #include <string>
+#include <vector>
 
 #include <ft2build.h>
 #include FT_COLOR_H
@@ -49,6 +53,7 @@ void FaceMetadataTests::run() {
     testVariableColorFace();
     testPalettes();
     testPaletteFlags();
+    testOversizedPalettes();
     testIndependentOfFace();
     testRetainRelease();
 }
@@ -287,6 +292,75 @@ void FaceMetadataTests::testPaletteFlags() {
     assert(metadata->predefinedPalettesPtr[1].flags == 1);
 
     FaceMetadataRelease(metadata);
+}
+
+static void writeUInt16(vector<uint8_t> &data, size_t offset, uint32_t value) {
+    data[offset] = static_cast<uint8_t>(value >> 8);
+    data[offset + 1] = static_cast<uint8_t>(value);
+}
+
+static void writeUInt32(vector<uint8_t> &data, size_t offset, uint32_t value) {
+    writeUInt16(data, offset, value >> 16);
+    writeUInt16(data, offset + 2, value & 0xFFFF);
+}
+
+/*
+ * Replaces the CPAL table of a font with a valid version 0 table that has the given number of
+ * palettes and entries per palette. Every palette refers to the same colors, so the table is much
+ * smaller than the palettes that it claims.
+ */
+static vector<uint8_t> makeFontWithPalettes(const char *fontName, uint16_t paletteCount,
+    uint16_t entryCount) {
+    ifstream stream(testFontPath(fontName), ios::binary);
+    vector<uint8_t> data((istreambuf_iterator<char>(stream)), istreambuf_iterator<char>());
+    size_t tableCount = (data[4] << 8) | data[5];
+    size_t record = 0;
+
+    for (size_t i = 0; i < tableCount && record == 0; i++) {
+        if (memcmp(&data[12 + (i * 16)], "CPAL", 4) == 0) {
+            record = 12 + (i * 16);
+        }
+    }
+    assert(record != 0);
+
+    const uint32_t colorsOffset = 12 + (paletteCount * 2U);
+    const uint32_t tableSize = colorsOffset + (entryCount * 4U);
+    const size_t tableOffset = (data.size() + 3) / 4 * 4;
+
+    data.resize(tableOffset + tableSize, 0);
+    writeUInt16(data, tableOffset + 2, entryCount);
+    writeUInt16(data, tableOffset + 4, paletteCount);
+    writeUInt16(data, tableOffset + 6, entryCount);
+    writeUInt32(data, tableOffset + 8, colorsOffset);
+
+    writeUInt32(data, record + 8, static_cast<uint32_t>(tableOffset));
+    writeUInt32(data, record + 12, tableSize);
+
+    return data;
+}
+
+void FaceMetadataTests::testOversizedPalettes() {
+    FreeTypeRef freetype = FreeTypeGetDefault();
+    vector<uint8_t> data = makeFontWithPalettes("RocherColorGX.abc.ttf", 65535, 65535);
+    FT_Face ftFace = nullptr;
+
+    MutexLock(&freetype->mutex);
+    FT_Error error = FT_New_Memory_Face(freetype->library, data.data(),
+        static_cast<FT_Long>(data.size()), 0, &ftFace);
+    MutexUnlock(&freetype->mutex);
+    assert(error == FT_Err_Ok);
+
+    /* The palettes would need gigabytes of colors, which the table does not hold. */
+    FaceMetadataRef metadata = FaceMetadataCreate(ftFace);
+    assert(metadata != nullptr);
+    assert(metadata->predefinedPaletteCount == 0);
+    assert(metadata->paletteEntryCount == 0);
+
+    FaceMetadataRelease(metadata);
+
+    MutexLock(&freetype->mutex);
+    FT_Done_Face(ftFace);
+    MutexUnlock(&freetype->mutex);
 }
 
 void FaceMetadataTests::testIndependentOfFace() {

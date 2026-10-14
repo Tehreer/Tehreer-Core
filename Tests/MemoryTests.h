@@ -30,6 +30,7 @@ private:
     void testAllocateBlock();
     void testAllocateMultipleBlocks();
     void testAllocateChunks();
+    void testAllocateOverflow();
     void testFinalizeEmpty();
 };
 

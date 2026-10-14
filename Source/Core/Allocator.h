@@ -29,9 +29,16 @@ TR_INTERNAL void AllocatorDeallocateBlock(void *pointer);
 
 /**
  * Computes the total size required for a set of memory chunks. Each chunk is padded so that the
- * next one starts at an aligned address.
+ * next one starts at an aligned address. The size is not computed if it does not fit in
+ * `TRUInteger`.
+ *
+ * @param outSize
+ *      Receives the total size, which is left untouched if the function returns `TRFalse`.
+ * @return
+ *      `TRTrue` if the size was computed, `TRFalse` if it would overflow.
  */
-TR_INTERNAL TRUInteger AllocatorCalculateBlockSize(const TRUInteger *chunkSizes, TRUInteger chunkCount);
+TR_INTERNAL TRBoolean AllocatorCalculateBlockSize(const TRUInteger *chunkSizes,
+    TRUInteger chunkCount, TRUInteger *outSize);
 
 /**
  * Splits a contiguous memory block into multiple logical chunks.

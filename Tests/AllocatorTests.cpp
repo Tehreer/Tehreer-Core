@@ -34,9 +34,11 @@ void AllocatorTests::run() {
     testAllocateBlock();
     testReallocateBlock();
     testCalculateBlockSize();
+    testCalculateBlockSizeOverflow();
     testSplitBlock();
     testSplitBlockAlignment();
     testAllocateChunks();
+    testAllocateChunksOverflow();
 }
 
 void AllocatorTests::testAllocateBlock() {
@@ -80,10 +82,43 @@ void AllocatorTests::testCalculateBlockSize() {
     const TRUInteger aligned[] = { unit, 2 * unit };
     const TRUInteger unaligned[] = { 1, unit + 1, 2 * unit + 1 };
 
-    assert(AllocatorCalculateBlockSize(empty, 2) == 0);
-    assert(AllocatorCalculateBlockSize(aligned, 2) == 3 * unit);
-    assert(AllocatorCalculateBlockSize(unaligned, 3) == unit + 2 * unit + 3 * unit);
-    assert(AllocatorCalculateBlockSize(unaligned, 0) == 0);
+    TRUInteger size = 1;
+
+    assert(AllocatorCalculateBlockSize(empty, 2, &size) == TRTrue);
+    assert(size == 0);
+    assert(AllocatorCalculateBlockSize(aligned, 2, &size) == TRTrue);
+    assert(size == 3 * unit);
+    assert(AllocatorCalculateBlockSize(unaligned, 3, &size) == TRTrue);
+    assert(size == unit + 2 * unit + 3 * unit);
+    assert(AllocatorCalculateBlockSize(unaligned, 0, &size) == TRTrue);
+    assert(size == 0);
+}
+
+void AllocatorTests::testCalculateBlockSizeOverflow() {
+    constexpr TRUInteger maxSize = static_cast<TRUInteger>(-1);
+    constexpr TRUInteger half = (maxSize / 2) + 1;
+    const TRUInteger unit = sizeof(void *);
+    TRUInteger size = 123;
+
+    /* The sum of the chunks wraps around. */
+    const TRUInteger sum[] = { half, half };
+    assert(AllocatorCalculateBlockSize(sum, 2, &size) == TRFalse);
+
+    /* The padding of the last chunk wraps around. */
+    const TRUInteger padding[] = { maxSize - 2 };
+    assert(AllocatorCalculateBlockSize(padding, 1, &size) == TRFalse);
+
+    /* The sum fits only because of the padding that is not added yet. */
+    const TRUInteger edge[] = { maxSize - (unit - 1) - unit, unit + 1 };
+    assert(AllocatorCalculateBlockSize(edge, 2, &size) == TRFalse);
+
+    /* The size is left as it was if it is not computed. */
+    assert(size == 123);
+
+    /* The largest size that is a multiple of the alignment is still fine. */
+    const TRUInteger largest[] = { maxSize - (unit - 1) };
+    assert(AllocatorCalculateBlockSize(largest, 1, &size) == TRTrue);
+    assert(size == maxSize - (unit - 1));
 }
 
 void AllocatorTests::testSplitBlock() {
@@ -140,6 +175,16 @@ void AllocatorTests::testAllocateChunks() {
     }
 
     AllocatorDeallocateBlock(pointers[0]);
+}
+
+void AllocatorTests::testAllocateChunksOverflow() {
+    constexpr TRUInteger half = (static_cast<TRUInteger>(-1) / 2) + 1;
+    const TRUInteger sizes[] = { half, half };
+    void *pointers[2] = { nullptr, nullptr };
+
+    assert(AllocatorAllocateChunks(sizes, 2, pointers) == TRFalse);
+    assert(pointers[0] == nullptr);
+    assert(pointers[1] == nullptr);
 }
 
 #ifdef STANDALONE_TESTING

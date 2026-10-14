@@ -44,16 +44,36 @@ TR_INTERNAL void AllocatorDeallocateBlock(void *pointer)
     free(pointer);
 }
 
-TR_INTERNAL TRUInteger AllocatorCalculateBlockSize(const TRUInteger *chunkSizes, TRUInteger chunkCount)
+TR_INTERNAL TRBoolean AllocatorCalculateBlockSize(const TRUInteger *chunkSizes,
+    TRUInteger chunkCount, TRUInteger *outSize)
 {
+    const TRUInteger maxSize = (TRUInteger)-1;
     TRUInteger totalSize = 0;
+    TRBoolean isCalculated = TRTrue;
     TRUInteger index;
 
-    for (index = 0; index < chunkCount; index++) {
-        totalSize += AlignChunkSize(chunkSizes[index]);
+    for (index = 0; isCalculated && index < chunkCount; index++) {
+        TRUInteger chunkSize = chunkSizes[index];
+
+        /* Neither the padding nor the sum of the sizes is allowed to wrap around. */
+        if (chunkSize <= maxSize - (sizeof(void *) - 1)) {
+            TRUInteger paddedSize = AlignChunkSize(chunkSize);
+
+            if (paddedSize <= maxSize - totalSize) {
+                totalSize += paddedSize;
+            } else {
+                isCalculated = TRFalse;
+            }
+        } else {
+            isCalculated = TRFalse;
+        }
     }
 
-    return totalSize;
+    if (isCalculated) {
+        *outSize = totalSize;
+    }
+
+    return isCalculated;
 }
 
 TR_INTERNAL void AllocatorSplitBlock(void *pointer, const TRUInteger *chunkSizes,
@@ -74,18 +94,21 @@ TR_INTERNAL void AllocatorSplitBlock(void *pointer, const TRUInteger *chunkSizes
 TR_INTERNAL TRBoolean AllocatorAllocateChunks(const TRUInteger *chunkSizes, TRUInteger chunkCount,
     void **outPointers)
 {
-    TRUInteger totalSize = AllocatorCalculateBlockSize(chunkSizes, chunkCount);
+    TRUInteger totalSize;
     TRBoolean succeeded = TRFalse;
-    void *pointer;
 
-    /* Total size MUST be greater than zero. */
-    TRAssert(totalSize > 0);
+    if (AllocatorCalculateBlockSize(chunkSizes, chunkCount, &totalSize)) {
+        void *pointer;
 
-    pointer = AllocatorAllocateBlock(totalSize);
+        /* Total size MUST be greater than zero. */
+        TRAssert(totalSize > 0);
 
-    if (pointer) {
-        AllocatorSplitBlock(pointer, chunkSizes, chunkCount, outPointers);
-        succeeded = TRTrue;
+        pointer = AllocatorAllocateBlock(totalSize);
+
+        if (pointer) {
+            AllocatorSplitBlock(pointer, chunkSizes, chunkCount, outPointers);
+            succeeded = TRTrue;
+        }
     }
 
     return succeeded;

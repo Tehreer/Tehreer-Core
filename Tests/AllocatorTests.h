@@ -29,9 +29,11 @@ private:
     void testAllocateBlock();
     void testReallocateBlock();
     void testCalculateBlockSize();
+    void testCalculateBlockSizeOverflow();
     void testSplitBlock();
     void testSplitBlockAlignment();
     void testAllocateChunks();
+    void testAllocateChunksOverflow();
 };
 
 }

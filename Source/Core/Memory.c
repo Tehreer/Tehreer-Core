@@ -29,44 +29,48 @@ TR_INTERNAL void MemoryInitialize(MemoryRef memory)
 
 TR_INTERNAL void *MemoryAllocateBlock(MemoryRef memory, TRUInteger size)
 {
+    const TRUInteger maxHeaderSize = NumberMax(sizeof(MemoryList), sizeof(MemoryBlock));
     MemoryListRef memoryList = memory->_list;
     void *pointer = NULL;
 
     /* Size MUST be greater than zero. */
     TRAssert(size > 0);
 
-    if (memoryList) {
-        const TRUInteger headerSize = sizeof(MemoryBlock);
+    /* The size with the header is not allowed to wrap around. */
+    if (size <= (TRUInteger)-1 - maxHeaderSize) {
+        if (memoryList) {
+            const TRUInteger headerSize = sizeof(MemoryBlock);
 
-        pointer = AllocatorAllocateBlock(headerSize + size);
+            pointer = AllocatorAllocateBlock(headerSize + size);
 
-        if (pointer) {
-            TRUInt8 *base = pointer;
-            MemoryBlockRef block;
+            if (pointer) {
+                TRUInt8 *base = pointer;
+                MemoryBlockRef block;
 
-            block = pointer;
-            block->next = NULL;
+                block = pointer;
+                block->next = NULL;
 
-            memoryList->last->next = block;
-            memoryList->last = block;
+                memoryList->last->next = block;
+                memoryList->last = block;
 
-            pointer = base + headerSize;
-        }
-    } else {
-        const TRUInteger headerSize = sizeof(MemoryList);
+                pointer = base + headerSize;
+            }
+        } else {
+            const TRUInteger headerSize = sizeof(MemoryList);
 
-        pointer = AllocatorAllocateBlock(headerSize + size);
+            pointer = AllocatorAllocateBlock(headerSize + size);
 
-        if (pointer) {
-            TRUInt8 *base = pointer;
+            if (pointer) {
+                TRUInt8 *base = pointer;
 
-            memoryList = pointer;
-            memoryList->first.next = NULL;
-            memoryList->last = &memoryList->first;
+                memoryList = pointer;
+                memoryList->first.next = NULL;
+                memoryList->last = &memoryList->first;
 
-            memory->_list = memoryList;
+                memory->_list = memoryList;
 
-            pointer = base + headerSize;
+                pointer = base + headerSize;
+            }
         }
     }
 
@@ -76,18 +80,21 @@ TR_INTERNAL void *MemoryAllocateBlock(MemoryRef memory, TRUInteger size)
 TR_INTERNAL TRBoolean MemoryAllocateChunks(MemoryRef memory, const TRUInteger *chunkSizes,
     TRUInteger chunkCount, void **outPointers)
 {
-    TRUInteger totalSize = AllocatorCalculateBlockSize(chunkSizes, chunkCount);
+    TRUInteger totalSize;
     TRBoolean succeeded = TRFalse;
-    void *pointer;
 
-    /* Total size MUST be greater than zero. */
-    TRAssert(totalSize > 0);
+    if (AllocatorCalculateBlockSize(chunkSizes, chunkCount, &totalSize)) {
+        void *pointer;
 
-    pointer = MemoryAllocateBlock(memory, totalSize);
+        /* Total size MUST be greater than zero. */
+        TRAssert(totalSize > 0);
 
-    if (pointer) {
-        AllocatorSplitBlock(pointer, chunkSizes, chunkCount, outPointers);
-        succeeded = TRTrue;
+        pointer = MemoryAllocateBlock(memory, totalSize);
+
+        if (pointer) {
+            AllocatorSplitBlock(pointer, chunkSizes, chunkCount, outPointers);
+            succeeded = TRTrue;
+        }
     }
 
     return succeeded;

@@ -391,6 +391,21 @@ static void ReadBitmapStrikes(FT_Face ftFace, RawMetadata *rawMetadata)
     }
 }
 
+/*
+ * FreeType checks that the palette table holds the counts that it declares, but not that the palettes
+ * add up to a size that is reasonable, as all of them may refer to the same colors. A table of a few
+ * hundred kilobytes can therefore declare billions of colors. A face with more colors than this
+ * limit is treated as if it had no palettes.
+ */
+enum {
+    MaxPaletteColorCount = 0x100000
+};
+
+static TRBoolean AreColorsWithinLimit(TRUInteger entryCount, TRUInteger paletteCount)
+{
+    return (paletteCount == 0 || entryCount <= MaxPaletteColorCount / paletteCount);
+}
+
 static RawMetadata *CreateRawMetadata(MemoryRef memory, FT_Face ftFace)
 {
     RawMetadata *rawMetadata = NULL;
@@ -416,6 +431,12 @@ static RawMetadata *CreateRawMetadata(MemoryRef memory, FT_Face ftFace)
     if (hasPalettes) {
         paletteEntryCount = ftPalette.num_palette_entries;
         predefinedPaletteCount = ftPalette.num_palettes;
+
+                if (!AreColorsWithinLimit(paletteEntryCount, predefinedPaletteCount)) {
+            hasPalettes = TRFalse;
+            paletteEntryCount = 0;
+            predefinedPaletteCount = 0;
+        }
     }
 
     rawMetadata = AllocateRawMetadata(memory, variationAxisCount, namedStyleCount,
