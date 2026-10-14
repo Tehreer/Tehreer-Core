@@ -30,14 +30,6 @@
 
 #include "TextRun.h"
 
-#define RUN             0
-#define GLYPH_IDS       1
-#define GLYPH_OFFSETS   2
-#define GLYPH_ADVANCES  3
-#define CLUSTER_MAP     4
-#define CARET_EDGES     5
-#define COUNT           6
-
 static void FinalizeTextRun(ObjectRef object)
 {
     TextRunRef textRun = object;
@@ -48,6 +40,14 @@ static void FinalizeTextRun(ObjectRef object)
         TRReplacementRelease(textRun->replacement);
     }
 }
+
+#define RUN             0
+#define GLYPH_IDS       1
+#define GLYPH_OFFSETS   2
+#define GLYPH_ADVANCES  3
+#define CLUSTER_MAP     4
+#define CARET_EDGES     5
+#define COUNT           6
 
 static TextRunRef AllocateTextRun(TextRunKind kind, TRUInteger codeUnitStart,
     TRUInteger codeUnitEnd, TRUInteger glyphCount, TRUInt8 bidiLevel, TRTypefaceRef typeface,
@@ -94,6 +94,14 @@ static TextRunRef AllocateTextRun(TextRunKind kind, TRUInteger codeUnitStart,
     return textRun;
 }
 
+#undef RUN
+#undef GLYPH_IDS
+#undef GLYPH_OFFSETS
+#undef GLYPH_ADVANCES
+#undef CLUSTER_MAP
+#undef CARET_EDGES
+#undef COUNT
+
 static TRUInteger GetForwardGlyphIndex(TextRunRef textRun, TRUInteger mappingIndex)
 {
     TRUInteger glyphIndex = textRun->glyphCount - 1;
@@ -130,20 +138,6 @@ static TRUInteger GetBackwardGlyphIndex(TextRunRef textRun, TRUInteger mappingIn
 
     return glyphIndex;
 }
-
-#undef RUN
-
-#undef GLYPH_IDS
-
-#undef GLYPH_OFFSETS
-
-#undef GLYPH_ADVANCES
-
-#undef CLUSTER_MAP
-
-#undef CARET_EDGES
-
-#undef COUNT
 
 TR_INTERNAL TextRunRef TextRunCreateIntrinsic(TRUInteger codeUnitStart, TRUInteger codeUnitEnd,
     TRUInt8 bidiLevel, TRTypefaceRef typeface, TRFloat typeSize, TRFloat scaleX, TRFloat scaleY,

@@ -30,6 +30,7 @@ void ArrayTests::run() {
     testAppendAndGet();
     testGrowth();
     testResize();
+    testInsert();
     testStructItems();
 }
 
@@ -98,6 +99,41 @@ void ArrayTests::testResize() {
 
     assert(ArrayResize(&array, 1));
     assert(ArrayGetCount(&array) == 1);
+
+    ArrayFinalize(&array);
+}
+
+void ArrayTests::testInsert() {
+    Array array;
+    ArrayInitialize(&array, sizeof(int));
+
+    /* Inserting at the count appends, and inserting at zero moves everything forward. */
+    int value = 2;
+    assert(ArrayInsert(&array, 0, &value));
+    value = 4;
+    assert(ArrayInsert(&array, 1, &value));
+    value = 1;
+    assert(ArrayInsert(&array, 0, &value));
+    value = 3;
+    assert(ArrayInsert(&array, 2, &value));
+
+    assert(ArrayGetCount(&array) == 4);
+    for (int index = 0; index < 4; index++) {
+        assert(*static_cast<int *>(ArrayGetItem(&array, index)) == index + 1);
+    }
+
+    /* The array grows beyond its first capacity while inserting. */
+    for (int count = 0; count < 100; count++) {
+        value = -count;
+        assert(ArrayInsert(&array, 1, &value));
+    }
+
+    assert(ArrayGetCount(&array) == 104);
+    assert(*static_cast<int *>(ArrayGetItem(&array, 0)) == 1);
+    assert(*static_cast<int *>(ArrayGetItem(&array, 1)) == -99);
+    assert(*static_cast<int *>(ArrayGetItem(&array, 100)) == 0);
+    assert(*static_cast<int *>(ArrayGetItem(&array, 101)) == 2);
+    assert(*static_cast<int *>(ArrayGetItem(&array, 103)) == 4);
 
     ArrayFinalize(&array);
 }

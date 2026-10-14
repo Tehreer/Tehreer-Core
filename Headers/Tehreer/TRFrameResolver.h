@@ -35,7 +35,8 @@ enum {
 };
 /**
  * A type to represent the vertical alignment of the lines in a frame, which is one of the
- * `TRVerticalAlignment*` constants above.
+ * `TRVerticalAlignment*` constants above. A value that is not one of them places the lines at the
+ * top.
  */
 typedef TRUInt32 TRVerticalAlignment;
 
@@ -81,8 +82,8 @@ TR_PUBLIC void TRFrameResolverSetTypesetter(TRFrameResolverRef resolver,
     TRTypesetterRef typesetter);
 
 /**
- * Returns the size of the frame, as it was set. A negative width or height is taken as zero when
- * making a frame.
+ * Returns the size of the frame, as it was set. A negative or NaN width or height is taken as zero
+ * when making a frame.
  *
  * @param resolver
  *      The resolver.
@@ -93,7 +94,8 @@ TR_PUBLIC TRSize TRFrameResolverGetFrameSize(TRFrameResolverRef resolver);
 
 /**
  * Sets the size of the frame, which is unbounded by default. A width or a height that is negative
- * is taken as zero.
+ * or NaN is taken as zero for the size of the frame. A NaN height does not stop lines from being
+ * added to the frame though, as a negative one does after the first line.
  *
  * @param resolver
  *      The resolver.
@@ -156,7 +158,8 @@ TR_PUBLIC TRTextAlignment TRFrameResolverGetTextAlignment(TRFrameResolverRef res
 
 /**
  * Sets the alignment of the lines of the paragraphs that do not have their own. The default is
- * `TRTextAlignmentLeading`.
+ * `TRTextAlignmentLeading`. A value that is not one of the `TRTextAlignment*` constants aligns the
+ * lines to the left.
  *
  * @param resolver
  *      The resolver.
@@ -205,7 +208,8 @@ TR_PUBLIC TRBreakMode TRFrameResolverGetTruncationMode(TRFrameResolverRef resolv
  * @param resolver
  *      The resolver.
  * @param mode
- *      The break mode of the truncation.
+ *      The break mode of the truncation. A value that is not valid is handled as
+ *      `TRBreakModeLine`.
  */
 TR_PUBLIC void TRFrameResolverSetTruncationMode(TRFrameResolverRef resolver, TRBreakMode mode);
 
@@ -226,7 +230,9 @@ TR_PUBLIC TRTruncationPlace TRFrameResolverGetTruncationPlace(TRFrameResolverRef
  * @param resolver
  *      The resolver.
  * @param place
- *      The place of the truncation.
+ *      The place of the truncation. It MUST be one of the `TRTruncationPlace*` constants if the
+ *      truncation is enabled: `TRFrameResolverCreateFrame()` returns `NULL` for any other value
+ *      when the last line has to be cut.
  */
 TR_PUBLIC void TRFrameResolverSetTruncationPlace(TRFrameResolverRef resolver,
     TRTruncationPlace place);
@@ -288,7 +294,8 @@ TR_PUBLIC TRFloat TRFrameResolverGetJustificationLevel(TRFrameResolverRef resolv
 
 /**
  * Sets the justification level, from 0.0 to 1.0. A lower level keeps the words closer, while a
- * higher level spreads them to the width of the frame. It is 1.0 by default. A line is justified to
+ * higher level spreads them to the width of the frame. It is 1.0 by default. The width of the
+ * justified lines is NaN if the level is NaN. A line is justified to
  * what is left of the width after the margins of its paragraph.
  *
  * @param resolver

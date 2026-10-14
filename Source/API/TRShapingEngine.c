@@ -120,7 +120,7 @@ static TRShapingResultRef ShapeCodeUnits(TRShapingEngineRef engine, hb_feature_t
         AddCodeUnits(buffer, codeUnits, (int)length, encoding);
     }
 
-    typeSize = (engine->typeSize > 0.0f ? engine->typeSize : 0.0f);
+    typeSize = NumberMax(engine->typeSize, 0.0f);
     ppem = (unsigned int)NumberToFixed(typeSize, 1.0f);
 
     /* The sub font keeps the glyph lookups of the typeface, but has a size of its own. */

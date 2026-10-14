@@ -30,10 +30,6 @@
 #include "GlyphBitmap.h"
 
 
-#define GLYPH_BITMAP    0
-#define BUFFER          1
-#define COUNT           2
-
 /* Calculates the size of a buffer, and tells if it is within what can be allocated. */
 static TRBoolean CalculateBufferSize(TRUInt32 width, TRUInt32 height, TRUInteger bytesPerPixel,
     TRUInteger *bufferSize)
@@ -52,6 +48,10 @@ static TRBoolean CalculateBufferSize(TRUInt32 width, TRUInt32 height, TRUInteger
 
     return isCalculated;
 }
+
+#define GLYPH_BITMAP    0
+#define BUFFER          1
+#define COUNT           2
 
 static GlyphBitmapRef AllocateGlyphBitmap(TRUInteger bufferSize)
 {
