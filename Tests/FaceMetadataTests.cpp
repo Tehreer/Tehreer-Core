@@ -47,6 +47,7 @@ void FaceMetadataTests::run() {
     testStaticFace();
     testNamelessFace();
     testFaceWithoutOS2Table();
+    testOutOfRangeWidthClass();
     testVariableFace();
     testAxisFlags();
     testNamedStyles();
@@ -65,6 +66,16 @@ public:
 
         MutexLock(&freetype->mutex);
         FT_Error error = FT_New_Face(freetype->library, testFontPath(fontName).c_str(), 0, &m_face);
+        MutexUnlock(&freetype->mutex);
+
+        assert(error == FT_Err_Ok);
+    }
+
+    DefaultFace(const uint8_t *data, size_t size) {
+        FreeTypeRef freetype = FreeTypeGetDefault();
+
+        MutexLock(&freetype->mutex);
+        FT_Error error = FT_New_Memory_Face(freetype->library, data, static_cast<FT_Long>(size), 0, &m_face);
         MutexUnlock(&freetype->mutex);
 
         assert(error == FT_Err_Ok);
@@ -154,6 +165,52 @@ void FaceMetadataTests::testFaceWithoutOS2Table() {
     assert(metadata->slope == TRSlopePlain);
 
     FaceMetadataRelease(metadata);
+}
+
+static size_t findTable(const vector<uint8_t> &data, const char *tag) {
+    size_t tableCount = (data[4] << 8) | data[5];
+
+    for (size_t i = 0; i < tableCount; i++) {
+        size_t record = 12 + (i * 16);
+
+        if (memcmp(&data[record], tag, 4) == 0) {
+            return (static_cast<size_t>(data[record + 8]) << 24)
+                 | (static_cast<size_t>(data[record + 9]) << 16)
+                 | (static_cast<size_t>(data[record + 10]) << 8)
+                 | static_cast<size_t>(data[record + 11]);
+        }
+    }
+
+    return 0;
+}
+
+static TRWidth readWidthWithClass(uint16_t widthClass) {
+    ifstream stream(testFontPath("Roboto-Regular.abc.ttf"), ios::binary);
+    vector<uint8_t> data((istreambuf_iterator<char>(stream)), istreambuf_iterator<char>());
+    size_t os2 = findTable(data, "OS/2");
+    assert(os2 != 0);
+
+    /* usWidthClass is at offset 6 of the OS/2 table. */
+    data[os2 + 6] = static_cast<uint8_t>(widthClass >> 8);
+    data[os2 + 7] = static_cast<uint8_t>(widthClass);
+
+    DefaultFace face(data.data(), data.size());
+    FaceMetadataRef metadata = FaceMetadataCreate(face.get());
+    assert(metadata != nullptr);
+
+    TRWidth width = metadata->width;
+    FaceMetadataRelease(metadata);
+
+    return width;
+}
+
+void FaceMetadataTests::testOutOfRangeWidthClass() {
+    assert(readWidthWithClass(0) == TRWidthUltraCondensed);
+    assert(readWidthWithClass(1) == TRWidthUltraCondensed);
+    assert(readWidthWithClass(5) == TRWidthNormal);
+    assert(readWidthWithClass(9) == TRWidthUltraExpanded);
+    assert(readWidthWithClass(10) == TRWidthUltraExpanded);
+    assert(readWidthWithClass(65535) == TRWidthUltraExpanded);
 }
 
 void FaceMetadataTests::testVariableFace() {

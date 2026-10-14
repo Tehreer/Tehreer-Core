@@ -29,6 +29,7 @@ private:
     void testStaticFace();
     void testNamelessFace();
     void testFaceWithoutOS2Table();
+    void testOutOfRangeWidthClass();
     void testVariableFace();
     void testAxisFlags();
     void testNamedStyles();

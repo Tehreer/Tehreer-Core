@@ -246,7 +246,7 @@ static void ReadDescription(RawMetadata *rawMetadata, const TT_OS2 *os2Table,
 
     if (os2Table) {
         rawMetadata->weight = os2Table->usWeightClass;
-        rawMetadata->width = os2Table->usWidthClass;
+        rawMetadata->width = GetWidthFromValue(os2Table->usWidthClass);
 
         if (os2Table->fsSelection & FSSelectionOblique) {
             rawMetadata->slope = TRSlopeOblique;
