@@ -34,6 +34,7 @@ private:
     void testDescription();
     void testVariationDescription();
     void testMetrics();
+    void testNegativeMetrics();
     void testGlyphAdvance();
     void testVariationGlyphAdvance();
     void testRasterizeGlyph();

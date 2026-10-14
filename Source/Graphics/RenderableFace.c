@@ -336,14 +336,14 @@ static void ReadFaceMetrics(FT_Face ftFace, FaceMetrics *metrics)
     TRInt32 extent = ftFace->ascender - ftFace->descender;
 
     metrics->unitsPerEM = ftFace->units_per_EM;
-    metrics->ascent = ftFace->ascender;
-    metrics->descent = -ftFace->descender;
+    metrics->ascent = NumberMax(ftFace->ascender, 0);
+    metrics->descent = NumberMax(-ftFace->descender, 0);
     metrics->leading = 0;
     if (ftFace->height > extent) {
         metrics->leading = ftFace->height - extent;
     }
     metrics->underlinePosition = ftFace->underline_position;
-    metrics->underlineThickness = ftFace->underline_thickness;
+    metrics->underlineThickness = NumberMax(ftFace->underline_thickness, 0);
 
     metrics->xMin = ftFace->bbox.xMin;
     metrics->yMin = ftFace->bbox.yMin;
@@ -374,7 +374,7 @@ static void ReadTableMetrics(FT_Face ftFace, FaceMetrics *metrics)
 
     if (postTable) {
         metrics->underlinePosition = postTable->underlinePosition;
-        metrics->underlineThickness = postTable->underlineThickness;
+        metrics->underlineThickness = NumberMax(postTable->underlineThickness, 0);
     }
 }
 

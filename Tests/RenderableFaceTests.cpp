@@ -18,6 +18,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <fstream>
+#include <iterator>
 #include <string>
 #include <thread>
 #include <vector>
@@ -56,6 +58,7 @@ void RenderableFaceTests::run() {
     testDescription();
     testVariationDescription();
     testMetrics();
+    testNegativeMetrics();
     testGlyphAdvance();
     testVariationGlyphAdvance();
     testRasterizeGlyph();
@@ -257,6 +260,59 @@ void RenderableFaceTests::testMetrics() {
     RenderableFaceGetMetrics(face, nullptr, nullptr);
 
     RenderableFaceRelease(face);
+}
+
+static void writeInt16(vector<uint8_t> &data, size_t offset, int16_t value) {
+    data[offset] = static_cast<uint8_t>(static_cast<uint16_t>(value) >> 8);
+    data[offset + 1] = static_cast<uint8_t>(value);
+}
+
+/* Returns the offset of the table with the given tag, or 0 if it is not there. */
+static size_t findTable(const vector<uint8_t> &data, const char *tag) {
+    size_t tableCount = (data[4] << 8) | data[5];
+
+    for (size_t i = 0; i < tableCount; i++) {
+        size_t record = 12 + (i * 16);
+
+        if (memcmp(&data[record], tag, 4) == 0) {
+            return (static_cast<size_t>(data[record + 8]) << 24)
+                 | (static_cast<size_t>(data[record + 9]) << 16)
+                 | (static_cast<size_t>(data[record + 10]) << 8)
+                 | static_cast<size_t>(data[record + 11]);
+        }
+    }
+
+    return 0;
+}
+
+void RenderableFaceTests::testNegativeMetrics() {
+    ifstream stream(testFontPath("Roboto-Regular.abc.ttf"), ios::binary);
+    vector<uint8_t> data((istreambuf_iterator<char>(stream)), istreambuf_iterator<char>());
+    size_t hhea = findTable(data, "hhea");
+    size_t post = findTable(data, "post");
+    assert(hhea != 0);
+    assert(post != 0);
+
+    /* Make the ascender negative, the descender positive and the underline thickness negative. */
+    writeInt16(data, hhea + 4, -100);
+    writeInt16(data, hhea + 6, 100);
+    writeInt16(data, post + 10, -50);
+
+    FontDataRef fontData = FontDataCreateFromMemory(data.data(), data.size());
+    assert(fontData != nullptr);
+
+    RenderableFaceRef face = RenderableFaceCreate(fontData, 0);
+    assert(face != nullptr);
+
+    FaceMetrics metrics = {};
+    RenderableFaceGetMetrics(face, nullptr, &metrics);
+
+    assert(metrics.ascent == 0);
+    assert(metrics.descent == 0);
+    assert(metrics.underlineThickness == 0);
+
+    RenderableFaceRelease(face);
+    FontDataRelease(fontData);
 }
 
 void RenderableFaceTests::testGlyphAdvance() {
