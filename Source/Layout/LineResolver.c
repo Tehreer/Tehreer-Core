@@ -38,6 +38,23 @@
 
 #include "LineResolver.h"
 
+/* A part of a line in the order that it is shown, with the bidirectional level of its text. */
+typedef struct _VisualRun {
+    TRUInteger start;
+    TRUInteger end;
+    TRUInt8 level;
+} VisualRun;
+
+/* The part of a range that is skipped by a truncation, and where the token goes. */
+typedef struct _TruncationHandler {
+    TRTypesetterRef typesetter;
+    RunList *list;
+    TRUInteger skipStart;
+    TRUInteger skipEnd;
+    TRUInteger leadingTokenIndex;
+    TRUInteger trailingTokenIndex;
+} TruncationHandler;
+
 static TRBoolean EnsureRunListCapacity(RunList *list)
 {
     TRBoolean hasCapacity = TRTrue;
@@ -59,13 +76,6 @@ static TRBoolean EnsureRunListCapacity(RunList *list)
 
     return hasCapacity;
 }
-
-/* A part of a line in the order that it is shown, with the bidirectional level of its text. */
-typedef struct _VisualRun {
-    TRUInteger start;
-    TRUInteger end;
-    TRUInt8 level;
-} VisualRun;
 
 /* Adds the visual runs of a range that is inside a paragraph. */
 static TRBoolean AddVisualRuns(SBTextRef sbText, TRUInteger start, TRUInteger end,
@@ -252,16 +262,6 @@ static TRUInteger AppendPaintedRuns(TRTypesetterRef typesetter, RunList *list, T
 
     return insertIndex;
 }
-
-/* The part of a range that is skipped by a truncation, and where the token goes. */
-typedef struct _TruncationHandler {
-    TRTypesetterRef typesetter;
-    RunList *list;
-    TRUInteger skipStart;
-    TRUInteger skipEnd;
-    TRUInteger leadingTokenIndex;
-    TRUInteger trailingTokenIndex;
-} TruncationHandler;
 
 /* Handles the first part of the characters, which comes before the skipped ones. */
 static void AppendRunBeforeSkip(TruncationHandler *handler, const VisualRun *visualRun)

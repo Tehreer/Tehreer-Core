@@ -50,39 +50,45 @@ static void FinalizeTypesetter(ObjectRef object)
     }
 
     ArrayFinalize(&typesetter->runs);
+    BreakClassifierRelease(typesetter->breaks);
     AllocatorDeallocateBlock((void *)typesetter->buffer.codeUnits);
-
-    if (typesetter->breaks) {
-        BreakClassifierRelease(typesetter->breaks);
-    }
-    if (typesetter->text) {
-        TRTextRelease(typesetter->text);
-    }
+    TRTextRelease(typesetter->text);
 }
 
-static TRBoolean CopyCodeUnits(TRTypesetter *typesetter, TRTextRef text)
+static void *CreateCodeUnits(TRTextRef text, TRStringEncoding encoding)
 {
-    TRBoolean isCopied = TRFalse;
     TRUInteger length = TRTextGetLength(text);
-    TRUInteger unitSize = (typesetter->buffer.encoding == TRStringEncodingUTF8 ? 1
-                           : (typesetter->buffer.encoding == TRStringEncodingUTF16 ? 2 : 4));
-    void *units;
+    TRUInteger unitSize = (encoding == TRStringEncodingUTF8 ? 1
+                           : (encoding == TRStringEncodingUTF16 ? 2 : 4));
 
     /* A block is always allocated, so that an empty text has valid code units too. */
-    units = AllocatorAllocateBlock((length > 0 ? length * unitSize : 1));
+    void *codeUnits = AllocatorAllocateBlock((length > 0 ? length * unitSize : 1));
 
-    if (units) {
-        if (length > 0) {
-            TRTextGetCodeUnits(text, 0, length, units);
-        }
-
-        typesetter->buffer.codeUnits = units;
-        typesetter->buffer.length = length;
-
-        isCopied = TRTrue;
+    if (codeUnits && length > 0) {
+        TRTextGetCodeUnits(text, 0, length, codeUnits);
     }
 
-    return isCopied;
+    return codeUnits;
+}
+
+/* Takes over the text, the code units and the breaks if it succeeds. The runs are still empty. */
+static TRTypesetter *CreateEmptyTypesetter(TRTextRef text, const TextBuffer *buffer,
+    BreakClassifierRef breaks)
+{
+    const TRUInteger size = sizeof(TRTypesetter);
+    void *pointer = NULL;
+    TRTypesetter *typesetter;
+
+    typesetter = ObjectCreate(&size, 1, &pointer, FinalizeTypesetter);
+
+    if (typesetter) {
+        typesetter->text = text;
+        typesetter->buffer = *buffer;
+        typesetter->breaks = breaks;
+        ArrayInitialize(&typesetter->runs, sizeof(TextRunRef));
+    }
+
+    return typesetter;
 }
 
 TR_INTERNAL void TRTypesetterGetParagraph(TRTypesetterRef typesetter, TRUInteger index,
@@ -161,32 +167,41 @@ TRTypesetterRef TRTypesetterCreate(TRTextRef text, const TRAttribute *defaultAtt
     TRTypesetter *typesetter = NULL;
 
     if (text) {
-        const TRUInteger size = sizeof(TRTypesetter);
-        void *pointer = NULL;
-
-        typesetter = ObjectCreate(&size, 1, &pointer, FinalizeTypesetter);
-    }
-
-    if (typesetter) {
-        typesetter->text = NULL;
-        typesetter->buffer.codeUnits = NULL;
-        typesetter->buffer.length = 0;
-        typesetter->buffer.encoding = TRTextGetEncoding(text);
-        typesetter->breaks = NULL;
-        ArrayInitialize(&typesetter->runs, sizeof(TextRunRef));
+        TRStringEncoding encoding = TRTextGetEncoding(text);
 
         /* The copy is immutable, so the text can be changed by the caller afterwards. */
-        typesetter->text = TRTextCreateCopy(text);
+        TRTextRef textCopy = TRTextCreateCopy(text);
+        BreakClassifierRef breaks = NULL;
+        TextBuffer buffer;
 
-        if (typesetter->text && CopyCodeUnits(typesetter, typesetter->text)
-                && ShapeResolverResolve(typesetter, defaultAttributes, defaultAttributeCount)) {
-            typesetter->breaks = BreakClassifierCreate(typesetter->buffer.codeUnits,
-                typesetter->buffer.length, typesetter->buffer.encoding);
+        buffer.codeUnits = NULL;
+        buffer.length = 0;
+        buffer.encoding = encoding;
+
+        if (textCopy) {
+            buffer.codeUnits = CreateCodeUnits(textCopy, encoding);
+            buffer.length = TRTextGetLength(textCopy);
+        }
+        if (buffer.codeUnits) {
+            breaks = BreakClassifierCreate(buffer.codeUnits, buffer.length, encoding);
+        }
+        if (breaks) {
+            typesetter = CreateEmptyTypesetter(textCopy, &buffer, breaks);
         }
 
-        if (!typesetter->breaks) {
-            ObjectRelease(typesetter);
-            typesetter = NULL;
+        if (typesetter) {
+            if (!ShapeResolverResolve(typesetter, defaultAttributes, defaultAttributeCount)) {
+                ObjectRelease(typesetter);
+                typesetter = NULL;
+            }
+        } else {
+            if (breaks) {
+                BreakClassifierRelease(breaks);
+            }
+            AllocatorDeallocateBlock((void *)buffer.codeUnits);
+            if (textCopy) {
+                TRTextRelease(textCopy);
+            }
         }
     }
 
