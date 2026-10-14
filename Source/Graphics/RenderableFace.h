@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef _TEHREER_RENDERABLE_FACE_H
-#define _TEHREER_RENDERABLE_FACE_H
+#ifndef _TEHREER_GRAPHICS_RENDERABLE_FACE_H
+#define _TEHREER_GRAPHICS_RENDERABLE_FACE_H
 
 #include <ft2build.h>
 #include FT_COLOR_H

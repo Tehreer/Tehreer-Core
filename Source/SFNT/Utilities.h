@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef _TEHREER__SFNT__UTILITIES_H
-#define _TEHREER__SFNT__UTILITIES_H
+#ifndef _TEHREER_SFNT_UTILITIES_H
+#define _TEHREER_SFNT_UTILITIES_H
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
