@@ -28,7 +28,8 @@
 
 enum {
     TextRunKindIntrinsic,   /* Glyphs that a shaping engine produced. */
-    TextRunKindReplacement  /* A replacement, which has a single glyph that is as wide as its room. */
+    TextRunKindReplacement  /* A replacement, which has a single glyph that is as wide as its
+                               room. */
 };
 typedef TRUInt32 TextRunKind;
 

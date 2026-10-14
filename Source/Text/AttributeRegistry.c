@@ -215,7 +215,8 @@ static void InitializeAttributeRegistry(void)
         sizeof(TRAttribute), &AttributeItemCallbacks);
 
     if (internalRegistry) {
-        /* Cache the IDs once so TRTextSetAttribute/RemoveAttribute can route without a name lookup. */
+        /* Cache the IDs once so TRTextSetAttribute/RemoveAttribute can route without a name
+         * lookup. */
         for (index = 0; index < AttributeCount; index++) {
             AttributeIDs[index + 1] = SBAttributeRegistryGetAttributeID(internalRegistry,
                 AttributeDescriptions[index].name);

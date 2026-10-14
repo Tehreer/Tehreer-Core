@@ -41,8 +41,8 @@ enum {
 typedef TRUInt8 TRGlyphRunFlags;
 
 /*
- * A glyph run looks at a range of a text run, which it keeps alive. It shares the glyphs of the text
- * run, and has the cluster map and the caret edges of its own range, which start at the first
+ * A glyph run looks at a range of a text run, which it keeps alive. It shares the glyphs of the
+ * text run, and has the cluster map and the caret edges of its own range, which start at the first
  * cluster that the range touches. Only a justified run has advances of its own.
  */
 typedef struct _TRGlyphRun {
