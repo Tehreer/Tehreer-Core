@@ -35,6 +35,7 @@ private:
     void testVariationGlyph();
     void testAdvances();
     void testAdvancesAreCached();
+    void testFailedAdvanceIsNotCached();
     void testShapingUsesFontFuncs();
     void testDerived();
     void testDerivedOfDerived();

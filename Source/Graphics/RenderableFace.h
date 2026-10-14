@@ -130,14 +130,19 @@ TR_INTERNAL void RenderableFaceGetDescription(RenderableFaceRef renderableFace,
 TR_INTERNAL void RenderableFaceGetMetrics(RenderableFaceRef renderableFace,
     FT_Fixed *variationCoordinates, FaceMetrics *metrics);
 
-TR_INTERNAL TRInt32 RenderableFaceGetGlyphAdvance(RenderableFaceRef renderableFace,
-    const FontParams *fontParams, TRGlyphID glyphID);
+/*
+ * Gets the horizontal advance of a glyph in font units. Returns TRFalse if the advance cannot be
+ * loaded, in which case `advance` is left as it was.
+ */
+TR_INTERNAL TRBoolean RenderableFaceGetGlyphAdvance(RenderableFaceRef renderableFace,
+    const FontParams *fontParams, TRGlyphID glyphID, TRInt32 *advance);
 
 /*
- * Returns the advance of a glyph in font units, along the vertical axis if `isVertical` is true.
+ * Gets the advance of a glyph in font units, along the vertical axis if `isVertical` is true.
+ * Returns TRFalse if the advance cannot be loaded, in which case `advance` is left as it was.
  */
-TR_INTERNAL TRInt32 RenderableFaceGetDirectionalAdvance(RenderableFaceRef renderableFace,
-    const FontParams *fontParams, TRGlyphID glyphID, TRBoolean isVertical);
+TR_INTERNAL TRBoolean RenderableFaceGetDirectionalAdvance(RenderableFaceRef renderableFace,
+    const FontParams *fontParams, TRGlyphID glyphID, TRBoolean isVertical, TRInt32 *advance);
 
 /*
  * Creates the outline of a glyph at the size given in `fontParams`, in 26.6 fixed point format.
