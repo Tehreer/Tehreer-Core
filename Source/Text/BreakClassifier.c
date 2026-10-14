@@ -90,14 +90,18 @@ static void FillBreaks(BreakClassifierRef classifier, const void *codeUnits, TRU
     }
 }
 
+#define CLASSIFIER      0
+#define BREAKS          1
+#define COUNT           2
+
 TR_INTERNAL BreakClassifierRef BreakClassifierCreate(const void *codeUnits, TRUInteger length,
     TRStringEncoding encoding)
 {
     BreakClassifierRef classifier = NULL;
-    TRUInteger sizes[2];
+    TRUInteger sizes[COUNT];
 
-    sizes[0] = sizeof(BreakClassifier);
-    sizes[1] = length;
+    sizes[CLASSIFIER] = sizeof(BreakClassifier);
+    sizes[BREAKS] = length;
 
     if (encoding <= TRStringEncodingUTF32 && (length == 0 || codeUnits)) {
         char *types = NULL;
@@ -105,13 +109,13 @@ TR_INTERNAL BreakClassifierRef BreakClassifierCreate(const void *codeUnits, TRUI
         types = (length > 0 ? AllocatorAllocateBlock(length) : NULL);
 
         if (length == 0 || types) {
-            void *pointers[2] = { NULL };
+            void *pointers[COUNT] = { NULL };
 
-            classifier = ObjectCreate(sizes, 2, pointers, NULL);
+            classifier = ObjectCreate(sizes, COUNT, pointers, NULL);
 
             if (classifier) {
                 classifier->length = length;
-                classifier->breaks = pointers[1];
+                classifier->breaks = pointers[BREAKS];
 
                 FillBreaks(classifier, codeUnits, length, encoding, types);
             }
@@ -122,6 +126,10 @@ TR_INTERNAL BreakClassifierRef BreakClassifierCreate(const void *codeUnits, TRUI
 
     return classifier;
 }
+
+#undef CLASSIFIER
+#undef BREAKS
+#undef COUNT
 
 TR_INTERNAL TRBoolean BreakClassifierHasBreak(BreakClassifierRef classifier, BreakType type,
     TRUInteger index)

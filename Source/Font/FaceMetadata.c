@@ -480,18 +480,6 @@ static RawMetadata *CreateRawMetadata(MemoryRef memory, FT_Face ftFace)
 }
 
 
-#define FACE_METADATA       0
-#define VARIATION_AXES      1
-#define NAMED_STYLES        2
-#define PALETTE_ENTRIES     3
-#define PREDEFINED_PALETTES 4
-#define NAME_STRINGS        5
-#define COORDINATES         6
-#define COLORS              7
-#define NAME_DATA           8
-#define BITMAP_STRIKES      9
-#define COUNT               10
-
 static void WriteVariationAxes(FaceMetadata *faceMetadata, const RawMetadata *rawMetadata,
     NameWriterRef writer, TRVariationAxis *axes)
 {
@@ -627,6 +615,18 @@ static void WritePredefinedPalettes(FaceMetadata *faceMetadata, const RawMetadat
         faceMetadata->predefinedPaletteCount = 0;
     }
 }
+
+#define FACE_METADATA       0
+#define VARIATION_AXES      1
+#define NAMED_STYLES        2
+#define PALETTE_ENTRIES     3
+#define PREDEFINED_PALETTES 4
+#define NAME_STRINGS        5
+#define COORDINATES         6
+#define COLORS              7
+#define NAME_DATA           8
+#define BITMAP_STRIKES      9
+#define COUNT               10
 
 static FaceMetadataRef CreateFaceMetadata(RawMetadata *rawMetadata)
 {
