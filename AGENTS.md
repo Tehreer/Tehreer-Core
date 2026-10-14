@@ -29,7 +29,7 @@ Tehreer is a text engine whose aim is to provide core implementation for all maj
 
 The library targets **strict C89**. CI enforces this:
 
-- CMake: `-DCMAKE_C_STANDARD=90 -DCMAKE_C_EXTENSIONS=OFF`
+- CMake: the `Tehreer` target sets `C_STANDARD 90` and `C_EXTENSIONS OFF`. Do not pass `-DCMAKE_C_STANDARD=90` globally; it also applies to bundled dependencies (FreeType, libunibreak) that need C99
 
 **Rules for new and changed library code:**
 
@@ -214,8 +214,7 @@ private:
 
 ```bash
 cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Debug \
-  -DTR_CONFIG_UNITY=OFF \
-  -DCMAKE_C_STANDARD=90 -DCMAKE_C_EXTENSIONS=OFF
+  -DTR_CONFIG_UNITY=OFF
 cmake --build build
 ctest --test-dir build --output-on-failure
 ```
