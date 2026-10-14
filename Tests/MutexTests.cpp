@@ -146,19 +146,20 @@ void MutexTests::testTryLockSpinning() {
     Mutex mutex;
     MutexInit(&mutex);
 
-    bool lockHeld = false;
-    size_t spinSuccess = 0;
-    size_t spinFailures = 0;
+    constexpr size_t MaxAttempts = 1'000'000;
+    constexpr size_t MinFailures = 100;
+
+    atomic<bool> lockHeld{false};
+    atomic<size_t> spinSuccess{0};
+    atomic<size_t> spinFailures{0};
 
     // Lock the mutex in main thread
     MutexLock(&mutex);
     lockHeld = true;
 
     thread spinner([&]() {
-        const size_t MaxAttempts = 1'000'000;
-
         // Try to acquire mutex with spinning using trylock
-        for (size_t i = 0; MaxAttempts; i++) {
+        for (size_t i = 0; i < MaxAttempts; i++) {
             if (MutexTryLock(&mutex)) {
                 spinSuccess++;
                 assert(lockHeld == false); // Should only succeed after main unlocks
@@ -167,16 +168,17 @@ void MutexTests::testTryLockSpinning() {
             } else {
                 spinFailures++;
 
-                // Yield occasionally to avoid consuming too much CPU
-                if (i % 100 == 0) {
-                    this_thread::yield();
-                }
+                // Yield to avoid consuming too much CPU
+                this_thread::yield();
             }
         }
     });
 
-    // Hold the lock for a bit
-    this_thread::sleep_for(milliseconds(5));
+    // Hold the lock until the spinner has demonstrably failed to acquire it
+    while (spinFailures < MinFailures) {
+        this_thread::yield();
+    }
+
     lockHeld = false;
     MutexUnlock(&mutex);
 
@@ -184,7 +186,7 @@ void MutexTests::testTryLockSpinning() {
 
     // Should have eventually acquired the lock
     assert(spinSuccess == 1);
-    assert(spinFailures > 0);
+    assert(spinFailures >= MinFailures);
 
     MutexDestroy(&mutex);
 }
