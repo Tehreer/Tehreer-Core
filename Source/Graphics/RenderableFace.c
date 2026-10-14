@@ -527,7 +527,7 @@ TR_INTERNAL TRUInteger RenderableFaceCopyGlyphName(RenderableFaceRef renderableF
 {
     TRUInteger nameLength = 0;
 
-    if (capacity > 0) {
+    if (buffer && capacity > 0) {
         UsableFace usableFace;
         FT_Error error;
 

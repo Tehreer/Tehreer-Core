@@ -623,7 +623,7 @@ TR_PUBLIC TRUInteger TRTypefaceGetTableData(TRTypefaceRef typeface, TRTag tag, T
  *      The number of bytes that `buffer` can hold, including the terminator.
  * @return
  *      The length of the name copied to `buffer`, not counting the terminator. It is zero if the
- *      font has no name for the glyph, or `capacity` is zero.
+ *      font has no name for the glyph, `buffer` is `NULL`, or `capacity` is zero.
  */
 TR_PUBLIC TRUInteger TRTypefaceGetGlyphName(TRTypefaceRef typeface, TRGlyphID glyphID,
     char *buffer, TRUInteger capacity);

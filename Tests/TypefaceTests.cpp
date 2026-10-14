@@ -531,6 +531,9 @@ void TypefaceTests::testGlyphName() {
     assert(buffer[0] == '\0');
     assert(TRTypefaceGetGlyphName(typeface, 1, buffer, 0) == 0);
 
+    /* A buffer that is NULL gets no name, whatever the capacity is. */
+    assert(TRTypefaceGetGlyphName(typeface, 1, nullptr, sizeof(buffer)) == 0);
+
     TRTypefaceRelease(typeface);
 
     /* The post table of the other fonts has no names. */
