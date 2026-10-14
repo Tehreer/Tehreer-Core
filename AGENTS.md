@@ -9,7 +9,8 @@ Tehreer is a text engine whose aim is to provide core implementation for all maj
 **Key constraints:**
 
 - Object-based, reference-counted API
-- Depends only on `stddef.h`, `stdint.h`, `stdlib.h`, and `string.h`
+- Depends only on the standard headers `assert.h`, `limits.h`, `math.h`, `stddef.h`, `stdint.h`, `stdlib.h`, and `string.h`; public headers need only `stdint.h`
+- Platform headers are used only where selected in `Source/API/TRBase.h`: `stdatomic.h` (C11 atomics), `threads.h` (C11 threads), `pthread.h` (POSIX threads), `windows.h` and `intrin.h` (Windows)
 
 ## Repository Layout
 

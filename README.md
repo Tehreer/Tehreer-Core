@@ -4,7 +4,7 @@
 
 ## Highlights
 
-- **Plain C89, tiny surface.** The public API needs only `stddef.h`, `stdint.h`, `stdlib.h` and `string.h`, so it is easy to bind from any language.
+- **Plain C89, tiny surface.** The public headers need only `stdint.h`, and the library itself needs only the standard headers `assert.h`, `limits.h`, `math.h`, `stddef.h`, `stdint.h`, `stdlib.h` and `string.h`, so it is easy to bind from any language. Threading and atomics use the platform's own facilities where available: `stdatomic.h` (C11 atomics), `threads.h` (C11 threads), `pthread.h` (POSIX threads), and `windows.h` with `intrin.h` (Windows).
 - **Real-world fonts.** TrueType and OpenType files, variable fonts (axes and named styles) and color palettes.
 - **Attributed text.** UTF-8, UTF-16 and UTF-32 text with mutable editing, batch updates and per-range attributes such as typeface and point size.
 - **Standing on proven libraries.** [FreeType](https://freetype.org) for fonts, [HarfBuzz](https://harfbuzz.github.io) for shaping, [SheenBidi](https://github.com/Tehreer/SheenBidi) for the Unicode Bidirectional Algorithm and [libunibreak](https://github.com/adah1972/libunibreak) for line breaking, all fetched and built for you.
