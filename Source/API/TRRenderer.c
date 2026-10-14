@@ -36,6 +36,8 @@
 
 #include "TRRenderer.h"
 
+/* ---------- Glyph Cache and Scale ---------- */
+
 static void FinalizeRenderer(ObjectRef object)
 {
     TRRenderer *renderer = object;
@@ -113,6 +115,8 @@ static void GetImageScale(const TRRenderer *renderer, TRFloat *scaleX, TRFloat *
     }
 }
 
+/* ---------- Run Pen ---------- */
+
 /*
  * The position of the glyph at an index in pixels. The pen is moved before the glyph in the
  * reverse mode of right-to-left runs, and after it otherwise. The caller keeps the pen and the
@@ -155,6 +159,8 @@ static void SetupPen(const TRRenderer *renderer, RunPen *pen)
     pen->totalAdvance = 0.0f;
 }
 
+/* ---------- Internal Functions ---------- */
+
 TR_INTERNAL TRFloat TRRendererRoundPixel(TRFloat value)
 {
     return (TRFloat)floor(value + 0.5f);
@@ -191,6 +197,8 @@ TR_INTERNAL void TRRendererEnumeratePathPlacements(TRRendererRef renderer,
     }
 }
 
+/* ---------- Creation ---------- */
+
 TRRendererRef TRRendererCreate(void)
 {
     const TRUInteger size = sizeof(TRRenderer);
@@ -225,6 +233,8 @@ TRRendererRef TRRendererCreate(void)
 
     return renderer;
 }
+
+/* ---------- Properties ---------- */
 
 TRGlyphCacheRef TRRendererGetGlyphCache(TRRendererRef renderer)
 {
@@ -452,6 +462,8 @@ void TRRendererSetDrawCallbacks(TRRendererRef renderer, const TRDrawCallbacks *c
     }
 }
 
+/* ---------- Glyph Images and Paths ---------- */
+
 TRBoolean TRRendererIsRenderable(TRRendererRef renderer)
 {
     /* The least size that FreeType can render is one pixel in each direction. */
@@ -611,6 +623,8 @@ TRRect TRRendererGetRunInkBox(TRRendererRef renderer, const TRGlyphID *glyphIDs,
     return box;
 }
 
+/* ---------- Enumeration ---------- */
+
 void TRRendererEnumerateGlyphPlacements(TRRendererRef renderer, TRGlyphImageKind kind,
     const TRGlyphID *glyphIDs, const TRPoint *offsets, const TRFloat *advances, TRUInteger count,
     TRGlyphPlacementFunc func, void *userData)
@@ -687,6 +701,8 @@ void TRRendererEnumerateGlyphPaths(TRRendererRef renderer, const TRGlyphID *glyp
         }
     }
 }
+
+/* ---------- Reference Counting ---------- */
 
 TRRendererRef TRRendererRetain(TRRendererRef renderer)
 {

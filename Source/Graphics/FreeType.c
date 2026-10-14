@@ -27,8 +27,20 @@ static FreeType DefaultFreeType;
 
 static void InitFreeType(void)
 {
+    FT_Library library = NULL;
+    FT_Error error;
+
     MutexInit(&DefaultFreeType.mutex);
-    FT_Init_FreeType(&DefaultFreeType.library);
+
+    /*
+     * The library handle stays NULL if the initialization fails. Every FreeType function that is
+     * given a NULL library returns an error, so the callers fail like they do for any other
+     * failure, instead of working with a handle that FreeType never set.
+     */
+    error = FT_Init_FreeType(&library);
+    if (error == FT_Err_Ok) {
+        DefaultFreeType.library = library;
+    }
 }
 
 TR_INTERNAL FreeTypeRef FreeTypeGetDefault(void)

@@ -33,6 +33,7 @@
 
 #include "TRTypeface.h"
 
+/* ---------- Allocation ---------- */
 
 #define TYPEFACE            0
 #define RAW_COORDINATES     1
@@ -87,6 +88,8 @@ static TRTypeface *AllocateTypeface(TRUInteger variationAxisCount, TRUInteger pa
 #undef FACE_COLORS
 #undef FULL_NAME
 #undef COUNT
+
+/* ---------- Coordinates and Colors ---------- */
 
 static void InitializeCoordinates(TRTypeface *typeface, FaceMetadataRef metadata,
     const TRFloat *variationCoordinates)
@@ -148,6 +151,8 @@ static void ResolveCoordinates(FaceMetadataRef metadata, const TRFloat *coordina
         resolved[index] = value;
     }
 }
+
+/* ---------- Names and Font Params ---------- */
 
 /* Returns the number of code units that the longest full name of a font can have. */
 static TRUInteger GetFullNameCapacity(FaceMetadataRef metadata)
@@ -222,6 +227,8 @@ static void SetupFontParams(TRTypefaceRef typeface, FontParams *fontParams, TRFl
     fontParams->transform.yy = 0x10000;
 }
 
+/* ---------- Internal Functions ---------- */
+
 TR_INTERNAL TRTypefaceRef TRTypefaceCreateDefault(RenderableFaceRef renderableFace,
     ShapableFaceRef sourceFace, const TRFloat *variationCoordinates)
 {
@@ -294,6 +301,8 @@ TR_INTERNAL TRTypefaceRef TRTypefaceCreateDerived(RenderableFaceRef renderableFa
 
     return typeface;
 }
+
+/* ---------- Properties ---------- */
 
 TRWeight TRTypefaceGetWeight(TRTypefaceRef typeface)
 {
@@ -400,6 +409,8 @@ const TRColor *TRTypefaceGetAssociatedColorsPtr(TRTypefaceRef typeface)
     return typeface->faceColors;
 }
 
+/* ---------- Derived Typefaces ---------- */
+
 TRTypefaceRef TRTypefaceCreateWithVariation(TRTypefaceRef typeface, const TRFloat *coordinates,
     TRUInteger count)
 {
@@ -461,6 +472,8 @@ TRTypefaceRef TRTypefaceCreateWithColors(TRTypefaceRef typeface, const TRColor *
     return derived;
 }
 
+/* ---------- Names and Metrics ---------- */
+
 const TRStringView *TRTypefaceGetFamilyName(TRTypefaceRef typeface)
 {
     return typeface->familyName;
@@ -507,6 +520,8 @@ TRInt32 TRTypefaceGetStrikeoutThickness(TRTypefaceRef typeface)
 {
     return typeface->strikeoutThickness;
 }
+
+/* ---------- Glyphs and Tables ---------- */
 
 TRGlyphID TRTypefaceGetGlyphID(TRTypefaceRef typeface, TRUInt32 codePoint)
 {
@@ -570,6 +585,8 @@ TRUInteger TRTypefaceGetGlyphName(TRTypefaceRef typeface, TRGlyphID glyphID, cha
 {
     return RenderableFaceCopyGlyphName(typeface->renderableFace, glyphID, buffer, capacity);
 }
+
+/* ---------- Reference Counting ---------- */
 
 TRTypefaceRef TRTypefaceRetain(TRTypefaceRef typeface)
 {

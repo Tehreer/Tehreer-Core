@@ -96,7 +96,6 @@ TR_INTERNAL TRComposedLine *TRComposedLineCreate(const TextBuffer *buffer, TRUIn
     const TRUInteger size = sizeof(TRComposedLine);
     TRComposedLine *line = NULL;
     TRGlyphRun **lineRuns;
-    TRUInteger index;
 
     /* The line MUST have at least one run. */
     TRAssert(runCount > 0);
@@ -135,6 +134,8 @@ TR_INTERNAL TRComposedLine *TRComposedLineCreate(const TextBuffer *buffer, TRUIn
     }
 
     if (!line) {
+        TRUInteger index;
+
         for (index = 0; index < runCount; index++) {
             TRGlyphRunRelease(runs[index]);
         }

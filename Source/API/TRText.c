@@ -138,9 +138,7 @@ void TRTextRelease(TRTextRef text)
 }
 
 
-/* ----------------------------------
- * Mutable Text
- * ---------------------------------- */
+/* ---------- Mutable Text ---------- */
 
 TRMutableTextRef TRTextCreateMutable(TRStringEncoding encoding)
 {
@@ -278,9 +276,7 @@ TRBoolean TRTextRemoveAttribute(TRMutableTextRef text, TRUInteger index, TRUInte
     return isRemoved;
 }
 
-/* ----------------------------------
- * SheenBidi
- * ---------------------------------- */
+/* ---------- SheenBidi ---------- */
 
 SBTextRef TRTextGetSheenBidiText(TRTextRef text)
 {

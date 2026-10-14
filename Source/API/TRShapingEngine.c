@@ -164,8 +164,8 @@ TRTag TRShapingEngineGetLanguageTag(const char *languageName)
 
     if (languageName) {
         hb_language_t language = hb_language_from_string(languageName, -1);
-        hb_tag_t tags[HB_OT_MAX_TAGS_PER_LANGUAGE];
         unsigned int count = HB_OT_MAX_TAGS_PER_LANGUAGE;
+        hb_tag_t tags[HB_OT_MAX_TAGS_PER_LANGUAGE];
 
         hb_ot_tags_from_script_and_language(HB_SCRIPT_INVALID, language, NULL, NULL, &count, tags);
 
