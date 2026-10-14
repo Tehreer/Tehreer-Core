@@ -38,28 +38,6 @@
 
 #include "LineResolver.h"
 
-static TRBoolean EnsureRunListCapacity(RunList *list)
-{
-    TRBoolean hasCapacity = TRTrue;
-
-    if (list->count == list->capacity) {
-        TRUInteger newCapacity;
-        TRGlyphRun **newItems;
-
-        newCapacity = (list->capacity == 0 ? 8 : list->capacity * 2);
-        newItems = AllocatorReallocateBlock(list->items, newCapacity * sizeof(TRGlyphRun *));
-
-        if (newItems) {
-            list->items = newItems;
-            list->capacity = newCapacity;
-        } else {
-            hasCapacity = TRFalse;
-        }
-    }
-
-    return hasCapacity;
-}
-
 /* A part of a line in the order that it is shown, with the bidirectional level of its text. */
 typedef struct _VisualRun {
     TRUInteger start;
@@ -269,7 +247,7 @@ static void AppendRunBeforeSkip(TruncationHandler *handler, const VisualRun *vis
     TRUInteger visualEnd = visualRun->end;
 
     LineResolverAppendVisualRuns(handler->typesetter, visualRun->start,
-        (visualEnd < handler->skipStart ? visualEnd : handler->skipStart), handler->list, TRFalse,
+        NumberMin(visualEnd, handler->skipStart), handler->list, TRFalse,
         0.0f);
 }
 
@@ -279,7 +257,7 @@ static void AppendRunAfterSkip(TruncationHandler *handler, const VisualRun *visu
     TRUInteger visualStart = visualRun->start;
 
     LineResolverAppendVisualRuns(handler->typesetter,
-        (visualStart > handler->skipEnd ? visualStart : handler->skipEnd), visualRun->end,
+        NumberMax(visualStart, handler->skipEnd), visualRun->end,
         handler->list, TRFalse, 0.0f);
 }
 
@@ -295,14 +273,14 @@ static void AppendRunOfTruncation(TruncationHandler *handler, const VisualRun *v
             AppendRunAfterSkip(handler, visualRun);
 
             if (visualStart < handler->skipEnd) {
-                handler->trailingTokenIndex = list->count;
+                handler->trailingTokenIndex = ArrayGetCount(&list->runs);
             }
         }
 
         /* Handle the first part of the characters. */
         if (visualStart <= handler->skipStart) {
             if (visualEnd > handler->skipStart) {
-                handler->leadingTokenIndex = list->count;
+                handler->leadingTokenIndex = ArrayGetCount(&list->runs);
             }
 
             AppendRunBeforeSkip(handler, visualRun);
@@ -313,14 +291,14 @@ static void AppendRunOfTruncation(TruncationHandler *handler, const VisualRun *v
             AppendRunBeforeSkip(handler, visualRun);
 
             if (visualEnd > handler->skipStart) {
-                handler->leadingTokenIndex = list->count;
+                handler->leadingTokenIndex = ArrayGetCount(&list->runs);
             }
         }
 
         /* Handle the second part of the characters. */
         if (visualEnd >= handler->skipEnd) {
             if (visualStart < handler->skipEnd) {
-                handler->trailingTokenIndex = list->count;
+                handler->trailingTokenIndex = ArrayGetCount(&list->runs);
             }
 
             AppendRunAfterSkip(handler, visualRun);
@@ -604,7 +582,8 @@ static TRBoolean JustifyRun(TRTypesetterRef typesetter, RunList *list, TRUIntege
     TRUInteger wordStart, TRUInteger wordEnd, TRFloat spaceAddition)
 {
     TRBoolean isJustified = TRTrue;
-    TRGlyphRunRef glyphRun = list->items[runIndex];
+    TRGlyphRun **runItem = ArrayGetItem(&list->runs, runIndex);
+    TRGlyphRunRef glyphRun = *runItem;
 
     /* There is nothing to add to a replacement, or to a run without any space in it. */
     if (glyphRun->textRun->kind != TextRunKindReplacement && glyphRun->glyphCount > 0) {
@@ -613,10 +592,8 @@ static TRBoolean JustifyRun(TRTypesetterRef typesetter, RunList *list, TRUIntege
         advances = AllocatorAllocateBlock(sizeof(TRFloat) * glyphRun->glyphCount);
 
         if (advances) {
-            TRUInteger runStart = (wordStart > glyphRun->codeUnitStart
-                                   ? wordStart : glyphRun->codeUnitStart);
-            TRUInteger runEnd = (wordEnd < glyphRun->codeUnitEnd
-                                 ? wordEnd : glyphRun->codeUnitEnd);
+            TRUInteger runStart = NumberMax(wordStart, glyphRun->codeUnitStart);
+            TRUInteger runEnd = NumberMin(wordEnd, glyphRun->codeUnitEnd);
             TRGlyphRun *justifiedRun;
 
             memcpy(advances, TRGlyphRunGetAdvances(glyphRun),
@@ -629,7 +606,7 @@ static TRBoolean JustifyRun(TRTypesetterRef typesetter, RunList *list, TRUIntege
 
             if (justifiedRun) {
                 TRGlyphRunRelease(glyphRun);
-                list->items[runIndex] = justifiedRun;
+                *runItem = justifiedRun;
             } else {
                 isJustified = TRFalse;
             }
@@ -643,37 +620,30 @@ static TRBoolean JustifyRun(TRTypesetterRef typesetter, RunList *list, TRUIntege
 
 TR_INTERNAL void RunListInitialize(RunList *list)
 {
-    list->items = NULL;
-    list->count = 0;
-    list->capacity = 0;
+    ArrayInitialize(&list->runs, sizeof(TRGlyphRun *));
     list->hasFailed = TRFalse;
 }
 
 TR_INTERNAL void RunListFinalize(RunList *list)
 {
+    TRUInteger count = ArrayGetCount(&list->runs);
     TRUInteger index;
 
-    for (index = 0; index < list->count; index++) {
-        TRGlyphRunRelease(list->items[index]);
+    for (index = 0; index < count; index++) {
+        TRGlyphRun **runItem = ArrayGetItem(&list->runs, index);
+
+        TRGlyphRunRelease(*runItem);
     }
 
-    AllocatorDeallocateBlock(list->items);
-    RunListInitialize(list);
+    ArrayFinalize(&list->runs);
+    list->hasFailed = TRFalse;
 }
 
 TR_INTERNAL void RunListInsert(RunList *list, TRUInteger index, TRGlyphRun *glyphRun)
 {
-    /* The index MUST NOT be greater than the count. */
-    TRAssert(index <= list->count);
-
     if (!glyphRun) {
         list->hasFailed = TRTrue;
-    } else if (EnsureRunListCapacity(list)) {
-        memmove(&list->items[index + 1], &list->items[index],
-            (list->count - index) * sizeof(TRGlyphRun *));
-        list->items[index] = glyphRun;
-        list->count += 1;
-    } else {
+    } else if (!ArrayInsert(&list->runs, index, &glyphRun)) {
         TRGlyphRunRelease(glyphRun);
         list->hasFailed = TRTrue;
     }
@@ -682,7 +652,7 @@ TR_INTERNAL void RunListInsert(RunList *list, TRUInteger index, TRGlyphRun *glyp
 TR_INTERNAL void LineResolverAppendVisualRuns(TRTypesetterRef typesetter, TRUInteger start,
     TRUInteger end, RunList *list, TRBoolean hasLayoutWidth, TRFloat layoutWidth)
 {
-    TRUInteger insertIndex = list->count;
+    TRUInteger insertIndex = ArrayGetCount(&list->runs);
     TRUInteger visualStart = start;
     TRBoolean hasPrevious = TRFalse;
     TRUInt8 previousLevel = 0;
@@ -705,14 +675,13 @@ TR_INTERNAL void LineResolverAppendVisualRuns(TRTypesetterRef typesetter, TRUInt
             TRBoolean isForwardRun;
 
             textRun = TRTypesetterGetRun(typesetter, runIndex);
-            feasibleStart = (textRun->codeUnitStart > visualStart
-                             ? textRun->codeUnitStart : visualStart);
-            feasibleEnd = (textRun->codeUnitEnd < end ? textRun->codeUnitEnd : end);
+            feasibleStart = NumberMax(textRun->codeUnitStart, visualStart);
+            feasibleEnd = NumberMin(textRun->codeUnitEnd, end);
             bidiLevel = textRun->bidiLevel;
             isForwardRun = (bidiLevel & 1) == 0;
 
             if (hasPrevious && (bidiLevel != previousLevel || isForwardRun)) {
-                insertIndex = list->count;
+                insertIndex = ArrayGetCount(&list->runs);
             }
 
             if (textRun->kind == TextRunKindReplacement) {
@@ -738,12 +707,15 @@ TR_INTERNAL TRComposedLine *LineResolverCreateLine(TRTypesetterRef typesetter, T
     if (list->hasFailed) {
         RunListFinalize(list);
     } else {
-        line = TRComposedLineCreate(&typesetter->buffer, start, end, list->items, list->count,
+        TRGlyphRun **runs = ArrayGetItems(&list->runs);
+        TRUInteger runCount = ArrayGetCount(&list->runs);
+
+        line = TRComposedLineCreate(&typesetter->buffer, start, end, runs, runCount,
             paragraphLevel);
 
         /* The line took the references of the runs, and the memory of the list is still the
          * list's. */
-        list->count = 0;
+        ArrayResize(&list->runs, 0);
         RunListFinalize(list);
     }
 
@@ -817,7 +789,7 @@ TR_INTERNAL TRComposedLine *LineResolverCreateJustifiedLine(TRTypesetterRef type
 
         isJustified = TRTrue;
 
-        for (runIndex = 0; isJustified && runIndex < list.count; runIndex++) {
+        for (runIndex = 0; isJustified && runIndex < ArrayGetCount(&list.runs); runIndex++) {
             isJustified = JustifyRun(typesetter, &list, runIndex, wordStart, wordEnd,
                 spaceAddition);
         }

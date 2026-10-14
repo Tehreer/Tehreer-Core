@@ -527,7 +527,7 @@ TR_INTERNAL TRUInteger RenderableFaceCopyGlyphName(RenderableFaceRef renderableF
 {
     TRUInteger nameLength = 0;
 
-    if (capacity > 0) {
+    if (buffer && capacity > 0) {
         UsableFace usableFace;
         FT_Error error;
 
@@ -646,17 +646,19 @@ TR_INTERNAL void RenderableFaceGetMetrics(RenderableFaceRef renderableFace,
     YieldUsableFace(renderableFace, &usableFace);
 }
 
-TR_INTERNAL TRInt32 RenderableFaceGetGlyphAdvance(RenderableFaceRef renderableFace,
-    const FontParams *fontParams, TRGlyphID glyphID)
+TR_INTERNAL TRBoolean RenderableFaceGetGlyphAdvance(RenderableFaceRef renderableFace,
+    const FontParams *fontParams, TRGlyphID glyphID, TRInt32 *advance)
 {
-    return RenderableFaceGetDirectionalAdvance(renderableFace, fontParams, glyphID, TRFalse);
+    return RenderableFaceGetDirectionalAdvance(renderableFace, fontParams, glyphID, TRFalse,
+                                               advance);
 }
 
-TR_INTERNAL TRInt32 RenderableFaceGetDirectionalAdvance(RenderableFaceRef renderableFace,
-    const FontParams *fontParams, TRGlyphID glyphID, TRBoolean isVertical)
+TR_INTERNAL TRBoolean RenderableFaceGetDirectionalAdvance(RenderableFaceRef renderableFace,
+    const FontParams *fontParams, TRGlyphID glyphID, TRBoolean isVertical, TRInt32 *advance)
 {
+    TRBoolean isLoaded = TRFalse;
     FT_Int32 loadFlags = FT_LOAD_NO_SCALE;
-    FT_Fixed advance = 0;
+    FT_Fixed ftAdvance = 0;
     UsableFace usableFace;
 
     if (isVertical) {
@@ -668,11 +670,14 @@ TR_INTERNAL TRInt32 RenderableFaceGetDirectionalAdvance(RenderableFaceRef render
     /* The advance is in font units, so only the variation of the font matters. */
     ActivateVariation(usableFace.ftFace, fontParams->coordinatesPtr, fontParams->coordinateCount);
 
-    FT_Get_Advance(usableFace.ftFace, glyphID, loadFlags, &advance);
+    if (FT_Get_Advance(usableFace.ftFace, glyphID, loadFlags, &ftAdvance) == FT_Err_Ok) {
+        *advance = (TRInt32)ftAdvance;
+        isLoaded = TRTrue;
+    }
 
     YieldUsableFace(renderableFace, &usableFace);
 
-    return advance;
+    return isLoaded;
 }
 
 TR_INTERNAL TRPathRef RenderableFaceCreateGlyphPath(RenderableFaceRef renderableFace,

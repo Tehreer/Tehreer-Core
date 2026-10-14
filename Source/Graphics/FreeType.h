@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef _TEHREER_FREETYPE_H
-#define _TEHREER_FREETYPE_H
+#ifndef _TEHREER_GRAPHICS_FREE_TYPE_H
+#define _TEHREER_GRAPHICS_FREE_TYPE_H
 
 #include <ft2build.h>
 #include FT_FREETYPE_H

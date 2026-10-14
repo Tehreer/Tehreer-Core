@@ -17,6 +17,8 @@
 #include <cassert>
 #include <cstdint>
 #include <cstring>
+#include <fstream>
+#include <iterator>
 #include <thread>
 #include <vector>
 #include <string>
@@ -46,6 +48,7 @@ void ShapableFaceTests::run() {
     testVariationGlyph();
     testAdvances();
     testAdvancesAreCached();
+    testFailedAdvanceIsNotCached();
     testShapingUsesFontFuncs();
     testDerived();
     testDerivedOfDerived();
@@ -235,6 +238,57 @@ void ShapableFaceTests::testAdvancesAreCached() {
     assert(hb_font_get_glyph_h_advance(face->hbFont, 2) == 4242);
 
     ShapableFaceRelease(face);
+}
+
+/*
+ * Creates a variable font in which glyph 2 cannot be loaded. The font has no HVAR table, so
+ * FreeType has to load the glyph to measure its advance.
+ */
+static FontDataRef createFontDataWithBrokenGlyph() {
+    ifstream stream(testFontPath("Roboto-Variable.abc.ttf"), ios::binary);
+    vector<uint8_t> bytes((istreambuf_iterator<char>(stream)), istreambuf_iterator<char>());
+    assert(bytes.size() > 2068 + 374);
+
+    /* Hide the HVAR table in the table directory, which has the entries of 16 bytes from 12. */
+    size_t tableCount = (bytes[4] << 8) | bytes[5];
+    for (size_t i = 0; i < tableCount; i++) {
+        uint8_t *entry = &bytes[12 + (i * 16)];
+        if (memcmp(entry, "HVAR", 4) == 0) {
+            memcpy(entry, "XVAR", 4);
+        }
+    }
+
+    /* The glyph data goes from 208 to 374 in the glyf table at 2068. Keep only its header. */
+    memset(&bytes[2068 + 208 + 10], 0xFF, 374 - 208 - 10);
+
+    return FontDataCreateFromMemory(bytes.data(), bytes.size());
+}
+
+void ShapableFaceTests::testFailedAdvanceIsNotCached() {
+    FontDataRef fontData = createFontDataWithBrokenGlyph();
+    assert(fontData != nullptr);
+
+    RenderableFaceRef renderableFace = RenderableFaceCreate(fontData, 0);
+    assert(renderableFace != nullptr);
+
+    ShapableFaceRef root = ShapableFaceCreate(renderableFace);
+    const TRFloat black[] = { 900.0f, 100.0f };
+    ShapableFaceRef face = ShapableFaceCreateDerived(root, black, 2);
+    TRInt32 advance = 0;
+
+    /* The glyph cannot be measured, so nothing is known about it and nothing is cached. */
+    assert(hb_font_get_glyph_h_advance(face->hbFont, 2) == 0);
+    assert(!AdvanceCacheGet(&face->advanceCache, 2, &advance));
+
+    /* The other glyphs are not affected. */
+    assert(hb_font_get_glyph_h_advance(face->hbFont, 1) > 0);
+    assert(AdvanceCacheGet(&face->advanceCache, 1, &advance));
+    assert(advance > 0);
+
+    ShapableFaceRelease(face);
+    ShapableFaceRelease(root);
+    RenderableFaceRelease(renderableFace);
+    FontDataRelease(fontData);
 }
 
 void ShapableFaceTests::testShapingUsesFontFuncs() {

@@ -30,6 +30,7 @@ private:
     void testAppendAndGet();
     void testGrowth();
     void testResize();
+    void testInsert();
     void testStructItems();
 };
 

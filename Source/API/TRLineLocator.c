@@ -239,6 +239,12 @@ static void FillBands(TRLineLocator *locator)
     bandStarts[0] = 0;
 }
 
+#define LOCATOR         0
+#define BOXES           1
+#define BAND_STARTS     2
+#define BAND_LINES      3
+#define COUNT           4
+
 static TRLineLocator *CreateLineLocator(const TRRect *boxes, TRUInteger lineCount)
 {
     TRLineLocator *locator = NULL;
@@ -247,27 +253,27 @@ static TRLineLocator *CreateLineLocator(const TRRect *boxes, TRUInteger lineCoun
     TRUInteger entryCount;
 
     if (BandsAreSupported(boxes, lineCount, &firstBand, &bandCount, &entryCount)) {
-        TRUInteger sizes[4];
-        void *pointers[4];
+        TRUInteger sizes[COUNT];
+        void *pointers[COUNT];
 
-        sizes[0] = sizeof(TRLineLocator);
-        sizes[1] = sizeof(TRRect) * lineCount;
-        sizes[2] = sizeof(TRUInteger) * (bandCount + 1);
-        sizes[3] = sizeof(TRUInteger) * entryCount;
+        sizes[LOCATOR] = sizeof(TRLineLocator);
+        sizes[BOXES] = sizeof(TRRect) * lineCount;
+        sizes[BAND_STARTS] = sizeof(TRUInteger) * (bandCount + 1);
+        sizes[BAND_LINES] = sizeof(TRUInteger) * entryCount;
 
         /* The boxes and the bands are in the memory of the object, so it needs no finalizer. */
-        locator = ObjectCreate(sizes, 4, pointers, NULL);
+        locator = ObjectCreate(sizes, COUNT, pointers, NULL);
 
         if (locator) {
             locator->firstBand = firstBand;
             locator->lineCount = lineCount;
             locator->bandCount = bandCount;
-            locator->boxes = pointers[1];
-            locator->bandStarts = pointers[2];
-            locator->bandLines = pointers[3];
+            locator->boxes = pointers[BOXES];
+            locator->bandStarts = pointers[BAND_STARTS];
+            locator->bandLines = pointers[BAND_LINES];
 
-            memcpy(locator->boxes, boxes, sizes[1]);
-            memset(locator->bandStarts, 0, sizes[2]);
+            memcpy(locator->boxes, boxes, sizes[BOXES]);
+            memset(locator->bandStarts, 0, sizes[BAND_STARTS]);
 
             FillBands(locator);
         }
@@ -275,6 +281,12 @@ static TRLineLocator *CreateLineLocator(const TRRect *boxes, TRUInteger lineCoun
 
     return locator;
 }
+
+#undef LOCATOR
+#undef BOXES
+#undef BAND_STARTS
+#undef BAND_LINES
+#undef COUNT
 
 /* ---------- Queries ---------- */
 

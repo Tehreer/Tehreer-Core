@@ -99,7 +99,7 @@ static TRFloat Clamp(TRFloat value)
     TRFloat clamped = 0.0f;
 
     if (value > 0.0f) {
-        clamped = (value < MaxFloat ? value : MaxFloat);
+        clamped = NumberMin(value, MaxFloat);
     }
 
     return clamped;
@@ -382,7 +382,7 @@ static void ComputeOccupiedSize(const FrameContext *context, TRComposedLineRef l
     TRFloat lineWidth = context->lineMargins + line->extent - line->trailingWhitespaceExtent;
     TRFloat lineHeight = line->ascent + line->descent + line->leading;
 
-    *width = (context->occupiedWidth > lineWidth ? context->occupiedWidth : lineWidth);
+    *width = NumberMax(context->occupiedWidth, lineWidth);
     *height = context->occupiedHeight + lineHeight;
 }
 

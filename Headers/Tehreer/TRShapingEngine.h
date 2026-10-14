@@ -131,7 +131,8 @@ TR_PUBLIC void TRShapingEngineSetScriptTag(TRShapingEngineRef engine, TRTag scri
 TR_PUBLIC void TRShapingEngineSetLanguageTag(TRShapingEngineRef engine, TRTag languageTag);
 
 /**
- * Sets the direction in which the text is written. The default is left to right.
+ * Sets the direction in which the text is written. The default is left to right. A value that is
+ * not valid is treated as left to right.
  *
  * @param engine
  *      The shaping engine.
@@ -144,7 +145,7 @@ TR_PUBLIC void TRShapingEngineSetWritingDirection(TRShapingEngineRef engine,
 /**
  * Sets the order in which the text is shaped. Backward order means that the code units run against
  * the writing direction, as in right-to-left text that is embedded in left-to-right text. The
- * default is forward.
+ * default is forward. A value that is not valid is treated as forward.
  *
  * @param engine
  *      The shaping engine.

@@ -33,7 +33,8 @@ enum {
     TRBreakModeCharacter = 1    /**< Lines break between any two characters (grapheme clusters). */
 };
 /**
- * A type to represent how lines are broken, which is one of the `TRBreakMode*` constants above.
+ * A type to represent how lines are broken, which is one of the `TRBreakMode*` constants above. A
+ * value that is not one of them is handled as `TRBreakModeLine` by the functions that take it.
  */
 typedef TRUInt32 TRBreakMode;
 
@@ -47,7 +48,9 @@ enum {
 };
 /**
  * A type to represent where text is cut out of a line, which is one of the `TRTruncationPlace*`
- * constants above.
+ * constants above. A value that is not one of them is handled as `TRTruncationPlaceEnd` by
+ * `TRTypesetterCreateTruncationToken()`, while `TRTypesetterCreateTruncatedLine()` does not create
+ * a line for it.
  */
 typedef TRUInt32 TRTruncationPlace;
 
@@ -100,7 +103,8 @@ TR_PUBLIC TRUInteger TRTypesetterGetCodeUnitCount(TRTypesetterRef typesetter);
  * first code unit to the last. If the whole range fits in the extent, its end is returned.
  * Otherwise the index of the first code unit that does not fit is returned, at least one character
  * after the start. A line break may not cross a paragraph, so the suggestion stops at the end of
- * the paragraph that the range starts in.
+ * the paragraph that the range starts in. A NaN extent is never exceeded, so the whole range fits
+ * in it.
  *
  * @param typesetter
  *      The typesetter.
@@ -111,7 +115,7 @@ TR_PUBLIC TRUInteger TRTypesetterGetCodeUnitCount(TRTypesetterRef typesetter);
  * @param extent
  *      The extent that the line has to fit in.
  * @param breakMode
- *      The way to break the line.
+ *      The way to break the line. A value that is not valid is handled as `TRBreakModeLine`.
  * @return
  *      The index (exclusive) that ends the line, or `TRInvalidIndex` if the range is empty or is
  *      not within the text.
@@ -123,7 +127,8 @@ TR_PUBLIC TRUInteger TRTypesetterSuggestForwardBreak(TRTypesetterRef typesetter,
  * Suggests where to break a line backward from the end of a range. The measurement goes from the
  * last code unit to the first. If the whole range fits in the extent, its start is returned.
  * Otherwise the index of the first code unit of the line that fits is returned, at least one
- * character before the end. A line break may not cross a paragraph.
+ * character before the end. A line break may not cross a paragraph. A NaN extent is never
+ * exceeded, so the whole range fits in it.
  *
  * @param typesetter
  *      The typesetter.
@@ -134,7 +139,7 @@ TR_PUBLIC TRUInteger TRTypesetterSuggestForwardBreak(TRTypesetterRef typesetter,
  * @param extent
  *      The extent that the line has to fit in.
  * @param breakMode
- *      The way to break the line.
+ *      The way to break the line. A value that is not valid is handled as `TRBreakModeLine`.
  * @return
  *      The index (inclusive) that starts the line, or `TRInvalidIndex` if the range is empty or is
  *      not within the text.
@@ -192,7 +197,8 @@ TR_PUBLIC TRComposedLineRef TRTypesetterCreateFrameLine(TRTypesetterRef typesett
  *      The number of code units of the line that is truncated, which MUST NOT be zero. The range
  *      has to be within the text.
  * @param truncationPlace
- *      The place where text is cut out.
+ *      The place where text is cut out. A value that is not valid is handled as
+ *      `TRTruncationPlaceEnd`.
  * @param tokenString
  *      The code units of the token, or `NULL` to use an ellipsis. If the typeface has no ellipsis
  *      character, three dots are used.
@@ -209,7 +215,8 @@ TR_PUBLIC TRComposedLineRef TRTypesetterCreateTruncationToken(TRTypesetterRef ty
 
 /**
  * Creates a line of a range, cutting out the part that does not fit in the extent and showing a
- * token instead. A line that fits is made as `TRTypesetterCreateSimpleLine()` makes it.
+ * token instead. A line that fits is made as `TRTypesetterCreateSimpleLine()` makes it. A NaN
+ * extent is never exceeded, so the line is made that way too.
  *
  * @param typesetter
  *      The typesetter.
@@ -221,14 +228,17 @@ TR_PUBLIC TRComposedLineRef TRTypesetterCreateTruncationToken(TRTypesetterRef ty
  * @param extent
  *      The extent at which the truncation begins.
  * @param breakMode
- *      The way to find the text that is cut out.
+ *      The way to find the text that is cut out. A value that is not valid is handled as
+ *      `TRBreakModeLine`.
  * @param truncationPlace
- *      The place where text is cut out.
+ *      The place where text is cut out. It MUST be one of the `TRTruncationPlace*` constants.
  * @param tokenLine
- *      The line of the token, such as one from `TRTypesetterCreateTruncationToken()`.
+ *      The line of the token, such as one from `TRTypesetterCreateTruncationToken()`. It MUST NOT
+ *      be `NULL`.
  * @return
- *      New line, or `NULL` on failure. Its range is the whole range, including the text that was
- *      cut out.
+ *      New line, or `NULL` if the token line is `NULL`, the range is empty or is not within the
+ *      text, the truncation place is not valid, or on failure. Its range is the whole range,
+ *      including the text that was cut out.
  */
 TR_PUBLIC TRComposedLineRef TRTypesetterCreateTruncatedLine(TRTypesetterRef typesetter,
     TRUInteger index, TRUInteger length, TRFloat extent, TRBreakMode breakMode,
@@ -249,7 +259,7 @@ TR_PUBLIC TRComposedLineRef TRTypesetterCreateTruncatedLine(TRTypesetterRef type
  *      it partially, and 0 or less leaves it as it is.
  * @param justificationExtent
  *      The extent to stretch the line to. If it is less than the width of the line, the spaces are
- *      squeezed.
+ *      squeezed. If it or the factor is NaN, the line is created, but its width is NaN.
  * @return
  *      New line, or `NULL` on failure.
  */

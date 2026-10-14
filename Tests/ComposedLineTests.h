@@ -50,6 +50,7 @@ private:
     void testBlockLine();
     void testTruncation();
     void testTruncationToken();
+    void testDefaultTokenEncodings();
     void testJustifiedLine();
     void testLinesOutliveTypesetter();
     void testConcurrentLines();

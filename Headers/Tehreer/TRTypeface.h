@@ -553,7 +553,8 @@ TR_PUBLIC TRGlyphID TRTypefaceGetVariantGlyphID(TRTypefaceRef typeface, TRUInt32
  * @param isVertical
  *      `TRTrue` for the vertical advance.
  * @return
- *      The advance in the unit of `typeSize`, or zero if the typeface has no units per em.
+ *      The advance in the unit of `typeSize`, or zero if the typeface has no units per em or the
+ *      advance of the glyph cannot be loaded.
  */
 TR_PUBLIC TRFloat TRTypefaceGetGlyphAdvance(TRTypefaceRef typeface, TRGlyphID glyphID,
     TRFloat typeSize, TRBoolean isVertical);
@@ -623,7 +624,7 @@ TR_PUBLIC TRUInteger TRTypefaceGetTableData(TRTypefaceRef typeface, TRTag tag, T
  *      The number of bytes that `buffer` can hold, including the terminator.
  * @return
  *      The length of the name copied to `buffer`, not counting the terminator. It is zero if the
- *      font has no name for the glyph, or `capacity` is zero.
+ *      font has no name for the glyph, `buffer` is `NULL`, or `capacity` is zero.
  */
 TR_PUBLIC TRUInteger TRTypefaceGetGlyphName(TRTypefaceRef typeface, TRGlyphID glyphID,
     char *buffer, TRUInteger capacity);
