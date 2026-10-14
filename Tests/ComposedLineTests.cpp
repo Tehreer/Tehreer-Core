@@ -73,6 +73,7 @@ void ComposedLineTests::run() {
     testBlockLine();
     testTruncation();
     testTruncationToken();
+    testDefaultTokenEncodings();
     testJustifiedLine();
     testLinesOutliveTypesetter();
     testConcurrentLines();
@@ -1033,6 +1034,59 @@ void ComposedLineTests::testTruncationToken() {
     token = makeToken(typesetter, { 0, 3 }, TRTruncationPlaceEnd, u"bb");
     assert(TRComposedLineGetWidth(token) == 2.0f * B);
     TRComposedLineRelease(token);
+}
+
+void ComposedLineTests::testDefaultTokenEncodings() {
+    /* The default token is made in the encoding of the text, so each of them has its own code units. */
+    TRTypefaceRef typeface = createTestTypeface("Roboto-Regular.abc.ttf");
+    const TRStringEncoding encodings[] = {
+        TRStringEncodingUTF8, TRStringEncodingUTF16, TRStringEncodingUTF32
+    };
+
+    for (TRStringEncoding encoding : encodings) {
+        TRMutableTextRef text = TRTextCreateMutable(encoding);
+        assert(text != nullptr);
+
+        const char32_t source[] = U"abc";
+        TRBoolean isAppended = TRFalse;
+
+        for (TRUInteger index = 0; index < 3; index++) {
+            if (encoding == TRStringEncodingUTF8) {
+                const char unit = static_cast<char>(source[index]);
+                isAppended = TRTextAppendCodeUnits(text, &unit, 1);
+            } else if (encoding == TRStringEncodingUTF16) {
+                const char16_t unit = static_cast<char16_t>(source[index]);
+                isAppended = TRTextAppendCodeUnits(text, &unit, 1);
+            } else {
+                isAppended = TRTextAppendCodeUnits(text, &source[index], 1);
+            }
+
+            assert(isAppended);
+        }
+
+        TRAttribute attribute = {};
+        attribute.type = TRAttributeTypeface;
+        attribute.value.typeface = typeface;
+        TRTextSetAttribute(text, 0, 3, &attribute);
+
+        attribute.type = TRAttributeTypeSize;
+        attribute.value.typeSize = EmSize;
+        TRTextSetAttribute(text, 0, 3, &attribute);
+
+        TRTypesetterRef typesetter = TRTypesetterCreate(text, nullptr, 0);
+        assert(typesetter != nullptr);
+
+        TRComposedLineRef token = TRTypesetterCreateTruncationToken(typesetter, 0, 3,
+            TRTruncationPlaceEnd, nullptr, 0, encoding);
+        assert(token != nullptr);
+        assert(TRComposedLineGetWidth(token) == 3.0f * Notdef);
+
+        TRComposedLineRelease(token);
+        TRTypesetterRelease(typesetter);
+        TRTextRelease(text);
+    }
+
+    TRTypefaceRelease(typeface);
 }
 
 void ComposedLineTests::testJustifiedLine() {
