@@ -63,4 +63,11 @@ TR_INTERNAL TRBoolean ArrayResize(ArrayRef array, TRUInteger count);
  */
 TR_INTERNAL TRBoolean ArrayAppend(ArrayRef array, const void *item);
 
+/**
+ * Copies an item to the index, moving the items from there on one place forward. The index MUST
+ * NOT be greater than the count. Returns `TRFalse` if memory could not be allocated, in which case
+ * the array is left as it was.
+ */
+TR_INTERNAL TRBoolean ArrayInsert(ArrayRef array, TRUInteger index, const void *item);
+
 #endif
