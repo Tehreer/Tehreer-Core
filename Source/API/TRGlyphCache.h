@@ -72,11 +72,7 @@ typedef struct _GlyphStrokeKey {
  * loaded. Glyphs are rendered without holding the lock of the cache, so threads that miss on the
  * same glyph at the same time may all render it. The first result stays in the cache, and the
  * others are used once and dropped.
- */
-TR_INTERNAL TRBoolean TRGlyphCacheInitialize(TRGlyphCacheRef cache, TRUInteger capacity);
-TR_INTERNAL void TRGlyphCacheFinalize(TRGlyphCacheRef cache);
-
-/*
+ *
  * Returns the image of the glyph in its default form, which uses the foreground color only if the
  * glyph has layers that are painted with it.
  */
