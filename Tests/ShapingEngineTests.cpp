@@ -18,6 +18,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <thread>
 #include <vector>
 
@@ -47,6 +48,7 @@ void ShapingEngineTests::run() {
     testShapeLatin();
     testEncodings();
     testTypeSize();
+    testNonFiniteTypeSize();
     testMissingGlyph();
     testRightToLeft();
     testBackwardOrder();
@@ -265,6 +267,25 @@ void ShapingEngineTests::testTypeSize() {
 
     TRShapingEngineRelease(smallEngine);
     TRShapingEngineRelease(half);
+    TRTypefaceRelease(typeface);
+}
+
+void ShapingEngineTests::testNonFiniteTypeSize() {
+    TRTypefaceRef typeface = createTestTypeface("Roboto-Regular.abc.ttf");
+    constexpr TRFloat infinity = numeric_limits<TRFloat>::infinity();
+    constexpr TRFloat notANumber = numeric_limits<TRFloat>::quiet_NaN();
+    const TRFloat sizes[] = { notANumber, infinity, -infinity, 1e30f, -1e30f };
+
+    for (TRFloat size : sizes) {
+        TRShapingEngineRef engine = createEngine(typeface, size);
+        TRShapingResultRef result = shape16(engine, u"abc", 3);
+        assert(result != nullptr);
+        assert(glyphAdvances(result).size() == 3);
+
+        TRShapingResultRelease(result);
+        TRShapingEngineRelease(engine);
+    }
+
     TRTypefaceRelease(typeface);
 }
 

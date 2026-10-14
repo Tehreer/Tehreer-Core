@@ -28,6 +28,7 @@
 #include <API/TRShapingResult.h>
 #include <API/TRTypeface.h>
 #include <Core/Allocator.h>
+#include <Core/Number.h>
 #include <Core/Object.h>
 #include <Graphics/ShapableFace.h>
 
@@ -120,7 +121,7 @@ static TRShapingResultRef ShapeCodeUnits(TRShapingEngineRef engine, hb_feature_t
     }
 
     typeSize = (engine->typeSize > 0.0f ? engine->typeSize : 0.0f);
-    ppem = (unsigned int)(typeSize + 0.5f);
+    ppem = (unsigned int)NumberToFixed(typeSize, 1.0f);
 
     /* The sub font keeps the glyph lookups of the typeface, but has a size of its own. */
     hbFont = hb_font_create_sub_font(typeface->shapableFace->hbFont);

@@ -18,6 +18,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -66,6 +67,7 @@ void TypefaceTests::run() {
     testGlyphName();
     testGlyphIDs();
     testGlyphAdvance();
+    testNonFiniteTypeSize();
     testGlyphPath();
     testBitmapTypeface();
 }
@@ -623,6 +625,29 @@ static vector<TRPoint> allPoints(const vector<PathEvent> &events) {
     }
 
     return points;
+}
+
+void TypefaceTests::testNonFiniteTypeSize() {
+    TRTypefaceRef typeface = createTypeface("Roboto-Regular.abc.ttf");
+    constexpr TRFloat infinity = numeric_limits<TRFloat>::infinity();
+    constexpr TRFloat notANumber = numeric_limits<TRFloat>::quiet_NaN();
+    const TRFloat sizes[] = { notANumber, infinity, -infinity, 1e30f, -1e30f };
+
+    for (TRFloat size : sizes) {
+        TRTypefaceGetGlyphAdvance(typeface, 1, size, TRFalse);
+        TRTypefaceGetGlyphAdvance(typeface, 1, size, TRTrue);
+
+        TRPathRef path = TRTypefaceCreateGlyphPath(typeface, 1, size);
+        if (path) {
+            TRPathRelease(path);
+        }
+    }
+
+    assert(isnan(TRTypefaceGetGlyphAdvance(typeface, 1, notANumber, TRFalse)));
+    assert(TRTypefaceCreateGlyphPath(typeface, 1, notANumber) == nullptr);
+    assert(TRTypefaceCreateGlyphPath(typeface, 1, -infinity) == nullptr);
+
+    TRTypefaceRelease(typeface);
 }
 
 void TypefaceTests::testGlyphPath() {

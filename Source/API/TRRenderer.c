@@ -29,6 +29,7 @@
 #include <API/TRGlyphCache.h>
 #include <API/TRGlyphImage.h>
 #include <API/TRTypeface.h>
+#include <Core/Number.h>
 #include <Core/Object.h>
 #include <Font/FaceMetadata.h>
 #include <Graphics/RenderableFace.h>
@@ -47,31 +48,11 @@ static void FinalizeRenderer(ObjectRef object)
     }
 }
 
-/*
- * Converts a value to fixed point with the given unit, rounding it. A value that is out of range
- * is saturated, and one that is not a number is zero, as a conversion of them is not defined.
- */
-static TRInt32 ToFixed(TRFloat value, TRFloat unit)
-{
-    TRFloat scaled = (value * unit) + 0.5f;
-    TRInt32 fixed = 0;
-
-    if (scaled >= 2147483648.0f) {
-        fixed = INT32_MAX;
-    } else if (scaled <= -2147483648.0f) {
-        fixed = INT32_MIN;
-    } else if (scaled == scaled) {
-        fixed = (TRInt32)scaled;
-    }
-
-    return fixed;
-}
-
 static TRInt32 ToPixelSize(const TRRenderer *renderer, TRFloat scale)
 {
     TRFloat size = renderer->typeSize * scale * renderer->renderScale;
 
-    return (size > 0.0f ? ToFixed(size, 64.0f) : 0);
+    return (size > 0.0f ? NumberToFixed(size, 64.0f) : 0);
 }
 
 static TRGlyphCacheRef GetCache(const TRRenderer *renderer)
@@ -96,7 +77,7 @@ static void SetupDataKey(const TRRenderer *renderer, GlyphDataKey *key, TRFloat 
     key->typeface = renderer->typeface;
     key->pixelWidth = ToPixelSize(renderer, renderer->scaleX);
     key->pixelHeight = ToPixelSize(renderer, renderer->scaleY);
-    key->skewX = ToFixed(renderer->skewX, 65536.0f);
+    key->skewX = NumberToFixed(renderer->skewX, 65536.0f);
 
     *scaleX = 1.0f;
     *scaleY = 1.0f;
@@ -105,8 +86,8 @@ static void SetupDataKey(const TRRenderer *renderer, GlyphDataKey *key, TRFloat 
             && key->pixelHeight > 0) {
         TRUInteger index = FaceMetadataFindBitmapStrike(metadata, key->pixelHeight);
         const TRBitmapStrike *strike = &metadata->bitmapStrikesPtr[index];
-        TRInt32 strikeWidth = ToFixed(strike->pixelWidth, 64.0f);
-        TRInt32 strikeHeight = ToFixed(strike->pixelHeight, 64.0f);
+        TRInt32 strikeWidth = NumberToFixed(strike->pixelWidth, 64.0f);
+        TRInt32 strikeHeight = NumberToFixed(strike->pixelHeight, 64.0f);
 
         if (strikeWidth > 0 && strikeHeight > 0) {
             *scaleX = (TRFloat)key->pixelWidth / (TRFloat)strikeWidth;
@@ -508,10 +489,10 @@ TRGlyphImageRef TRRendererCopyStrokeImage(TRRendererRef renderer, TRGlyphID glyp
 
         SetupDataKey(renderer, &key, &scaleX, &scaleY);
 
-        strokeKey.lineRadius = ToFixed(radius, 64.0f);
+        strokeKey.lineRadius = NumberToFixed(radius, 64.0f);
         strokeKey.lineCap = renderer->strokeCap;
         strokeKey.lineJoin = renderer->strokeJoin;
-        strokeKey.miterLimit = ToFixed(miter, 65536.0f);
+        strokeKey.miterLimit = NumberToFixed(miter, 65536.0f);
 
         strokeImage = TRGlyphCacheCopyStrokeImage(GetCache(renderer), &key, &strokeKey, glyphID);
     }

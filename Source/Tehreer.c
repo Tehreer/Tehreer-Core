@@ -41,6 +41,7 @@
 #include <Core/Array.c>
 #include <Core/Memory.c>
 #include <Core/NameWriter.c>
+#include <Core/Number.c>
 #include <Core/Object.c>
 #include <Core/Once.c>
 #include <Font/FaceMetadata.c>

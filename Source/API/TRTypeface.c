@@ -25,6 +25,7 @@
 
 #include <API/TRBase.h>
 #include <Core/Allocator.h>
+#include <Core/Number.h>
 #include <Core/Object.h>
 #include <Font/FaceMetadata.h>
 #include <Graphics/RenderableFace.h>
@@ -207,7 +208,7 @@ static void InitializeFullName(TRTypeface *typeface, FaceMetadataRef metadata)
 
 static void SetupFontParams(TRTypefaceRef typeface, FontParams *fontParams, TRFloat typeSize)
 {
-    FT_F26Dot6 pixelSize = (FT_F26Dot6)((typeSize * 64.0f) + 0.5f);
+    FT_F26Dot6 pixelSize = (FT_F26Dot6)NumberToFixed(typeSize, 64.0f);
 
     fontParams->coordinatesPtr = typeface->rawCoordinates;
     fontParams->coordinateCount = (FT_UInt)typeface->renderableFace->metadata->variationAxisCount;
