@@ -60,15 +60,18 @@ static void SetupAdvanceParams(ShapableFaceRef shapableFace, FontParams *fontPar
 
 static TRInt32 GetGlyphAdvance(ShapableFaceRef shapableFace, TRGlyphID glyphID)
 {
-    TRInt32 advance;
+    TRInt32 advance = 0;
 
     if (!AdvanceCacheGet(&shapableFace->advanceCache, glyphID, &advance)) {
         FontParams fontParams;
 
         SetupAdvanceParams(shapableFace, &fontParams);
-        advance = RenderableFaceGetGlyphAdvance(shapableFace->renderableFace, &fontParams, glyphID);
 
-        AdvanceCachePut(&shapableFace->advanceCache, glyphID, advance);
+        /* A glyph whose advance cannot be loaded is not cached, so that it is asked again. */
+        if (RenderableFaceGetGlyphAdvance(shapableFace->renderableFace, &fontParams, glyphID,
+                                          &advance)) {
+            AdvanceCachePut(&shapableFace->advanceCache, glyphID, advance);
+        }
     }
 
     return advance;

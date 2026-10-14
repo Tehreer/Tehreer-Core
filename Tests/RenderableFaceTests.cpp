@@ -118,6 +118,14 @@ static FontParams makeParams(FT_Fixed *coordinates, FT_UInt coordinateCount, FT_
     return params;
 }
 
+static TRInt32 glyphAdvance(RenderableFaceRef face, const FontParams *params, TRGlyphID glyphID) {
+    TRInt32 advance = -1;
+    bool isLoaded = RenderableFaceGetGlyphAdvance(face, params, glyphID, &advance);
+    assert(isLoaded);
+
+    return advance;
+}
+
 static FT_Fixed fixed(int value) {
     return static_cast<FT_Fixed>(value) * 0x10000;
 }
@@ -320,9 +328,16 @@ void RenderableFaceTests::testGlyphAdvance() {
     RenderableFaceRef face = RenderableFaceCreate(fontFile.get(), 0);
     FontParams params = makeParams(nullptr, 0);
 
-    assert(RenderableFaceGetGlyphAdvance(face, &params, 1) == 1114);
-    assert(RenderableFaceGetGlyphAdvance(face, &params, 2) == 1149);
-    assert(RenderableFaceGetGlyphAdvance(face, &params, 3) == 1072);
+    assert(glyphAdvance(face, &params, 1) == 1114);
+    assert(glyphAdvance(face, &params, 2) == 1149);
+    assert(glyphAdvance(face, &params, 3) == 1072);
+
+    /* A glyph that does not exist has no advance, which is different from a zero advance. */
+    TRInt32 advance = 7;
+    assert(!RenderableFaceGetGlyphAdvance(face, &params, 100, &advance));
+    assert(advance == 7);
+    assert(RenderableFaceGetGlyphAdvance(face, &params, 1, &advance));
+    assert(advance == 1114);
 
     RenderableFaceRelease(face);
 }
@@ -339,14 +354,14 @@ void RenderableFaceTests::testVariationGlyphAdvance() {
     FontParams thinParams = makeParams(thin, 2);
     FontParams blackParams = makeParams(black, 2);
 
-    TRInt32 regularAdvance = RenderableFaceGetGlyphAdvance(face, &regularParams, 2);
-    TRInt32 thinAdvance = RenderableFaceGetGlyphAdvance(face, &thinParams, 2);
-    TRInt32 blackAdvance = RenderableFaceGetGlyphAdvance(face, &blackParams, 2);
+    TRInt32 regularAdvance = glyphAdvance(face, &regularParams, 2);
+    TRInt32 thinAdvance = glyphAdvance(face, &thinParams, 2);
+    TRInt32 blackAdvance = glyphAdvance(face, &blackParams, 2);
 
     assert(regularAdvance == 1150);
     assert(thinAdvance != regularAdvance);
     assert(blackAdvance != regularAdvance);
-    assert(RenderableFaceGetGlyphAdvance(face, &regularParams, 2) == regularAdvance);
+    assert(glyphAdvance(face, &regularParams, 2) == regularAdvance);
 
     RenderableFaceRelease(face);
 }
@@ -438,7 +453,7 @@ void RenderableFaceTests::testConcurrentAccess() {
 
             for (size_t j = 0; j < Iterations; j++) {
                 assert(RenderableFaceGetCodePointGlyphID(face, 'a') == 1);
-                assert(RenderableFaceGetGlyphAdvance(face, &params, 1) == 1114);
+                assert(glyphAdvance(face, &params, 1) == 1114);
 
                 GlyphBitmapRef bitmap = RenderableFaceRasterizeGlyph(face, &params, 1, foreground);
                 assert(bitmap != nullptr);
@@ -463,8 +478,8 @@ void RenderableFaceTests::testConcurrentVariations() {
     FontParams thinParams = makeParams(thin, 2);
     FontParams blackParams = makeParams(black, 2);
 
-    TRInt32 thinAdvance = RenderableFaceGetGlyphAdvance(face, &thinParams, 2);
-    TRInt32 blackAdvance = RenderableFaceGetGlyphAdvance(face, &blackParams, 2);
+    TRInt32 thinAdvance = glyphAdvance(face, &thinParams, 2);
+    TRInt32 blackAdvance = glyphAdvance(face, &blackParams, 2);
     assert(thinAdvance != blackAdvance);
 
     vector<thread> threads;
@@ -475,7 +490,7 @@ void RenderableFaceTests::testConcurrentVariations() {
             TRInt32 expected = (i % 2 == 0 ? thinAdvance : blackAdvance);
 
             for (size_t j = 0; j < Iterations; j++) {
-                assert(RenderableFaceGetGlyphAdvance(face, &params, 2) == expected);
+                assert(glyphAdvance(face, &params, 2) == expected);
             }
         });
     }

@@ -529,10 +529,11 @@ TRFloat TRTypefaceGetGlyphAdvance(TRTypefaceRef typeface, TRGlyphID glyphID, TRF
         TRInt32 advance;
 
         SetupFontParams(typeface, &fontParams, typeSize);
-        advance = RenderableFaceGetDirectionalAdvance(typeface->renderableFace, &fontParams,
-            glyphID, isVertical);
 
-        glyphAdvance = ((TRFloat)advance * typeSize) / (TRFloat)typeface->unitsPerEM;
+        if (RenderableFaceGetDirectionalAdvance(typeface->renderableFace, &fontParams, glyphID,
+                isVertical, &advance)) {
+            glyphAdvance = ((TRFloat)advance * typeSize) / (TRFloat)typeface->unitsPerEM;
+        }
     }
 
     return glyphAdvance;

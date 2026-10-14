@@ -553,7 +553,8 @@ TR_PUBLIC TRGlyphID TRTypefaceGetVariantGlyphID(TRTypefaceRef typeface, TRUInt32
  * @param isVertical
  *      `TRTrue` for the vertical advance.
  * @return
- *      The advance in the unit of `typeSize`, or zero if the typeface has no units per em.
+ *      The advance in the unit of `typeSize`, or zero if the typeface has no units per em or the
+ *      advance of the glyph cannot be loaded.
  */
 TR_PUBLIC TRFloat TRTypefaceGetGlyphAdvance(TRTypefaceRef typeface, TRGlyphID glyphID,
     TRFloat typeSize, TRBoolean isVertical);
