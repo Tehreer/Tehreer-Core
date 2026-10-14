@@ -481,15 +481,15 @@ TRBoolean TRRendererIsRenderable(TRRendererRef renderer)
 TRGlyphImageRef TRRendererCopyGlyphImage(TRRendererRef renderer, TRGlyphID glyphID)
 {
     TRGlyphImageRef glyphImage = NULL;
+    TRGlyphCacheRef cache = GetCache(renderer);
 
-    if (renderer->typeface) {
+    if (renderer->typeface && cache) {
         TRFloat scaleX, scaleY;
         GlyphDataKey key;
 
         SetupDataKey(renderer, &key, &scaleX, &scaleY);
 
-        glyphImage = TRGlyphCacheCopyImage(GetCache(renderer), &key, glyphID,
-            renderer->foregroundColor);
+        glyphImage = TRGlyphCacheCopyImage(cache, &key, glyphID, renderer->foregroundColor);
     }
 
     return glyphImage;
@@ -498,8 +498,9 @@ TRGlyphImageRef TRRendererCopyGlyphImage(TRRendererRef renderer, TRGlyphID glyph
 TRGlyphImageRef TRRendererCopyStrokeImage(TRRendererRef renderer, TRGlyphID glyphID)
 {
     TRGlyphImageRef strokeImage = NULL;
+    TRGlyphCacheRef cache = GetCache(renderer);
 
-    if (renderer->typeface) {
+    if (renderer->typeface && cache) {
         TRFloat radius = (renderer->strokeRadius > 0.0f ? renderer->strokeRadius : 0.0f);
         TRFloat miter = (renderer->strokeMiter > 0.0f ? renderer->strokeMiter : 0.0f);
         TRFloat scaleX, scaleY;
@@ -513,7 +514,7 @@ TRGlyphImageRef TRRendererCopyStrokeImage(TRRendererRef renderer, TRGlyphID glyp
         strokeKey.lineJoin = renderer->strokeJoin;
         strokeKey.miterLimit = ToFixed(miter, 65536.0f);
 
-        strokeImage = TRGlyphCacheCopyStrokeImage(GetCache(renderer), &key, &strokeKey, glyphID);
+        strokeImage = TRGlyphCacheCopyStrokeImage(cache, &key, &strokeKey, glyphID);
     }
 
     return strokeImage;
@@ -522,14 +523,15 @@ TRGlyphImageRef TRRendererCopyStrokeImage(TRRendererRef renderer, TRGlyphID glyp
 TRPathRef TRRendererCopyGlyphPath(TRRendererRef renderer, TRGlyphID glyphID)
 {
     TRPathRef glyphPath = NULL;
+    TRGlyphCacheRef cache = GetCache(renderer);
 
-    if (renderer->typeface) {
+    if (renderer->typeface && cache) {
         TRFloat scaleX, scaleY;
         GlyphDataKey key;
 
         SetupDataKey(renderer, &key, &scaleX, &scaleY);
 
-        glyphPath = TRGlyphCacheCopyPath(GetCache(renderer), &key, glyphID);
+        glyphPath = TRGlyphCacheCopyPath(cache, &key, glyphID);
     }
 
     return glyphPath;

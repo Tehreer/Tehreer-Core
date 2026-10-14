@@ -45,7 +45,8 @@ TR_PUBLIC TRGlyphCacheRef TRGlyphCacheCreate(TRUInteger capacity);
  * process does, and must not be released by the caller.
  *
  * @return
- *      The default glyph cache.
+ *      The default glyph cache, or `NULL` if it could not be created. A renderer that falls back
+ *      to it then returns `NULL` from the functions that copy glyph images and paths.
  */
 TR_PUBLIC TRGlyphCacheRef TRGlyphCacheGetDefault(void);
 

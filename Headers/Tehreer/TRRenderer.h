@@ -129,7 +129,8 @@ TR_PUBLIC TRRendererRef TRRendererCreate(void);
  * @param renderer
  *      The renderer.
  * @return
- *      The glyph cache, which is never `NULL`.
+ *      The glyph cache, or `NULL` if the renderer uses the default cache and it could not be
+ *      created.
  */
 TR_PUBLIC TRGlyphCacheRef TRRendererGetGlyphCache(TRRendererRef renderer);
 
