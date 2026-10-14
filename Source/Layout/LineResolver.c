@@ -247,7 +247,7 @@ static void AppendRunBeforeSkip(TruncationHandler *handler, const VisualRun *vis
     TRUInteger visualEnd = visualRun->end;
 
     LineResolverAppendVisualRuns(handler->typesetter, visualRun->start,
-        (visualEnd < handler->skipStart ? visualEnd : handler->skipStart), handler->list, TRFalse,
+        NumberMin(visualEnd, handler->skipStart), handler->list, TRFalse,
         0.0f);
 }
 
@@ -257,7 +257,7 @@ static void AppendRunAfterSkip(TruncationHandler *handler, const VisualRun *visu
     TRUInteger visualStart = visualRun->start;
 
     LineResolverAppendVisualRuns(handler->typesetter,
-        (visualStart > handler->skipEnd ? visualStart : handler->skipEnd), visualRun->end,
+        NumberMax(visualStart, handler->skipEnd), visualRun->end,
         handler->list, TRFalse, 0.0f);
 }
 
@@ -592,10 +592,8 @@ static TRBoolean JustifyRun(TRTypesetterRef typesetter, RunList *list, TRUIntege
         advances = AllocatorAllocateBlock(sizeof(TRFloat) * glyphRun->glyphCount);
 
         if (advances) {
-            TRUInteger runStart = (wordStart > glyphRun->codeUnitStart
-                                   ? wordStart : glyphRun->codeUnitStart);
-            TRUInteger runEnd = (wordEnd < glyphRun->codeUnitEnd
-                                 ? wordEnd : glyphRun->codeUnitEnd);
+            TRUInteger runStart = NumberMax(wordStart, glyphRun->codeUnitStart);
+            TRUInteger runEnd = NumberMin(wordEnd, glyphRun->codeUnitEnd);
             TRGlyphRun *justifiedRun;
 
             memcpy(advances, TRGlyphRunGetAdvances(glyphRun),
@@ -677,9 +675,8 @@ TR_INTERNAL void LineResolverAppendVisualRuns(TRTypesetterRef typesetter, TRUInt
             TRBoolean isForwardRun;
 
             textRun = TRTypesetterGetRun(typesetter, runIndex);
-            feasibleStart = (textRun->codeUnitStart > visualStart
-                             ? textRun->codeUnitStart : visualStart);
-            feasibleEnd = (textRun->codeUnitEnd < end ? textRun->codeUnitEnd : end);
+            feasibleStart = NumberMax(textRun->codeUnitStart, visualStart);
+            feasibleEnd = NumberMin(textRun->codeUnitEnd, end);
             bidiLevel = textRun->bidiLevel;
             isForwardRun = (bidiLevel & 1) == 0;
 
