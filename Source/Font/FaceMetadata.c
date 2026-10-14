@@ -432,7 +432,7 @@ static RawMetadata *CreateRawMetadata(MemoryRef memory, FT_Face ftFace)
         paletteEntryCount = ftPalette.num_palette_entries;
         predefinedPaletteCount = ftPalette.num_palettes;
 
-                if (!AreColorsWithinLimit(paletteEntryCount, predefinedPaletteCount)) {
+        if (!AreColorsWithinLimit(paletteEntryCount, predefinedPaletteCount)) {
             hasPalettes = TRFalse;
             paletteEntryCount = 0;
             predefinedPaletteCount = 0;
