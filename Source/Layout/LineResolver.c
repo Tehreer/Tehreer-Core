@@ -741,7 +741,8 @@ TR_INTERNAL TRComposedLine *LineResolverCreateLine(TRTypesetterRef typesetter, T
         line = TRComposedLineCreate(&typesetter->buffer, start, end, list->items, list->count,
             paragraphLevel);
 
-        /* The line took the references of the runs, and the memory of the list is still the list's. */
+        /* The line took the references of the runs, and the memory of the list is still the
+         * list's. */
         list->count = 0;
         RunListFinalize(list);
     }

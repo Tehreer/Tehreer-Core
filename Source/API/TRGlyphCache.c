@@ -45,7 +45,8 @@
 #define InitialBucketCount  64
 #define DefaultCapacity     (8 * 1024 * 1024)
 
-/* The least size that FreeType can set is one pixel in each direction, which is 64 in 26.6 format. */
+/* The least size that FreeType can set is one pixel in each direction, which is 64 in 26.6
+ * format. */
 #define MinimumPixelSize    64
 
 enum {
@@ -142,7 +143,8 @@ static void SetupKey(CacheKey *key, TRUInt32 kind, const GlyphDataKey *dataKey, 
     key->glyphID = glyphID;
 }
 
-/* The cache MUST be locked by the caller for all of the functions below, until the rendering ones. */
+/* The cache MUST be locked by the caller for all of the functions below, until the rendering
+ * ones. */
 
 static void UnlinkFromList(TRGlyphCacheRef cache, GlyphCacheEntry *entry)
 {

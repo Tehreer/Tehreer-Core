@@ -153,8 +153,7 @@ TR_PUBLIC TRUInteger TRTypesetterSuggestBackwardBreak(TRTypesetterRef typesetter
  *      The index of the first code unit of the line.
  * @param length
  *      The number of code units of the line, which MUST NOT be zero. The range of the line has to
- *      be
- *      within the text.
+ *      be within the text.
  * @return
  *      New line, or `NULL` if the range is empty or is not within the text, or on failure.
  */
@@ -172,8 +171,7 @@ TR_PUBLIC TRComposedLineRef TRTypesetterCreateSimpleLine(TRTypesetterRef typeset
  *      The index of the first code unit of the line.
  * @param length
  *      The number of code units of the line, which MUST NOT be zero. The range of the line has to
- *      be
- *      within the text.
+ *      be within the text.
  * @param layoutWidth
  *      The width of the frame.
  * @return
@@ -192,8 +190,7 @@ TR_PUBLIC TRComposedLineRef TRTypesetterCreateFrameLine(TRTypesetterRef typesett
  *      The index of the first code unit of the line that is truncated.
  * @param length
  *      The number of code units of the line that is truncated, which MUST NOT be zero. The range
- *      has
- *      to be within the text.
+ *      has to be within the text.
  * @param truncationPlace
  *      The place where text is cut out.
  * @param tokenString
@@ -220,8 +217,7 @@ TR_PUBLIC TRComposedLineRef TRTypesetterCreateTruncationToken(TRTypesetterRef ty
  *      The index of the first code unit of the line.
  * @param length
  *      The number of code units of the line, which MUST NOT be zero. The range of the line has to
- *      be
- *      within the text.
+ *      be within the text.
  * @param extent
  *      The extent at which the truncation begins.
  * @param breakMode
@@ -231,8 +227,8 @@ TR_PUBLIC TRComposedLineRef TRTypesetterCreateTruncationToken(TRTypesetterRef ty
  * @param tokenLine
  *      The line of the token, such as one from `TRTypesetterCreateTruncationToken()`.
  * @return
- *      New line, or `NULL` on failure. Its range is the whole range, including the text that was cut
- *      out.
+ *      New line, or `NULL` on failure. Its range is the whole range, including the text that was
+ *      cut out.
  */
 TR_PUBLIC TRComposedLineRef TRTypesetterCreateTruncatedLine(TRTypesetterRef typesetter,
     TRUInteger index, TRUInteger length, TRFloat extent, TRBreakMode breakMode,
@@ -247,8 +243,7 @@ TR_PUBLIC TRComposedLineRef TRTypesetterCreateTruncatedLine(TRTypesetterRef type
  *      The index of the first code unit of the line.
  * @param length
  *      The number of code units of the line, which MUST NOT be zero. The range of the line has to
- *      be
- *      within the text.
+ *      be within the text.
  * @param justificationFactor
  *      How much of the extra space is used: 1 or more stretches the line fully, anything less does
  *      it partially, and 0 or less leaves it as it is.
