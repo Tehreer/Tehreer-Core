@@ -78,7 +78,7 @@ TR_PUBLIC TRWritingDirection TRShapingEngineGetScriptDefaultDirection(TRTag scri
  *      `TRTagMake('d', 'f', 'l', 't')`, which is the default language, if the name is `NULL` or has
  *      no tag.
  */
-TR_PUBLIC TRTag TRShapingEngineGetLanguageTag(const char *languageName);
+TR_PUBLIC TRTag TRShapingEngineGetLanguageTagForName(const char *languageName);
 
 /**
  * Creates a shaping engine with a type size of 16, the `DFLT` script, the `dflt` language, left to
@@ -100,6 +100,18 @@ TR_PUBLIC TRShapingEngineRef TRShapingEngineCreate(void);
 TR_PUBLIC void TRShapingEngineSetTypeface(TRShapingEngineRef engine, TRTypefaceRef typeface);
 
 /**
+ * Returns the typeface that the engine shapes with.
+ *
+ * @param engine
+ *      The shaping engine.
+ * @return
+ *      The typeface, or `NULL` if none was set, which is the case for a new engine. It is not
+ *      retained for the caller, and stays valid as long as the engine keeps it, i.e. until another
+ *      typeface is set or the engine is released.
+ */
+TR_PUBLIC TRTypefaceRef TRShapingEngineGetTypeface(TRShapingEngineRef engine);
+
+/**
  * Sets the size of the em square that the results are measured in. The default is 16. A size that
  * is not positive is taken as zero.
  *
@@ -109,6 +121,17 @@ TR_PUBLIC void TRShapingEngineSetTypeface(TRShapingEngineRef engine, TRTypefaceR
  *      The size of the em square.
  */
 TR_PUBLIC void TRShapingEngineSetTypeSize(TRShapingEngineRef engine, TRFloat typeSize);
+
+/**
+ * Returns the size of the em square that the results are measured in.
+ *
+ * @param engine
+ *      The shaping engine.
+ * @return
+ *      The size as it was last passed to `TRShapingEngineSetTypeSize()`, without any adjustment, or
+ *      16 for a new engine.
+ */
+TR_PUBLIC TRFloat TRShapingEngineGetTypeSize(TRShapingEngineRef engine);
 
 /**
  * Sets the OpenType tag of the script of the text. The default is `DFLT`.
@@ -121,14 +144,35 @@ TR_PUBLIC void TRShapingEngineSetTypeSize(TRShapingEngineRef engine, TRFloat typ
 TR_PUBLIC void TRShapingEngineSetScriptTag(TRShapingEngineRef engine, TRTag scriptTag);
 
 /**
+ * Returns the OpenType tag of the script of the text.
+ *
+ * @param engine
+ *      The shaping engine.
+ * @return
+ *      The tag of the script, or `DFLT` for a new engine.
+ */
+TR_PUBLIC TRTag TRShapingEngineGetScriptTag(TRShapingEngineRef engine);
+
+/**
  * Sets the OpenType tag of the language of the text. The default is `dflt`.
  *
  * @param engine
  *      The shaping engine.
  * @param languageTag
- *      The tag of the language, which `TRShapingEngineGetLanguageTag()` can make from a name.
+ *      The tag of the language, which `TRShapingEngineGetLanguageTagForName()` can make from a
+ *      name.
  */
 TR_PUBLIC void TRShapingEngineSetLanguageTag(TRShapingEngineRef engine, TRTag languageTag);
+
+/**
+ * Returns the OpenType tag of the language of the text.
+ *
+ * @param engine
+ *      The shaping engine.
+ * @return
+ *      The tag of the language, or `dflt` for a new engine.
+ */
+TR_PUBLIC TRTag TRShapingEngineGetLanguageTag(TRShapingEngineRef engine);
 
 /**
  * Sets the direction in which the text is written. The default is left to right. A value that is
@@ -143,6 +187,17 @@ TR_PUBLIC void TRShapingEngineSetWritingDirection(TRShapingEngineRef engine,
     TRWritingDirection writingDirection);
 
 /**
+ * Returns the direction in which the text is written.
+ *
+ * @param engine
+ *      The shaping engine.
+ * @return
+ *      The direction as it was last passed to `TRShapingEngineSetWritingDirection()`, or
+ *      `TRWritingDirectionLeftToRight` for a new engine.
+ */
+TR_PUBLIC TRWritingDirection TRShapingEngineGetWritingDirection(TRShapingEngineRef engine);
+
+/**
  * Sets the order in which the text is shaped. Backward order means that the code units run against
  * the writing direction, as in right-to-left text that is embedded in left-to-right text. The
  * default is forward. A value that is not valid is treated as forward.
@@ -154,6 +209,17 @@ TR_PUBLIC void TRShapingEngineSetWritingDirection(TRShapingEngineRef engine,
  */
 TR_PUBLIC void TRShapingEngineSetShapingOrder(TRShapingEngineRef engine,
     TRShapingOrder shapingOrder);
+
+/**
+ * Returns the order in which the text is shaped.
+ *
+ * @param engine
+ *      The shaping engine.
+ * @return
+ *      The order as it was last passed to `TRShapingEngineSetShapingOrder()`, or
+ *      `TRShapingOrderForward` for a new engine.
+ */
+TR_PUBLIC TRShapingOrder TRShapingEngineGetShapingOrder(TRShapingEngineRef engine);
 
 /**
  * Sets the OpenType features to apply on the whole text. The features are copied, and they replace
@@ -171,6 +237,28 @@ TR_PUBLIC void TRShapingEngineSetShapingOrder(TRShapingEngineRef engine,
  */
 TR_PUBLIC TRBoolean TRShapingEngineSetOpenTypeFeatures(TRShapingEngineRef engine,
     const TROpenTypeFeature *features, TRUInteger count);
+
+/**
+ * Returns the OpenType features that are applied on the whole text. Their number is given by
+ * `TRShapingEngineGetOpenTypeFeatureCount()`.
+ *
+ * @param engine
+ *      The shaping engine.
+ * @return
+ *      The features, which are owned by the engine and valid until the features are set again or
+ *      the engine is released, or `NULL` if there are none, which is the case for a new engine.
+ */
+TR_PUBLIC const TROpenTypeFeature *TRShapingEngineGetOpenTypeFeaturesPtr(TRShapingEngineRef engine);
+
+/**
+ * Returns the number of OpenType features that are applied on the whole text.
+ *
+ * @param engine
+ *      The shaping engine.
+ * @return
+ *      The number of features, or zero for a new engine.
+ */
+TR_PUBLIC TRUInteger TRShapingEngineGetOpenTypeFeatureCount(TRShapingEngineRef engine);
 
 /**
  * Shapes a run of text into glyphs, with the typeface, size, script, language, direction, order and

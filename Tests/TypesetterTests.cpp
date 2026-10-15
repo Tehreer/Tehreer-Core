@@ -720,9 +720,9 @@ void TypesetterTests::testLanguageAndFeatureAttributes() {
     TRTypefaceRef regular = createTestTypeface("Roboto-Regular.abc.ttf");
 
     /* The language is a tag, which the name of a language gives. */
-    assert(TRShapingEngineGetLanguageTag("ur-PK") == TRTagMake('U', 'R', 'D', ' '));
-    assert(TRShapingEngineGetLanguageTag("tr") == TRTagMake('T', 'R', 'K', ' '));
-    assert(TRShapingEngineGetLanguageTag(nullptr) == TRTagMake('d', 'f', 'l', 't'));
+    assert(TRShapingEngineGetLanguageTagForName("ur-PK") == TRTagMake('U', 'R', 'D', ' '));
+    assert(TRShapingEngineGetLanguageTagForName("tr") == TRTagMake('T', 'R', 'K', ' '));
+    assert(TRShapingEngineGetLanguageTagForName(nullptr) == TRTagMake('d', 'f', 'l', 't'));
 
     TRMutableTextRef text = makeTestText(u"abcabcabc", regular, EmSize);
 

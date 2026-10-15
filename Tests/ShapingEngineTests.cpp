@@ -42,6 +42,7 @@ using namespace Tehreer;
 
 void ShapingEngineTests::run() {
     testDefaults();
+    testGetters();
     testScriptDefaultDirection();
     testInvalidArguments();
     testEmptyText();
@@ -127,6 +128,78 @@ void ShapingEngineTests::testDefaults() {
     assert(engine->shapingOrder == TRShapingOrderBackward);
 
     TRShapingEngineRelease(engine);
+}
+
+void ShapingEngineTests::testGetters() {
+    TRTypefaceRef typeface = createTestTypeface("Roboto-Regular.abc.ttf");
+    TRTypefaceRef other = createTestTypeface("Roboto-Variable.abc.ttf");
+    TRShapingEngineRef engine = TRShapingEngineCreate();
+
+    /* Defaults. */
+    assert(TRShapingEngineGetTypeface(engine) == nullptr);
+    assert(TRShapingEngineGetTypeSize(engine) == 16.0f);
+    assert(TRShapingEngineGetScriptTag(engine) == TRTagMake('D', 'F', 'L', 'T'));
+    assert(TRShapingEngineGetLanguageTag(engine) == TRTagMake('d', 'f', 'l', 't'));
+    assert(TRShapingEngineGetWritingDirection(engine) == TRWritingDirectionLeftToRight);
+    assert(TRShapingEngineGetShapingOrder(engine) == TRShapingOrderForward);
+    assert(TRShapingEngineGetOpenTypeFeaturesPtr(engine) == nullptr);
+    assert(TRShapingEngineGetOpenTypeFeatureCount(engine) == 0);
+
+    /* Round trip of every setter. */
+    TRShapingEngineSetTypeface(engine, typeface);
+    TRShapingEngineSetTypeSize(engine, 30.5f);
+    TRShapingEngineSetScriptTag(engine, TRTagMake('a', 'r', 'a', 'b'));
+    TRShapingEngineSetLanguageTag(engine, TRShapingEngineGetLanguageTagForName("ur-PK"));
+    TRShapingEngineSetWritingDirection(engine, TRWritingDirectionRightToLeft);
+    TRShapingEngineSetShapingOrder(engine, TRShapingOrderBackward);
+
+    assert(TRShapingEngineGetTypeface(engine) == typeface);
+    assert(TRShapingEngineGetTypeSize(engine) == 30.5f);
+    assert(TRShapingEngineGetScriptTag(engine) == TRTagMake('a', 'r', 'a', 'b'));
+    assert(TRShapingEngineGetLanguageTag(engine) == TRTagMake('U', 'R', 'D', ' '));
+    assert(TRShapingEngineGetWritingDirection(engine) == TRWritingDirectionRightToLeft);
+    assert(TRShapingEngineGetShapingOrder(engine) == TRShapingOrderBackward);
+
+    /* The type size is returned as it was set. */
+    TRShapingEngineSetTypeSize(engine, -4.0f);
+    assert(TRShapingEngineGetTypeSize(engine) == -4.0f);
+
+    /* The getter does not retain the typeface. */
+    assert(AtomicUIntLoad(&typeface->_base.retainCount) == 2);
+    assert(TRShapingEngineGetTypeface(engine) == typeface);
+    assert(AtomicUIntLoad(&typeface->_base.retainCount) == 2);
+
+    TRShapingEngineSetTypeface(engine, other);
+    assert(TRShapingEngineGetTypeface(engine) == other);
+    TRShapingEngineSetTypeface(engine, nullptr);
+    assert(TRShapingEngineGetTypeface(engine) == nullptr);
+
+    /* Features are copied, replaced and cleared. */
+    TROpenTypeFeature features[] = {
+        { TRTagMake('l', 'i', 'g', 'a'), 0 },
+        { TRTagMake('k', 'e', 'r', 'n'), 1 }
+    };
+    assert(TRShapingEngineSetOpenTypeFeatures(engine, features, 2));
+    assert(TRShapingEngineGetOpenTypeFeatureCount(engine) == 2);
+
+    const TROpenTypeFeature *stored = TRShapingEngineGetOpenTypeFeaturesPtr(engine);
+    assert(stored != nullptr);
+    assert(stored != features);
+    assert(stored[0].tag == TRTagMake('l', 'i', 'g', 'a') && stored[0].value == 0);
+    assert(stored[1].tag == TRTagMake('k', 'e', 'r', 'n') && stored[1].value == 1);
+
+    TROpenTypeFeature one[] = { { TRTagMake('s', 'm', 'c', 'p'), 1 } };
+    assert(TRShapingEngineSetOpenTypeFeatures(engine, one, 1));
+    assert(TRShapingEngineGetOpenTypeFeatureCount(engine) == 1);
+    assert(TRShapingEngineGetOpenTypeFeaturesPtr(engine)[0].tag == TRTagMake('s', 'm', 'c', 'p'));
+
+    assert(TRShapingEngineSetOpenTypeFeatures(engine, nullptr, 0));
+    assert(TRShapingEngineGetOpenTypeFeatureCount(engine) == 0);
+    assert(TRShapingEngineGetOpenTypeFeaturesPtr(engine) == nullptr);
+
+    TRShapingEngineRelease(engine);
+    TRTypefaceRelease(other);
+    TRTypefaceRelease(typeface);
 }
 
 void ShapingEngineTests::testScriptDefaultDirection() {

@@ -27,6 +27,7 @@ public:
 
 private:
     void testDefaults();
+    void testGetters();
     void testScriptDefaultDirection();
     void testInvalidArguments();
     void testEmptyText();

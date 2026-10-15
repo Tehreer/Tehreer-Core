@@ -97,8 +97,8 @@ typedef TRUInt32 TRTextAlignment;
  * The language and the font features change how the text is shaped, so a glyph run never spans a
  * change of them. The language is the OpenType tag of a language, which makes the font pick the
  * forms of it, as for the Han characters of Japanese or Chinese, or the dotted and dotless i of
- * Turkish; `TRShapingEngineGetLanguageTag()` makes it from a name in the form of BCP 47, and it is
- * the default language if it is not set. The font features are the settings that are applied on
+ * Turkish; `TRShapingEngineGetLanguageTagForName()` makes it from a name in the form of BCP 47, and
+ * it is the default language if it is not set. The font features are the settings that are applied on
  * top of the defaults of the font, e.g. `smcp` for small capitals or `tnum` for tabular figures.
  *
  * The indents of a paragraph are measured from the leading edge, except the tail indent: if it is

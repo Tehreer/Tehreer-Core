@@ -126,13 +126,13 @@ void FontFeaturesTests::testRetainRelease() {
 void FontFeaturesTests::testLanguageTags() {
     const TRTag defaultTag = TRTagMake('d', 'f', 'l', 't');
 
-    assert(TRShapingEngineGetLanguageTag("en") == TRTagMake('E', 'N', 'G', ' '));
-    assert(TRShapingEngineGetLanguageTag("ur-PK") == TRTagMake('U', 'R', 'D', ' '));
-    assert(TRShapingEngineGetLanguageTag("tr-TR") == TRTagMake('T', 'R', 'K', ' '));
-    assert(TRShapingEngineGetLanguageTag("sr") == TRTagMake('S', 'R', 'B', ' '));
-    assert(TRShapingEngineGetLanguageTag("ja") == TRTagMake('J', 'A', 'N', ' '));
-    assert(TRShapingEngineGetLanguageTag(nullptr) == defaultTag);
-    assert(TRShapingEngineGetLanguageTag("") == defaultTag);
+    assert(TRShapingEngineGetLanguageTagForName("en") == TRTagMake('E', 'N', 'G', ' '));
+    assert(TRShapingEngineGetLanguageTagForName("ur-PK") == TRTagMake('U', 'R', 'D', ' '));
+    assert(TRShapingEngineGetLanguageTagForName("tr-TR") == TRTagMake('T', 'R', 'K', ' '));
+    assert(TRShapingEngineGetLanguageTagForName("sr") == TRTagMake('S', 'R', 'B', ' '));
+    assert(TRShapingEngineGetLanguageTagForName("ja") == TRTagMake('J', 'A', 'N', ' '));
+    assert(TRShapingEngineGetLanguageTagForName(nullptr) == defaultTag);
+    assert(TRShapingEngineGetLanguageTagForName("") == defaultTag);
 }
 
 #ifdef STANDALONE_TESTING

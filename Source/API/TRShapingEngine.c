@@ -158,7 +158,7 @@ TRWritingDirection TRShapingEngineGetScriptDefaultDirection(TRTag scriptTag)
     return writingDirection;
 }
 
-TRTag TRShapingEngineGetLanguageTag(const char *languageName)
+TRTag TRShapingEngineGetLanguageTagForName(const char *languageName)
 {
     TRTag languageTag = TRTagMake('d', 'f', 'l', 't');
 
@@ -211,9 +211,19 @@ void TRShapingEngineSetTypeface(TRShapingEngineRef engine, TRTypefaceRef typefac
     engine->typeface = typeface;
 }
 
+TRTypefaceRef TRShapingEngineGetTypeface(TRShapingEngineRef engine)
+{
+    return engine->typeface;
+}
+
 void TRShapingEngineSetTypeSize(TRShapingEngineRef engine, TRFloat typeSize)
 {
     engine->typeSize = typeSize;
+}
+
+TRFloat TRShapingEngineGetTypeSize(TRShapingEngineRef engine)
+{
+    return engine->typeSize;
 }
 
 void TRShapingEngineSetScriptTag(TRShapingEngineRef engine, TRTag scriptTag)
@@ -221,9 +231,19 @@ void TRShapingEngineSetScriptTag(TRShapingEngineRef engine, TRTag scriptTag)
     engine->scriptTag = scriptTag;
 }
 
+TRTag TRShapingEngineGetScriptTag(TRShapingEngineRef engine)
+{
+    return engine->scriptTag;
+}
+
 void TRShapingEngineSetLanguageTag(TRShapingEngineRef engine, TRTag languageTag)
 {
     engine->languageTag = languageTag;
+}
+
+TRTag TRShapingEngineGetLanguageTag(TRShapingEngineRef engine)
+{
+    return engine->languageTag;
 }
 
 void TRShapingEngineSetWritingDirection(TRShapingEngineRef engine,
@@ -232,9 +252,19 @@ void TRShapingEngineSetWritingDirection(TRShapingEngineRef engine,
     engine->writingDirection = writingDirection;
 }
 
+TRWritingDirection TRShapingEngineGetWritingDirection(TRShapingEngineRef engine)
+{
+    return engine->writingDirection;
+}
+
 void TRShapingEngineSetShapingOrder(TRShapingEngineRef engine, TRShapingOrder shapingOrder)
 {
     engine->shapingOrder = shapingOrder;
+}
+
+TRShapingOrder TRShapingEngineGetShapingOrder(TRShapingEngineRef engine)
+{
+    return engine->shapingOrder;
 }
 
 TRBoolean TRShapingEngineSetOpenTypeFeatures(TRShapingEngineRef engine,
@@ -265,6 +295,16 @@ TRBoolean TRShapingEngineSetOpenTypeFeatures(TRShapingEngineRef engine,
     }
 
     return isSet;
+}
+
+const TROpenTypeFeature *TRShapingEngineGetOpenTypeFeaturesPtr(TRShapingEngineRef engine)
+{
+    return engine->features;
+}
+
+TRUInteger TRShapingEngineGetOpenTypeFeatureCount(TRShapingEngineRef engine)
+{
+    return engine->featureCount;
 }
 
 TRShapingResultRef TRShapingEngineCreateShapingResult(TRShapingEngineRef engine, const void *codeUnits,
