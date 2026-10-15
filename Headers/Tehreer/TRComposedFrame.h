@@ -109,15 +109,18 @@ TR_PUBLIC TRUInteger TRComposedFrameGetLineCount(TRComposedFrameRef frame);
 TR_PUBLIC TRComposedLineRef TRComposedFrameGetLine(TRComposedFrameRef frame, TRUInteger index);
 
 /**
- * Returns the index of the line that has a code unit, or `TRInvalidIndex` if there is none, as for
- * a code unit that is not within the range of the frame.
+ * Returns the index of the line that has a code unit. The end index of the frame, which is the
+ * insertion point after its last character, belongs to the last line. If there is no line for the
+ * code unit, as for one that is below the start or above the end of the frame, or for any code unit
+ * of a frame that has no lines, `TRInvalidIndex` is returned.
  *
  * @param frame
  *      The frame.
  * @param codeUnitIndex
- *      The index of the code unit.
+ *      The index of the code unit, from the start index up to and including the end index of the
+ *      frame.
  * @return
- *      The index of the line.
+ *      The index of the line, or `TRInvalidIndex` if the code unit has none.
  */
 TR_PUBLIC TRUInteger TRComposedFrameGetLineIndexForCodeUnit(TRComposedFrameRef frame,
     TRUInteger codeUnitIndex);

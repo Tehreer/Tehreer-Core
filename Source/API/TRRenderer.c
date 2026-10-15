@@ -182,7 +182,7 @@ TR_INTERNAL void TRRendererEnumeratePathPlacements(TRRendererRef renderer,
 
         BeginGlyph(renderer, &pen, offsets, advances, index, &offsetX, &offsetY, &advance);
 
-        path = TRRendererCopyGlyphPath(renderer, glyphIDs[index]);
+        path = TRRendererCreateGlyphPath(renderer, glyphIDs[index]);
         if (path) {
             TRPoint origin;
 
@@ -471,7 +471,7 @@ TRBoolean TRRendererIsRenderable(TRRendererRef renderer)
             && ToPixelSize(renderer, renderer->scaleY) >= 64);
 }
 
-TRGlyphImageRef TRRendererCopyGlyphImage(TRRendererRef renderer, TRGlyphID glyphID)
+TRGlyphImageRef TRRendererCreateGlyphImage(TRRendererRef renderer, TRGlyphID glyphID)
 {
     TRGlyphImageRef glyphImage = NULL;
     TRGlyphCacheRef cache = GetCache(renderer);
@@ -488,7 +488,7 @@ TRGlyphImageRef TRRendererCopyGlyphImage(TRRendererRef renderer, TRGlyphID glyph
     return glyphImage;
 }
 
-TRGlyphImageRef TRRendererCopyStrokeImage(TRRendererRef renderer, TRGlyphID glyphID)
+TRGlyphImageRef TRRendererCreateStrokeImage(TRRendererRef renderer, TRGlyphID glyphID)
 {
     TRGlyphImageRef strokeImage = NULL;
     TRGlyphCacheRef cache = GetCache(renderer);
@@ -513,7 +513,7 @@ TRGlyphImageRef TRRendererCopyStrokeImage(TRRendererRef renderer, TRGlyphID glyp
     return strokeImage;
 }
 
-TRPathRef TRRendererCopyGlyphPath(TRRendererRef renderer, TRGlyphID glyphID)
+TRPathRef TRRendererCreateGlyphPath(TRRendererRef renderer, TRGlyphID glyphID)
 {
     TRPathRef glyphPath = NULL;
     TRGlyphCacheRef cache = GetCache(renderer);
@@ -530,9 +530,9 @@ TRPathRef TRRendererCopyGlyphPath(TRRendererRef renderer, TRGlyphID glyphID)
     return glyphPath;
 }
 
-TRRect TRRendererGetGlyphInkBox(TRRendererRef renderer, TRGlyphID glyphID)
+TRRect TRRendererComputeGlyphInkBox(TRRendererRef renderer, TRGlyphID glyphID)
 {
-    TRGlyphImageRef image = TRRendererCopyGlyphImage(renderer, glyphID);
+    TRGlyphImageRef image = TRRendererCreateGlyphImage(renderer, glyphID);
     TRRect box;
 
     box.origin.x = 0.0f;
@@ -576,7 +576,7 @@ TRRect TRRendererComputeRunInkBox(TRRendererRef renderer, const TRGlyphID *glyph
 
         BeginGlyph(renderer, &pen, offsets, advances, index, &offsetX, &offsetY, &advance);
 
-        image = TRRendererCopyGlyphImage(renderer, glyphIDs[index]);
+        image = TRRendererCreateGlyphImage(renderer, glyphIDs[index]);
         if (image) {
             TRFloat left = TRRendererRoundPixel(pen.penX + offsetX
                                       + ((TRFloat)TRGlyphImageGetLeft(image) * scaleX));
@@ -644,8 +644,8 @@ void TRRendererEnumerateGlyphPlacements(TRRendererRef renderer, TRGlyphImageKind
         BeginGlyph(renderer, &pen, offsets, advances, index, &offsetX, &offsetY, &advance);
 
         image = (kind == TRGlyphImageKindStroke
-                 ? TRRendererCopyStrokeImage(renderer, glyphIDs[index])
-                 : TRRendererCopyGlyphImage(renderer, glyphIDs[index]));
+                 ? TRRendererCreateStrokeImage(renderer, glyphIDs[index])
+                 : TRRendererCreateGlyphImage(renderer, glyphIDs[index]));
 
         if (image) {
             TRPoint origin;
@@ -680,7 +680,7 @@ void TRRendererEnumerateGlyphPaths(TRRendererRef renderer, const TRGlyphID *glyp
             penX -= advances[index];
         }
 
-        path = TRRendererCopyGlyphPath(renderer, glyphIDs[index]);
+        path = TRRendererCreateGlyphPath(renderer, glyphIDs[index]);
         if (path) {
             TRAffineTransform transform;
 

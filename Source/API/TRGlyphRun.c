@@ -964,7 +964,7 @@ TRBoolean TRGlyphRunGetCodeUnitDistance(TRGlyphRunRef run, TRUInteger codeUnitIn
     return isFound;
 }
 
-TRUInteger TRGlyphRunGetCodeUnitIndex(TRGlyphRunRef run, TRFloat distance)
+TRUInteger TRGlyphRunGetCodeUnitIndexAtDistance(TRGlyphRunRef run, TRFloat distance)
 {
     TRUInteger actualStart = TRGlyphRunGetActualStart(run);
     TRUInteger first = run->codeUnitStart - actualStart;

@@ -459,8 +459,7 @@ static void ResolveParagraphLines(FrameContext *context, TRFrameResolverRef reso
         }
 
         /* Create the line and resolve its attributes. */
-        line = LineResolverCreateSimpleLine(typesetter, lineStart, lineEnd, TRTrue,
-            context->layoutWidth);
+        line = LineResolverCreateSimpleLine(typesetter, lineStart, lineEnd, context->layoutWidth);
 
         if (!line) {
             context->hasFailed = TRTrue;

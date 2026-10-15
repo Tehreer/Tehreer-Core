@@ -190,14 +190,13 @@ static TRUInteger GetPaint(TRTypesetterRef typesetter, TRUInteger index, GlyphRu
 /* A replacement is taken as a whole, and its room is decided by the layout width. */
 static TRUInteger AppendReplacementRun(TRTypesetterRef typesetter, RunList *list,
     TextRunRef textRun, TRUInteger insertIndex, TRUInteger start, TRUInteger end,
-    TRBoolean isForwardRun, TRBoolean hasLayoutWidth, TRFloat layoutWidth)
+    TRBoolean isForwardRun, TRFloat layoutWidth)
 {
     GlyphRunPaint paint;
     TextRunRef sizedRun;
 
     GetPaint(typesetter, start, &paint);
-    sizedRun = (hasLayoutWidth ? TextRunCreateForLayoutWidth(textRun, layoutWidth)
-                               : TextRunRetain(textRun));
+    sizedRun = TextRunCreateForLayoutWidth(textRun, layoutWidth);
 
     if (sizedRun) {
         RunListInsert(list, insertIndex, TRGlyphRunCreate(sizedRun, start, end, &paint));
@@ -249,8 +248,7 @@ static void AppendRunBeforeSkip(TruncationHandler *handler, const VisualRun *vis
     TRUInteger visualEnd = visualRun->end;
 
     LineResolverAppendVisualRuns(handler->typesetter, visualRun->start,
-        NumberMin(visualEnd, handler->skipStart), handler->list, TRFalse,
-        0.0f);
+        NumberMin(visualEnd, handler->skipStart), handler->list, 0.0f);
 }
 
 /* Handles the second part of the characters, which comes after the skipped ones. */
@@ -260,7 +258,7 @@ static void AppendRunAfterSkip(TruncationHandler *handler, const VisualRun *visu
 
     LineResolverAppendVisualRuns(handler->typesetter,
         NumberMax(visualStart, handler->skipEnd), visualRun->end,
-        handler->list, TRFalse, 0.0f);
+        handler->list, 0.0f);
 }
 
 static void AppendRunOfTruncation(TruncationHandler *handler, const VisualRun *visualRun)
@@ -381,7 +379,7 @@ static TRUInt8 GetBaseLevel(TRTypesetterRef typesetter, TRUInteger index)
 
 /* Appends the glyph runs of a range, in the order of the visual runs that it has. */
 static TRBoolean AppendRunsOfRange(TRTypesetterRef typesetter, TRUInteger start, TRUInteger end,
-    RunList *list, TRBoolean hasLayoutWidth, TRFloat layoutWidth)
+    RunList *list, TRFloat layoutWidth)
 {
     Array visualRuns;
     TRBoolean isAppended;
@@ -397,7 +395,7 @@ static TRBoolean AppendRunsOfRange(TRTypesetterRef typesetter, TRUInteger start,
             const VisualRun *visualRun = ArrayGetItem(&visualRuns, index);
 
             LineResolverAppendVisualRuns(typesetter, visualRun->start, visualRun->end, list,
-                hasLayoutWidth, layoutWidth);
+                layoutWidth);
         }
     }
 
@@ -437,7 +435,7 @@ static TRComposedLine *CreateStartTruncatedLine(TRTypesetterRef typesetter, TRUI
             RunListFinalize(&list);
         }
     } else {
-        truncatedLine = LineResolverCreateSimpleLine(typesetter, start, end, TRFalse, 0.0f);
+        truncatedLine = LineResolverCreateSimpleLine(typesetter, start, end, 0.0f);
     }
 
     return truncatedLine;
@@ -481,7 +479,7 @@ static TRComposedLine *CreateMiddleTruncatedLine(TRTypesetterRef typesetter, TRU
             RunListFinalize(&list);
         }
     } else {
-        truncatedLine = LineResolverCreateSimpleLine(typesetter, start, end, TRFalse, 0.0f);
+        truncatedLine = LineResolverCreateSimpleLine(typesetter, start, end, 0.0f);
     }
 
     return truncatedLine;
@@ -521,7 +519,7 @@ static TRComposedLine *CreateEndTruncatedLine(TRTypesetterRef typesetter, TRUInt
             RunListFinalize(&list);
         }
     } else {
-        truncatedLine = LineResolverCreateSimpleLine(typesetter, start, end, TRFalse, 0.0f);
+        truncatedLine = LineResolverCreateSimpleLine(typesetter, start, end, 0.0f);
     }
 
     return truncatedLine;
@@ -652,7 +650,7 @@ TR_INTERNAL void RunListInsert(RunList *list, TRUInteger index, TRGlyphRun *glyp
 }
 
 TR_INTERNAL void LineResolverAppendVisualRuns(TRTypesetterRef typesetter, TRUInteger start,
-    TRUInteger end, RunList *list, TRBoolean hasLayoutWidth, TRFloat layoutWidth)
+    TRUInteger end, RunList *list, TRFloat layoutWidth)
 {
     TRUInteger insertIndex = ArrayGetCount(&list->runs);
     TRUInteger visualStart = start;
@@ -688,7 +686,7 @@ TR_INTERNAL void LineResolverAppendVisualRuns(TRTypesetterRef typesetter, TRUInt
 
             if (textRun->kind == TextRunKindReplacement) {
                 insertIndex = AppendReplacementRun(typesetter, list, textRun, insertIndex,
-                    feasibleStart, feasibleEnd, isForwardRun, hasLayoutWidth, layoutWidth);
+                    feasibleStart, feasibleEnd, isForwardRun, layoutWidth);
             } else {
                 insertIndex = AppendPaintedRuns(typesetter, list, textRun, insertIndex,
                     feasibleStart, feasibleEnd, isForwardRun);
@@ -725,14 +723,14 @@ TR_INTERNAL TRComposedLine *LineResolverCreateLine(TRTypesetterRef typesetter, T
 }
 
 TR_INTERNAL TRComposedLine *LineResolverCreateSimpleLine(TRTypesetterRef typesetter,
-    TRUInteger start, TRUInteger end, TRBoolean hasLayoutWidth, TRFloat layoutWidth)
+    TRUInteger start, TRUInteger end, TRFloat layoutWidth)
 {
     TRComposedLine *simpleLine = NULL;
     RunList list;
 
     RunListInitialize(&list);
 
-    if (AppendRunsOfRange(typesetter, start, end, &list, hasLayoutWidth, layoutWidth)) {
+    if (AppendRunsOfRange(typesetter, start, end, &list, layoutWidth)) {
         simpleLine = LineResolverCreateLine(typesetter, start, end, &list,
             GetBaseLevel(typesetter, start));
     } else {
@@ -784,7 +782,7 @@ TR_INTERNAL TRComposedLine *LineResolverCreateJustifiedLine(TRTypesetterRef type
 
     RunListInitialize(&list);
 
-    if (AppendRunsOfRange(typesetter, start, end, &list, TRFalse, 0.0f) && !list.hasFailed) {
+    if (AppendRunsOfRange(typesetter, start, end, &list, 0.0f) && !list.hasFailed) {
         TRFloat spaceAddition = (innerSpaceCount > 0
                                  ? availableWidth / (TRFloat)innerSpaceCount : 0.0f);
         TRUInteger runIndex;

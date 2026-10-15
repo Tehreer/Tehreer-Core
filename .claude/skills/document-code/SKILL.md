@@ -48,7 +48,7 @@ TR_PUBLIC TRTypefaceRef TRGlyphRunGetTypeface(TRGlyphRunRef run);
 
 ### Ownership (Create Rule)
 
-- `Create`/`Copy` return an owned reference: `New <thing> that the caller owns`, and for Core Foundation style `Copy`, `which the caller owns and has to release`.
+- `Create`/`Copy` return an owned reference: `New <thing> that the caller owns`, and for one that a cache keeps as well or a `Copy`, `which the caller owns and has to release`.
 - `Get` does not retain: `The <thing> is not retained for the caller, and stays valid as long as the <owner> is alive`.
 - A setter that keeps a reference says so: `The renderer retains it.`
 - Every `Retain` and `Release` of an object uses these forms:

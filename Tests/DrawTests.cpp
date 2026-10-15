@@ -392,7 +392,7 @@ struct Fixture {
             typesetter = nullptr;
         }
 
-        TRComposedLineRef result = TRTypesetterCreateSimpleLine(make(), start, end - start);
+        TRComposedLineRef result = TRTypesetterCreateSimpleLine(make(), start, end - start, 0.0f);
         assert(result != nullptr);
 
         return result;

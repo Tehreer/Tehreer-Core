@@ -584,8 +584,9 @@ TR_PUBLIC void TRRendererSetDrawCallbacks(TRRendererRef renderer, const TRDrawCa
 TR_PUBLIC TRBoolean TRRendererIsRenderable(TRRendererRef renderer);
 
 /**
- * Copies the image that fills a glyph from the glyph cache. The image of a glyph of a bitmap font
- * is the one of its nearest strike, which is not scaled to the type size.
+ * Creates the image that fills a glyph, which the glyph cache keeps a reference to as well. The
+ * image of a glyph of a bitmap font is the one of its nearest strike, which is not scaled to the
+ * type size.
  *
  * The image is made in the foreground color of the renderer for the parts that follow it.
  *
@@ -597,11 +598,11 @@ TR_PUBLIC TRBoolean TRRendererIsRenderable(TRRendererRef renderer);
  *      The image, which the caller owns and has to release, or `NULL` if there is no typeface or
  *      the glyph has no image, such as a space.
  */
-TR_PUBLIC TRGlyphImageRef TRRendererCopyGlyphImage(TRRendererRef renderer, TRGlyphID glyphID);
+TR_PUBLIC TRGlyphImageRef TRRendererCreateGlyphImage(TRRendererRef renderer, TRGlyphID glyphID);
 
 /**
- * Copies the image of the outline of a glyph from the glyph cache, as stroked with the radius, cap,
- * join and miter of the renderer.
+ * Creates the image of the outline of a glyph, as stroked with the radius, cap, join and miter of
+ * the renderer. The glyph cache keeps a reference to the image as well.
  *
  * @param renderer
  *      The renderer.
@@ -611,10 +612,10 @@ TR_PUBLIC TRGlyphImageRef TRRendererCopyGlyphImage(TRRendererRef renderer, TRGly
  *      The image, which the caller owns and has to release, or `NULL` if there is no typeface or
  *      the glyph has no outline, as a glyph of a bitmap font.
  */
-TR_PUBLIC TRGlyphImageRef TRRendererCopyStrokeImage(TRRendererRef renderer, TRGlyphID glyphID);
+TR_PUBLIC TRGlyphImageRef TRRendererCreateStrokeImage(TRRendererRef renderer, TRGlyphID glyphID);
 
 /**
- * Returns the outline of a glyph in pixels, with the y axis pointing downward and the origin at
+ * Creates the outline of a glyph in pixels, with the y axis pointing downward and the origin at
  * the pen position on the baseline. Enumerate it with a transform that scales it by the inverse of
  * the render scale to get it in the user space.
  *
@@ -626,7 +627,7 @@ TR_PUBLIC TRGlyphImageRef TRRendererCopyStrokeImage(TRRendererRef renderer, TRGl
  *      The path, which the caller owns and has to release, or `NULL` if there is no typeface or the
  *      glyph has no outline.
  */
-TR_PUBLIC TRPathRef TRRendererCopyGlyphPath(TRRendererRef renderer, TRGlyphID glyphID);
+TR_PUBLIC TRPathRef TRRendererCreateGlyphPath(TRRendererRef renderer, TRGlyphID glyphID);
 
 /**
  * Returns the ink box of a glyph: the box around its image when it is placed at its pen position,
@@ -639,7 +640,7 @@ TR_PUBLIC TRPathRef TRRendererCopyGlyphPath(TRRendererRef renderer, TRGlyphID gl
  * @return
  *      The box, which is empty if the glyph has no image.
  */
-TR_PUBLIC TRRect TRRendererGetGlyphInkBox(TRRendererRef renderer, TRGlyphID glyphID);
+TR_PUBLIC TRRect TRRendererComputeGlyphInkBox(TRRendererRef renderer, TRGlyphID glyphID);
 
 /**
  * Returns the ink box of a run of glyphs: the box around their images, in the user space with the y

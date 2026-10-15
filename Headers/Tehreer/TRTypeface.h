@@ -244,6 +244,16 @@ TR_PUBLIC TRInt32 TRTypefaceGetLeading(TRTypefaceRef typeface);
 TR_PUBLIC TRUInteger TRTypefaceGetGlyphCount(TRTypefaceRef typeface);
 
 /**
+ * Returns whether the typeface is a variable font, which is so when it has variation axes.
+ *
+ * @param typeface
+ *      The typeface.
+ * @return
+ *      `TRTrue` if the typeface has at least one variation axis, `TRFalse` otherwise.
+ */
+TR_PUBLIC TRBoolean TRTypefaceIsVariable(TRTypefaceRef typeface);
+
+/**
  * Returns the variation axes of the typeface, which are empty if it is not a variable font. Their
  * number is given by `TRTypefaceGetVariationAxisCount()`.
  *
@@ -436,16 +446,15 @@ TR_PUBLIC TRTypefaceRef TRTypefaceCreateWithColors(TRTypefaceRef typeface, const
 TR_PUBLIC const TRStringView *TRTypefaceGetFamilyName(TRTypefaceRef typeface);
 
 /**
- * Returns the subfamily (style) name; it follows the variation coordinates when they match a named
- * style. `NULL` if there is none.
+ * Returns the style name of the typeface, such as "Regular" or "Bold Italic", which the font calls
+ * the subfamily name. It follows the variation coordinates when they match a named style.
  *
  * @param typeface
  *      The typeface.
  * @return
- *      The subfamily (style) name; it follows the variation coordinates when they match a named
- *      style.
+ *      The style name, or `NULL` if there is none.
  */
-TR_PUBLIC const TRStringView *TRTypefaceGetSubfamilyName(TRTypefaceRef typeface);
+TR_PUBLIC const TRStringView *TRTypefaceGetStyleName(TRTypefaceRef typeface);
 
 /**
  * Returns the full name. For a variable font that has named styles, it is made from the family name

@@ -99,6 +99,7 @@ void TypefaceTests::testStaticTypeface() {
     assert(TRTypefaceGetGlyphCount(typeface) == 4);
 
     assert(TRTypefaceGetVariationAxisCount(typeface) == 0);
+    assert(!TRTypefaceIsVariable(typeface));
     assert(TRTypefaceGetNamedStyleCount(typeface) == 0);
     assert(TRTypefaceGetPaletteEntryCount(typeface) == 0);
     assert(TRTypefaceGetPredefinedPaletteCount(typeface) == 0);
@@ -112,6 +113,7 @@ void TypefaceTests::testVariableTypeface() {
     TRTypefaceRef typeface = createTestTypeface("Roboto-Variable.abc.ttf");
 
     assert(TRTypefaceGetVariationAxisCount(typeface) == 2);
+    assert(TRTypefaceIsVariable(typeface));
     assert(TRTypefaceGetNamedStyleCount(typeface) == 18);
     assert(TRTypefaceGetVariationAxesPtr(typeface)[0].tag == TRTagMake('w', 'g', 'h', 't'));
     assert(TRTypefaceGetVariationAxesPtr(typeface)[1].tag == TRTagMake('w', 'd', 't', 'h'));
@@ -251,7 +253,7 @@ void TypefaceTests::testCreate() {
     assert(TRTypefaceGetUnitsPerEM(typeface) == 2048);
     assert(TRTypefaceGetGlyphCount(typeface) == 4);
     assert(toString(TRTypefaceGetFamilyName(typeface)) == "Roboto");
-    assert(toString(TRTypefaceGetSubfamilyName(typeface)) == "Regular");
+    assert(toString(TRTypefaceGetStyleName(typeface)) == "Regular");
 
     /* The font file is released by the helper, but the typeface keeps what it needs. */
     assert(TRTypefaceGetGlyphID(typeface, 'a') == 1);
@@ -281,7 +283,7 @@ void TypefaceTests::testCreateWithVariation() {
     assert(TRTypefaceGetVariationCoordinatesPtr(derived)[1] == 75.0f);
     assert(TRTypefaceGetWeight(derived) == TRWeightBold);
     assert(TRTypefaceGetWidth(derived) == TRWidthCondensed);
-    assert(toString(TRTypefaceGetSubfamilyName(derived)) == "Condensed Bold");
+    assert(toString(TRTypefaceGetStyleName(derived)) == "Condensed Bold");
 
     /* The source is not affected. */
     assert(TRTypefaceGetVariationCoordinatesPtr(base)[0] == 400.0f);
@@ -434,14 +436,14 @@ void TypefaceTests::testNamesAndMetrics() {
 
     const TRFloat thinCoordinates[] = { 100.0f, 100.0f };
     TRTypefaceRef thin = TRTypefaceCreateWithVariation(typeface, thinCoordinates, 2);
-    assert(toString(TRTypefaceGetSubfamilyName(thin)) == "Thin");
+    assert(toString(TRTypefaceGetStyleName(thin)) == "Thin");
     assert(toString(TRTypefaceGetFullName(thin)) == "Roboto Thin");
     TRTypefaceRelease(thin);
 
     /* It has no full name if they match no style. */
     const TRFloat oddCoordinates[] = { 123.0f, 100.0f };
     TRTypefaceRef odd = TRTypefaceCreateWithVariation(typeface, oddCoordinates, 2);
-    assert(TRTypefaceGetSubfamilyName(odd) == nullptr);
+    assert(TRTypefaceGetStyleName(odd) == nullptr);
     assert(TRTypefaceGetFullName(odd) == nullptr);
     TRTypefaceRelease(odd);
 

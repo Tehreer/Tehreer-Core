@@ -154,7 +154,7 @@ static void touch(const TRStringView *view) {
 /* Reads everything that a typeface tells without assuming anything about the font. */
 static void exerciseTypeface(TRTypefaceRef typeface) {
     touch(TRTypefaceGetFamilyName(typeface));
-    touch(TRTypefaceGetSubfamilyName(typeface));
+    touch(TRTypefaceGetStyleName(typeface));
     touch(TRTypefaceGetFullName(typeface));
 
     (void)TRTypefaceGetWeight(typeface);

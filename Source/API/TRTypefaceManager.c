@@ -143,7 +143,7 @@ static const TRStringView *GetFamilyName(TRTypefaceRef typeface)
 
 static const TRStringView *GetSubfamilyName(TRTypefaceRef typeface)
 {
-    const TRStringView *subfamilyName = TRTypefaceGetSubfamilyName(typeface);
+    const TRStringView *subfamilyName = TRTypefaceGetStyleName(typeface);
 
     return (subfamilyName ? subfamilyName : &EmptyName);
 }

@@ -46,10 +46,10 @@ TR_INTERNAL void RunListInsert(RunList *list, TRUInteger index, TRGlyphRun *glyp
 /*
  * Adds the glyph runs of a range that is within a visual run. The runs of a right-to-left text are
  * added before those that precede them, which keeps the order in which they are shown. The room of
- * the replacements is that of the layout width, if there is one.
+ * the replacements is that of the layout width.
  */
 TR_INTERNAL void LineResolverAppendVisualRuns(TRTypesetterRef typesetter, TRUInteger start,
-    TRUInteger end, RunList *list, TRBoolean hasLayoutWidth, TRFloat layoutWidth);
+    TRUInteger end, RunList *list, TRFloat layoutWidth);
 
 /*
  * Creates a line from a list of runs, whose references the line takes over. The list is left
@@ -60,11 +60,11 @@ TR_INTERNAL TRComposedLine *LineResolverCreateLine(TRTypesetterRef typesetter, T
 
 /*
  * Creates a line that has all of the text of the range, in the order that it is shown. The range
- * MUST NOT be empty. The runs of the replacements of the line are sized for the layout width, if
- * there is one.
+ * MUST NOT be empty. The runs of the replacements of the line are sized for the layout width,
+ * which is zero when there is no frame.
  */
 TR_INTERNAL TRComposedLine *LineResolverCreateSimpleLine(TRTypesetterRef typesetter,
-    TRUInteger start, TRUInteger end, TRBoolean hasLayoutWidth, TRFloat layoutWidth);
+    TRUInteger start, TRUInteger end, TRFloat layoutWidth);
 
 /*
  * Creates a line of the range that fits in the extent by cutting out text and showing the token

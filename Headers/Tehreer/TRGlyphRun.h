@@ -427,7 +427,7 @@ TR_PUBLIC TRBoolean TRGlyphRunGetCodeUnitDistance(TRGlyphRunRef run, TRUInteger 
  *      The index of the boundary, which is the index of the code unit that follows it. It is from
  *      the start of the run to its end, which is the boundary after the last code unit.
  */
-TR_PUBLIC TRUInteger TRGlyphRunGetCodeUnitIndex(TRGlyphRunRef run, TRFloat distance);
+TR_PUBLIC TRUInteger TRGlyphRunGetCodeUnitIndexAtDistance(TRGlyphRunRef run, TRFloat distance);
 
 /**
  * Returns the ink box of the glyphs of the run: the smallest box that holds what is drawn, which is

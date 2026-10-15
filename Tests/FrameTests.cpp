@@ -538,7 +538,8 @@ void FrameTests::testIndexOfLine() {
     assert(TRComposedFrameGetLineIndexForCodeUnit(frame, 3) == 0);
     assert(TRComposedFrameGetLineIndexForCodeUnit(frame, 4) == 1);
     assert(TRComposedFrameGetLineIndexForCodeUnit(frame, 6) == 1);
-    assert(TRComposedFrameGetLineIndexForCodeUnit(frame, 7) == TRInvalidIndex);
+    assert(TRComposedFrameGetLineIndexForCodeUnit(frame, 7) == 1);
+    assert(TRComposedFrameGetLineIndexForCodeUnit(frame, 8) == TRInvalidIndex);
 
     assert(TRComposedFrameGetLineIndexAtPosition(frame, { 10.0f, 100.0f }) == 0);
     assert(TRComposedFrameGetLineIndexAtPosition(frame, { 10.0f, 3000.0f }) == 1);
@@ -726,11 +727,13 @@ void FrameTests::testRangesAreChecked() {
     frame = TRFrameResolverCreateFrame(f.resolver, 0, 7);
     assert(frame != nullptr);
 
-    /* There is no line past the last one, and no code unit that is not in the frame has a line. */
+    /* There is no line past the last one. The end of the frame belongs to its last line, while no
+     * code unit beyond it has a line. */
     assert(TRComposedFrameGetLine(frame, 2) == nullptr);
     assert(TRComposedFrameGetLine(frame, max) == nullptr);
     assert(TRComposedFrameGetLine(frame, 1) != nullptr);
-    assert(TRComposedFrameGetLineIndexForCodeUnit(frame, 7) == TRInvalidIndex);
+    assert(TRComposedFrameGetLineIndexForCodeUnit(frame, 7) == 1);
+    assert(TRComposedFrameGetLineIndexForCodeUnit(frame, 8) == TRInvalidIndex);
     assert(TRComposedFrameGetLineIndexForCodeUnit(frame, max) == TRInvalidIndex);
     assert(TRComposedFrameGetLineIndexForCodeUnit(frame, 99) == TRInvalidIndex);
     assert(TRComposedFrameGetLineIndexForCodeUnit(frame, 0) == 0);

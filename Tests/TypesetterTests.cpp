@@ -794,13 +794,13 @@ void TypesetterTests::testRangesAreChecked() {
     TRTypesetterRef typesetter = create(text);
 
     /* A range that is within the text is the line, up to the end of the text. */
-    TRComposedLineRef line = TRTypesetterCreateSimpleLine(typesetter, 4, 3);
+    TRComposedLineRef line = TRTypesetterCreateSimpleLine(typesetter, 4, 3, 0.0f);
     assert(line != nullptr);
     assert(TRComposedLineGetStartIndex(line) == 4);
     assert(TRComposedLineGetEndIndex(line) == 7);
     TRComposedLineRelease(line);
 
-    line = TRTypesetterCreateFrameLine(typesetter, 2, 5, 10000.0f);
+    line = TRTypesetterCreateSimpleLine(typesetter, 2, 5, 10000.0f);
     assert(line != nullptr && TRComposedLineGetEndIndex(line) == 7);
     TRComposedLineRelease(line);
 
@@ -809,17 +809,17 @@ void TypesetterTests::testRangesAreChecked() {
     TRComposedLineRelease(line);
 
     /* Nothing is made of a range that is empty or is not within the text, however big it is. */
-    assert(TRTypesetterCreateSimpleLine(typesetter, 4, 4) == nullptr);
-    assert(TRTypesetterCreateSimpleLine(typesetter, 0, 8) == nullptr);
-    assert(TRTypesetterCreateSimpleLine(typesetter, 7, 1) == nullptr);
-    assert(TRTypesetterCreateSimpleLine(typesetter, 8, 1) == nullptr);
-    assert(TRTypesetterCreateSimpleLine(typesetter, 99, 3) == nullptr);
-    assert(TRTypesetterCreateSimpleLine(typesetter, 2, 0) == nullptr);
-    assert(TRTypesetterCreateSimpleLine(typesetter, 0, max) == nullptr);
-    assert(TRTypesetterCreateSimpleLine(typesetter, max, max) == nullptr);
-    assert(TRTypesetterCreateSimpleLine(typesetter, 2, max - 1) == nullptr);
-    assert(TRTypesetterCreateFrameLine(typesetter, 9, 1, 100.0f) == nullptr);
-    assert(TRTypesetterCreateFrameLine(typesetter, 0, 9, 100.0f) == nullptr);
+    assert(TRTypesetterCreateSimpleLine(typesetter, 4, 4, 0.0f) == nullptr);
+    assert(TRTypesetterCreateSimpleLine(typesetter, 0, 8, 0.0f) == nullptr);
+    assert(TRTypesetterCreateSimpleLine(typesetter, 7, 1, 0.0f) == nullptr);
+    assert(TRTypesetterCreateSimpleLine(typesetter, 8, 1, 0.0f) == nullptr);
+    assert(TRTypesetterCreateSimpleLine(typesetter, 99, 3, 0.0f) == nullptr);
+    assert(TRTypesetterCreateSimpleLine(typesetter, 2, 0, 0.0f) == nullptr);
+    assert(TRTypesetterCreateSimpleLine(typesetter, 0, max, 0.0f) == nullptr);
+    assert(TRTypesetterCreateSimpleLine(typesetter, max, max, 0.0f) == nullptr);
+    assert(TRTypesetterCreateSimpleLine(typesetter, 2, max - 1, 0.0f) == nullptr);
+    assert(TRTypesetterCreateSimpleLine(typesetter, 9, 1, 100.0f) == nullptr);
+    assert(TRTypesetterCreateSimpleLine(typesetter, 0, 9, 100.0f) == nullptr);
     assert(TRTypesetterCreateJustifiedLine(typesetter, 7, 1, 1.0f, 100.0f) == nullptr);
     assert(TRTypesetterCreateJustifiedLine(typesetter, 0, max, 1.0f, 100.0f) == nullptr);
     assert(TRTypesetterCreateTruncationToken(typesetter, 8, 1, TRTruncationPlaceEnd, nullptr, 0,

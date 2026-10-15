@@ -315,7 +315,7 @@ void FontFileTests::testNamedStyleTypefaces() {
             assert(coordinates[axis] == styles[index].coordinatesPtr[axis]);
         }
 
-        const TRStringView *name = TRTypefaceGetSubfamilyName(styled);
+        const TRStringView *name = TRTypefaceGetStyleName(styled);
         assert(name != nullptr);
         assert(toString(name) == toString(styles[index].subfamilyName));
     }

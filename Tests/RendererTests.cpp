@@ -244,11 +244,11 @@ void RendererTests::testWithoutTypeface() {
     TRPoint offsets[] = { { 0, 0 }, { 0, 0 } };
     TRFloat advances[] = { 10.0f, 10.0f };
 
-    assert(TRRendererCopyGlyphImage(renderer, GlyphA) == nullptr);
-    assert(TRRendererCopyStrokeImage(renderer, GlyphA) == nullptr);
-    assert(TRRendererCopyGlyphPath(renderer, GlyphA) == nullptr);
+    assert(TRRendererCreateGlyphImage(renderer, GlyphA) == nullptr);
+    assert(TRRendererCreateStrokeImage(renderer, GlyphA) == nullptr);
+    assert(TRRendererCreateGlyphPath(renderer, GlyphA) == nullptr);
 
-    TRRect box = TRRendererGetGlyphInkBox(renderer, GlyphA);
+    TRRect box = TRRendererComputeGlyphInkBox(renderer, GlyphA);
     assert(box.size.width == 0.0f && box.size.height == 0.0f);
     box = TRRendererComputeRunInkBox(renderer, glyphs, offsets, advances, 2);
     assert(box.origin.x == 0.0f && box.size.width == 0.0f && box.size.height == 0.0f);
@@ -306,9 +306,9 @@ void RendererTests::testSettersRetain() {
 void RendererTests::testImages() {
     Fixture f;
 
-    TRGlyphImageRef a = TRRendererCopyGlyphImage(f.renderer, GlyphA);
-    TRGlyphImageRef b = TRRendererCopyGlyphImage(f.renderer, GlyphB);
-    TRGlyphImageRef c = TRRendererCopyGlyphImage(f.renderer, GlyphC);
+    TRGlyphImageRef a = TRRendererCreateGlyphImage(f.renderer, GlyphA);
+    TRGlyphImageRef b = TRRendererCreateGlyphImage(f.renderer, GlyphB);
+    TRGlyphImageRef c = TRRendererCreateGlyphImage(f.renderer, GlyphC);
 
     assertSize(a, 1, 17, 15, 17);
     assertSize(b, 2, 24, 15, 24);
@@ -323,11 +323,11 @@ void RendererTests::testImages() {
     assert(hasInk);
 
     /* A stroke is a little bigger than the fill. */
-    TRGlyphImageRef stroke = TRRendererCopyStrokeImage(f.renderer, GlyphA);
+    TRGlyphImageRef stroke = TRRendererCreateStrokeImage(f.renderer, GlyphA);
     assertSize(stroke, 1, 18, 16, 19);
 
     /* The notdef glyph of this font has nothing to show. */
-    assert(TRRendererCopyGlyphImage(f.renderer, 0) == nullptr);
+    assert(TRRendererCreateGlyphImage(f.renderer, 0) == nullptr);
 
     for (TRGlyphImageRef image : { a, b, c, stroke }) {
         TRGlyphImageRelease(image);
@@ -338,24 +338,24 @@ void RendererTests::testRenderScale() {
     Fixture f;
 
     /* Half the type size at twice the render scale is the same pixel size, so the same image. */
-    TRGlyphImageRef base = TRRendererCopyGlyphImage(f.renderer, GlyphA);
+    TRGlyphImageRef base = TRRendererCreateGlyphImage(f.renderer, GlyphA);
 
     TRRendererSetTypeSize(f.renderer, 16.0f);
     TRRendererSetRenderScale(f.renderer, 2.0f);
-    TRGlyphImageRef scaled = TRRendererCopyGlyphImage(f.renderer, GlyphA);
+    TRGlyphImageRef scaled = TRRendererCreateGlyphImage(f.renderer, GlyphA);
     assert(scaled == base);
 
     TRRendererSetRenderScale(f.renderer, 1.0f);
-    TRGlyphImageRef smaller = TRRendererCopyGlyphImage(f.renderer, GlyphA);
+    TRGlyphImageRef smaller = TRRendererCreateGlyphImage(f.renderer, GlyphA);
     assert(smaller != base);
     assert(TRGlyphImageGetWidth(smaller) < TRGlyphImageGetWidth(base));
 
     /* Strokes are as wide as asked in pixels, whatever the render scale. */
     TRRendererSetTypeSize(f.renderer, 32.0f);
-    TRGlyphImageRef stroke = TRRendererCopyStrokeImage(f.renderer, GlyphA);
+    TRGlyphImageRef stroke = TRRendererCreateStrokeImage(f.renderer, GlyphA);
     TRRendererSetTypeSize(f.renderer, 16.0f);
     TRRendererSetRenderScale(f.renderer, 2.0f);
-    assert(TRRendererCopyStrokeImage(f.renderer, GlyphA) == stroke);
+    assert(TRRendererCreateStrokeImage(f.renderer, GlyphA) == stroke);
 
     for (TRGlyphImageRef image : { base, scaled, smaller, stroke, stroke }) {
         TRGlyphImageRelease(image);
@@ -365,23 +365,23 @@ void RendererTests::testRenderScale() {
 void RendererTests::testScalesAndSkew() {
     Fixture f;
 
-    TRGlyphImageRef base = TRRendererCopyGlyphImage(f.renderer, GlyphA);
+    TRGlyphImageRef base = TRRendererCreateGlyphImage(f.renderer, GlyphA);
 
     TRRendererSetScaleX(f.renderer, 2.0f);
-    TRGlyphImageRef wide = TRRendererCopyGlyphImage(f.renderer, GlyphA);
+    TRGlyphImageRef wide = TRRendererCreateGlyphImage(f.renderer, GlyphA);
     assert(TRGlyphImageGetWidth(wide) > TRGlyphImageGetWidth(base) * 3 / 2);
     assert(TRGlyphImageGetHeight(wide) == TRGlyphImageGetHeight(base));
     TRRendererSetScaleX(f.renderer, 1.0f);
 
     TRRendererSetScaleY(f.renderer, 2.0f);
-    TRGlyphImageRef tall = TRRendererCopyGlyphImage(f.renderer, GlyphA);
+    TRGlyphImageRef tall = TRRendererCreateGlyphImage(f.renderer, GlyphA);
     assert(TRGlyphImageGetHeight(tall) > TRGlyphImageGetHeight(base) * 3 / 2);
     assert(TRGlyphImageGetWidth(tall) == TRGlyphImageGetWidth(base));
     TRRendererSetScaleY(f.renderer, 1.0f);
 
     /* A skew moves the top of a glyph to the right, which makes its image wider. */
     TRRendererSetSkewX(f.renderer, 0.25f);
-    TRGlyphImageRef skewed = TRRendererCopyGlyphImage(f.renderer, GlyphA);
+    TRGlyphImageRef skewed = TRRendererCreateGlyphImage(f.renderer, GlyphA);
     assertSize(skewed, -2, 17, 18, 17);
 
     for (TRGlyphImageRef image : { base, wide, tall, skewed }) {
@@ -399,8 +399,8 @@ void RendererTests::testIsRenderable() {
     assert(TRRendererIsRenderable(f.renderer));
     TRRendererSetTypeSize(f.renderer, 0.9f);
     assert(!TRRendererIsRenderable(f.renderer));
-    assert(TRRendererCopyGlyphImage(f.renderer, GlyphA) == nullptr);
-    assert(TRRendererCopyGlyphPath(f.renderer, GlyphA) == nullptr);
+    assert(TRRendererCreateGlyphImage(f.renderer, GlyphA) == nullptr);
+    assert(TRRendererCreateGlyphPath(f.renderer, GlyphA) == nullptr);
 
     /* The render scale makes up for a small size, and a scale of zero removes it. */
     TRRendererSetRenderScale(f.renderer, 2.0f);
@@ -411,30 +411,30 @@ void RendererTests::testIsRenderable() {
     TRRendererSetScaleX(f.renderer, 1.0f);
     TRRendererSetScaleY(f.renderer, -1.0f);
     assert(!TRRendererIsRenderable(f.renderer));
-    assert(TRRendererCopyGlyphImage(f.renderer, GlyphA) == nullptr);
+    assert(TRRendererCreateGlyphImage(f.renderer, GlyphA) == nullptr);
 }
 
 void RendererTests::testGlyphBoundingBox() {
     Fixture f;
 
     /* The top of the box is above the baseline, so it is negative with the y axis down. */
-    TRRect box = TRRendererGetGlyphInkBox(f.renderer, GlyphA);
+    TRRect box = TRRendererComputeGlyphInkBox(f.renderer, GlyphA);
     assert(isNear(box.origin.x, 1.0f) && isNear(box.origin.y, -17.0f));
     assert(isNear(box.size.width, 15.0f) && isNear(box.size.height, 17.0f));
 
-    box = TRRendererGetGlyphInkBox(f.renderer, GlyphB);
+    box = TRRendererComputeGlyphInkBox(f.renderer, GlyphB);
     assert(isNear(box.origin.x, 2.0f) && isNear(box.origin.y, -24.0f));
     assert(isNear(box.size.width, 15.0f) && isNear(box.size.height, 24.0f));
 
     /* The box is in the user space, so a render scale divides the pixels. */
     TRRendererSetTypeSize(f.renderer, 16.0f);
     TRRendererSetRenderScale(f.renderer, 2.0f);
-    box = TRRendererGetGlyphInkBox(f.renderer, GlyphA);
+    box = TRRendererComputeGlyphInkBox(f.renderer, GlyphA);
     assert(isNear(box.origin.x, 0.5f) && isNear(box.origin.y, -8.5f));
     assert(isNear(box.size.width, 7.5f) && isNear(box.size.height, 8.5f));
 
     /* A glyph without an image has an empty box. */
-    box = TRRendererGetGlyphInkBox(f.renderer, 0);
+    box = TRRendererComputeGlyphInkBox(f.renderer, 0);
     assert(box.origin.x == 0.0f && box.origin.y == 0.0f);
     assert(box.size.width == 0.0f && box.size.height == 0.0f);
 }
@@ -515,7 +515,7 @@ void RendererTests::testStrokePlacements() {
 void RendererTests::testReleasePlacements() {
     Fixture f;
     GlyphPlacement placements[3];
-    TRGlyphImageRef image = TRRendererCopyGlyphImage(f.renderer, GlyphA);
+    TRGlyphImageRef image = TRRendererCreateGlyphImage(f.renderer, GlyphA);
 
     /* The reference of the placement is the cache's, the caller's, and the one it holds. */
     size_t before = AtomicUIntLoad(&image->_base.retainCount);
@@ -598,7 +598,7 @@ void RendererTests::testEmptyRuns() {
 }
 
 static vector<PathEvent> glyphEvents(TRRendererRef renderer, TRGlyphID glyph, const TRAffineTransform &t) {
-    TRPathRef path = TRRendererCopyGlyphPath(renderer, glyph);
+    TRPathRef path = TRRendererCreateGlyphPath(renderer, glyph);
     assert(path != nullptr);
 
     vector<PathEvent> events = enumeratePath(path, &t);
@@ -770,17 +770,17 @@ void RendererTests::testColorGlyphs() {
     Fixture f("COLRv0.extents.ttf");
 
     /* A glyph with color layers comes as a color image, which has four bytes for each pixel. */
-    TRGlyphImageRef color = TRRendererCopyGlyphImage(f.renderer, 13);
+    TRGlyphImageRef color = TRRendererCreateGlyphImage(f.renderer, 13);
     assert(color != nullptr);
     assert(TRGlyphImageGetFormat(color) == TRGlyphImageFormatARGB);
     assert(TRGlyphImageGetByteCount(color) == TRGlyphImageGetWidth(color) * TRGlyphImageGetHeight(color) * 4);
 
     /* The foreground color does not decide its image, so that it is shared. */
     TRRendererSetForegroundColor(f.renderer, TRColorMake(0xFF, 0xFF, 0x00, 0x00));
-    assert(TRRendererCopyGlyphImage(f.renderer, 13) == color);
+    assert(TRRendererCreateGlyphImage(f.renderer, 13) == color);
 
     /* A mask glyph of the same font is an alpha image. */
-    TRGlyphImageRef mask = TRRendererCopyGlyphImage(f.renderer, 1);
+    TRGlyphImageRef mask = TRRendererCreateGlyphImage(f.renderer, 1);
     assert(mask != nullptr && TRGlyphImageGetFormat(mask) == TRGlyphImageFormatAlpha);
 
     TRGlyphImageRelease(color);
@@ -840,7 +840,7 @@ static TRGlyphID findBitmapGlyph(TRRendererRef renderer) {
     TRGlyphID glyphID = 0;
 
     for (TRGlyphID candidate = 1; glyphID == 0 && candidate < 18; candidate++) {
-        TRGlyphImageRef image = TRRendererCopyGlyphImage(renderer, candidate);
+        TRGlyphImageRef image = TRRendererCreateGlyphImage(renderer, candidate);
 
         if (image) {
             glyphID = candidate;
@@ -859,7 +859,7 @@ void RendererTests::testBitmapGlyphs() {
     TRGlyphID glyphID = findBitmapGlyph(f.renderer);
     assert(glyphID != 0);
 
-    TRGlyphImageRef image = TRRendererCopyGlyphImage(f.renderer, glyphID);
+    TRGlyphImageRef image = TRRendererCreateGlyphImage(f.renderer, glyphID);
     assert(TRGlyphImageGetFormat(image) == TRGlyphImageFormatARGB);
 
     TRUInt32 width = TRGlyphImageGetWidth(image);
@@ -879,7 +879,7 @@ void RendererTests::testBitmapGlyphs() {
 
     /* A bigger size finds the same image, as it is, and the placement tells how to scale it. */
     TRRendererSetTypeSize(f.renderer, 218.0f);
-    TRGlyphImageRef bigger = TRRendererCopyGlyphImage(f.renderer, glyphID);
+    TRGlyphImageRef bigger = TRRendererCreateGlyphImage(f.renderer, glyphID);
     assert(bigger == image);
     assert(TRGlyphImageGetWidth(bigger) == width && TRGlyphImageGetHeight(bigger) == height);
     assert(TRGlyphCacheGetSize(f.cache) == cacheSize);
@@ -892,7 +892,7 @@ void RendererTests::testBitmapGlyphs() {
     releasePlacements(&placement, 1);
 
     /* The boxes are in the scaled size. */
-    TRRect box = TRRendererGetGlyphInkBox(f.renderer, glyphID);
+    TRRect box = TRRendererComputeGlyphInkBox(f.renderer, glyphID);
     assert(isNear(box.size.width, 2.0f * width) && isNear(box.size.height, 2.0f * height));
     assert(isNear(box.origin.x, 2.0f * left) && isNear(box.origin.y, -2.0f * top));
 
@@ -916,8 +916,8 @@ void RendererTests::testBitmapGlyphs() {
     assert(TRGlyphCacheGetSize(f.cache) == cacheSize);
 
     /* The glyphs have no outlines, so there is nothing to stroke. */
-    assert(TRRendererCopyGlyphPath(f.renderer, glyphID) == nullptr);
-    assert(TRRendererCopyStrokeImage(f.renderer, glyphID) == nullptr);
+    assert(TRRendererCreateGlyphPath(f.renderer, glyphID) == nullptr);
+    assert(TRRendererCreateStrokeImage(f.renderer, glyphID) == nullptr);
 
     TRGlyphImageRelease(image);
 
@@ -970,7 +970,7 @@ void RendererTests::testInvalidSizes() {
     const TRFloat sizes[] = { NAN, INFINITY, -INFINITY, 1.0e30f, -5.0f, 0.0f };
     for (TRFloat size : sizes) {
         TRRendererSetTypeSize(f.renderer, size);
-        TRGlyphImageRef image = TRRendererCopyGlyphImage(f.renderer, GlyphA);
+        TRGlyphImageRef image = TRRendererCreateGlyphImage(f.renderer, GlyphA);
         if (image) {
             TRGlyphImageRelease(image);
         }
@@ -978,12 +978,12 @@ void RendererTests::testInvalidSizes() {
 
     /* A size that FreeType refuses does not draw with the size that was set before. */
     TRRendererSetTypeSize(f.renderer, 32.0f);
-    TRGlyphImageRef reference = TRRendererCopyGlyphImage(f.renderer, GlyphA);
+    TRGlyphImageRef reference = TRRendererCreateGlyphImage(f.renderer, GlyphA);
     assert(reference != nullptr);
     TRGlyphImageRelease(reference);
 
     TRRendererSetTypeSize(f.renderer, 100000.0f);
-    TRGlyphImageRef refused = TRRendererCopyGlyphImage(f.renderer, GlyphA);
+    TRGlyphImageRef refused = TRRendererCreateGlyphImage(f.renderer, GlyphA);
     assert(refused == nullptr);
 }
 

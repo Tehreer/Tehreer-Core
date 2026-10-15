@@ -55,7 +55,7 @@ void ComposedLineTests::run() {
     testTrailingWhitespace();
     testDistances();
     testIndexOfCodeUnit();
-    testEnumerateEdges();
+    testEnumerateVisualEdges();
     testIndicesAreChecked();
     testInkBoxRestoresRenderer();
     testEnumerationCanStop();
@@ -117,7 +117,7 @@ struct Fixture {
             make();
         }
 
-        TRComposedLineRef result = TRTypesetterCreateSimpleLine(typesetter, start, end - start);
+        TRComposedLineRef result = TRTypesetterCreateSimpleLine(typesetter, start, end - start, 0.0f);
         assert(result != nullptr);
 
         return result;
@@ -320,28 +320,28 @@ void collectEdge(void *userData, TRFloat left, TRFloat right, TRBoolean *) {
 
 }
 
-void ComposedLineTests::testEnumerateEdges() {
+void ComposedLineTests::testEnumerateVisualEdges() {
     Fixture f(u"abc");
     TRComposedLineRef line = f.line(0, 3);
 
     Edges edges;
-    assert(TRComposedLineEnumerateEdges(line, 1, 2, collectEdge, &edges));
+    assert(TRComposedLineEnumerateVisualEdges(line, 1, 2, collectEdge, &edges));
     assert(edges.parts.size() == 1);
     assert(edges.parts[0].first == A && edges.parts[0].second == A + B + C);
 
     /* The whole line is a range, and an empty one has nothing. */
     edges.parts.clear();
-    assert(TRComposedLineEnumerateEdges(line, 0, 3, collectEdge, &edges));
+    assert(TRComposedLineEnumerateVisualEdges(line, 0, 3, collectEdge, &edges));
     assert(edges.parts.size() == 1);
     assert(edges.parts[0].first == 0.0f && edges.parts[0].second == A + B + C);
 
     edges.parts.clear();
-    assert(TRComposedLineEnumerateEdges(line, 1, 0, collectEdge, &edges));
+    assert(TRComposedLineEnumerateVisualEdges(line, 1, 0, collectEdge, &edges));
     assert(edges.parts.empty());
 
     /* A range that is not within the line has nothing, and the function says so. */
-    assert(!TRComposedLineEnumerateEdges(line, 0, 100, collectEdge, &edges));
-    assert(!TRComposedLineEnumerateEdges(line, 5, 3, collectEdge, &edges));
+    assert(!TRComposedLineEnumerateVisualEdges(line, 0, 100, collectEdge, &edges));
+    assert(!TRComposedLineEnumerateVisualEdges(line, 5, 3, collectEdge, &edges));
     assert(edges.parts.empty());
 
     TRComposedLineRelease(line);
@@ -378,21 +378,21 @@ void ComposedLineTests::testIndicesAreChecked() {
         static_cast<Collected *>(userData)->parts.push_back({ left, right });
     };
 
-    assert(TRComposedLineEnumerateEdges(line, 2, 3, collect, &collected));
+    assert(TRComposedLineEnumerateVisualEdges(line, 2, 3, collect, &collected));
     assert(collected.parts.size() == 1);
     assert(collected.parts[0].first == 0.0f && collected.parts[0].second == end - start);
 
     collected.parts.clear();
-    assert(!TRComposedLineEnumerateEdges(line, 0, max, collect, &collected));
-    assert(!TRComposedLineEnumerateEdges(line, 0, 4, collect, &collected));
-    assert(!TRComposedLineEnumerateEdges(line, 2, 4, collect, &collected));
-    assert(!TRComposedLineEnumerateEdges(line, 5, 4, collect, &collected));
-    assert(!TRComposedLineEnumerateEdges(line, max, max, collect, &collected));
-    assert(!TRComposedLineEnumerateEdges(line, 1, 2, collect, &collected));
+    assert(!TRComposedLineEnumerateVisualEdges(line, 0, max, collect, &collected));
+    assert(!TRComposedLineEnumerateVisualEdges(line, 0, 4, collect, &collected));
+    assert(!TRComposedLineEnumerateVisualEdges(line, 2, 4, collect, &collected));
+    assert(!TRComposedLineEnumerateVisualEdges(line, 5, 4, collect, &collected));
+    assert(!TRComposedLineEnumerateVisualEdges(line, max, max, collect, &collected));
+    assert(!TRComposedLineEnumerateVisualEdges(line, 1, 2, collect, &collected));
     assert(collected.parts.empty());
 
     /* An empty range is within the line, and has no parts. */
-    assert(TRComposedLineEnumerateEdges(line, 3, 0, collect, &collected));
+    assert(TRComposedLineEnumerateVisualEdges(line, 3, 0, collect, &collected));
     assert(collected.parts.empty());
 
     /* The queries of a run need a code unit of the run. */
@@ -474,11 +474,11 @@ void ComposedLineTests::testEnumerationCanStop() {
     auto count = [](void *userData, TRFloat, TRFloat, TRBoolean *) {
         (*static_cast<size_t *>(userData))++;
     };
-    assert(TRComposedLineEnumerateEdges(line, 0, 5, count, &all));
+    assert(TRComposedLineEnumerateVisualEdges(line, 0, 5, count, &all));
     assert(all >= 2);
 
     size_t stopped = 0;
-    assert(TRComposedLineEnumerateEdges(line, 0, 5, stopAfterFirst, &stopped));
+    assert(TRComposedLineEnumerateVisualEdges(line, 0, 5, stopAfterFirst, &stopped));
     assert(stopped == 1);
 
     TRComposedLineRelease(line);
@@ -933,12 +933,12 @@ void ComposedLineTests::testBlockLine() {
     TRComposedLineRelease(line);
 
     /* A line that is made for a frame gets the room that the width of the frame gives. */
-    line = LineResolverCreateSimpleLine(f.typesetter, 0, 2, TRTrue, 120.0f);
+    line = LineResolverCreateSimpleLine(f.typesetter, 0, 2, 120.0f);
     assert(TRComposedLineGetWidth(line) >= 120.0f);
     assert(TRGlyphRunGetWidth(TRComposedLineGetGlyphRun(line, 0)) == 120.0f);
     TRComposedLineRelease(line);
 
-    line = TRTypesetterCreateFrameLine(f.typesetter, 0, 2, 150.0f);
+    line = TRTypesetterCreateSimpleLine(f.typesetter, 0, 2, 150.0f);
     assert(line != nullptr);
     assert(TRGlyphRunGetWidth(TRComposedLineGetGlyphRun(line, 0)) == 150.0f);
     assert(!TRComposedLineIsTruncated(line));
@@ -995,7 +995,7 @@ void ComposedLineTests::testTruncation() {
 
     /* The token has the range [0, 1) in its own text, which must not match the text at index 0. */
     Edges edges;
-    assert(TRComposedLineEnumerateEdges(end, 0, 6, collectEdge, &edges));
+    assert(TRComposedLineEnumerateVisualEdges(end, 0, 6, collectEdge, &edges));
     assert(edges.parts.size() == 1);
     assert(TRComposedLineGetCodeUnitIndexAtDistance(end, A + B + C / 2.0f) == 2);
 
@@ -1145,7 +1145,7 @@ void ComposedLineTests::testConcurrentLines() {
     for (size_t t = 0; t < 8; t++) {
         threads.emplace_back([&]() {
             for (size_t i = 0; i < 100; i++) {
-                TRComposedLineRef line = TRTypesetterCreateSimpleLine(f.typesetter, 1, 9);
+                TRComposedLineRef line = TRTypesetterCreateSimpleLine(f.typesetter, 1, 9, 0.0f);
 
                 if (!line || (TRComposedLineGetEndIndex(line) - TRComposedLineGetStartIndex(line)) != 9
                         || lineDistance(line, 10) <= lineDistance(line, 2)) {

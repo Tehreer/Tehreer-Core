@@ -118,7 +118,7 @@ static void AddSelectionParts(SelectionContext *context, TRComposedLineRef line,
 {
     context->line = line;
 
-    TRComposedLineEnumerateEdges(line, start, end - start, AddSelectionPart, context);
+    TRComposedLineEnumerateVisualEdges(line, start, end - start, AddSelectionPart, context);
 }
 
 static void AddSelectionAcrossLines(SelectionContext *context, TRComposedFrameRef frame,
@@ -236,10 +236,18 @@ TRUInteger TRComposedFrameGetLineIndexForCodeUnit(TRComposedFrameRef frame,
     TRUInteger codeUnitIndex)
 {
     TRUInteger lineIndex = TRInvalidIndex;
+    TRUInteger lineCount = GetFrameLineCount(frame);
     TRUInteger low = 0;
-    TRUInteger high = GetFrameLineCount(frame);
+    TRUInteger high = lineCount;
 
-    if (codeUnitIndex < frame->codeUnitStart || codeUnitIndex >= frame->codeUnitEnd) {
+    if (codeUnitIndex == frame->codeUnitEnd) {
+        /* The end of the frame is the insertion point after the last character of its last line. */
+        if (lineCount > 0) {
+            lineIndex = lineCount - 1;
+        }
+
+        low = high;
+    } else if (codeUnitIndex < frame->codeUnitStart || codeUnitIndex > frame->codeUnitEnd) {
         /* The code unit is not within the frame, which has no line for it. */
         low = high;
     }

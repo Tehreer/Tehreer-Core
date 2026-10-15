@@ -240,25 +240,12 @@ TRUInteger TRTypesetterSuggestBackwardBreak(TRTypesetterRef typesetter, TRUInteg
 }
 
 TRComposedLineRef TRTypesetterCreateSimpleLine(TRTypesetterRef typesetter, TRUInteger index,
-    TRUInteger length)
-{
-    TRComposedLineRef line = NULL;
-
-    if (length > 0 && RangeIsValid(index, length, typesetter->buffer.length)) {
-        line = LineResolverCreateSimpleLine(typesetter, index, index + length, TRFalse, 0.0f);
-    }
-
-    return line;
-}
-
-TRComposedLineRef TRTypesetterCreateFrameLine(TRTypesetterRef typesetter, TRUInteger index,
     TRUInteger length, TRFloat layoutWidth)
 {
     TRComposedLineRef line = NULL;
 
     if (length > 0 && RangeIsValid(index, length, typesetter->buffer.length)) {
-        line = LineResolverCreateSimpleLine(typesetter, index, index + length, TRTrue,
-            layoutWidth);
+        line = LineResolverCreateSimpleLine(typesetter, index, index + length, layoutWidth);
     }
 
     return line;

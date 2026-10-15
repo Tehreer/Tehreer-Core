@@ -151,7 +151,7 @@ When a function requires something of its input (a frame has at least one line, 
 
 Use the memory management rules of Core Foundation for the whole library, internal functions included.
 
-- A function that has `Create` or `Copy` in its name returns a reference that the caller owns and has to release. `Create` makes a new object, `Copy` hands out a reference that it retained for the caller, as the cache does: `TRRendererCopyGlyphImage`, `TRTextCopyAttributes`.
+- A function that has `Create` or `Copy` in its name returns a reference that the caller owns and has to release. `Create` returns a reference that the caller owns, including one that a cache keeps as well: `TRRendererCreateGlyphImage`. `Copy` is for a copy of existing data: `TRTextCopyAttributes`.
 - A function that has `Get` in its name returns a reference that the caller does not own, and that stays valid as long as the owner is alive: `TRComposedFrameGetLine`, `TRFontFileGetTypeface`, `TRGlyphCacheGetDefault`. Never retain inside a `Get` function.
 - A setter retains the object that it is given and releases the one that it replaces.
 - Name a static helper by the same rule (`CreateGlyphImage`, `CopyCachedImage`), not `Render...` or `Find...`, if it returns a reference that is owned.

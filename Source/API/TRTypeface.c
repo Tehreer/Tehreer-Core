@@ -344,6 +344,14 @@ TRUInteger TRTypefaceGetGlyphCount(TRTypefaceRef typeface)
     return typeface->renderableFace->glyphCount;
 }
 
+TRBoolean TRTypefaceIsVariable(TRTypefaceRef typeface)
+{
+    TRUInteger axisCount = TRTypefaceGetVariationAxisCount(typeface);
+    TRBoolean isVariable = (axisCount > 0);
+
+    return isVariable;
+}
+
 const TRVariationAxis *TRTypefaceGetVariationAxesPtr(TRTypefaceRef typeface)
 {
     return typeface->renderableFace->metadata->variationAxesPtr;
@@ -479,7 +487,7 @@ const TRStringView *TRTypefaceGetFamilyName(TRTypefaceRef typeface)
     return typeface->familyName;
 }
 
-const TRStringView *TRTypefaceGetSubfamilyName(TRTypefaceRef typeface)
+const TRStringView *TRTypefaceGetStyleName(TRTypefaceRef typeface)
 {
     return typeface->subfamilyName;
 }

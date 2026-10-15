@@ -211,7 +211,7 @@ static void collectTypeface(TRTypefaceRef typeface, void *context, TRBoolean *st
     collected->tags.push_back(TRTypefaceManagerGetTypefaceTag(typeface));
     collected->familyIDs.push_back(TRTypefaceManagerGetTypefaceFamilyID(typeface));
     collected->names.push_back(toString(TRTypefaceGetFamilyName(typeface))
-                               + "/" + toString(TRTypefaceGetSubfamilyName(typeface)));
+                               + "/" + toString(TRTypefaceGetStyleName(typeface)));
 }
 
 static void collectFamily(TRUInteger familyID, const TRStringView *familyName, void *context,

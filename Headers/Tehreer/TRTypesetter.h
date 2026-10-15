@@ -159,30 +159,14 @@ TR_PUBLIC TRUInteger TRTypesetterSuggestBackwardBreak(TRTypesetterRef typesetter
  * @param length
  *      The number of code units of the line, which MUST NOT be zero. The range of the line has to
  *      be within the text.
+ * @param layoutWidth
+ *      The width of the frame that the line is made for, or zero if there is none. The
+ *      replacements that decide their room by the width of the frame, such as a view that fills
+ *      it, get it from here.
  * @return
  *      New line, or `NULL` if the range is empty or is not within the text, or on failure.
  */
 TR_PUBLIC TRComposedLineRef TRTypesetterCreateSimpleLine(TRTypesetterRef typesetter,
-    TRUInteger index, TRUInteger length);
-
-/**
- * Creates a simple line for a frame that is some width wide. The replacements that decide their
- * room by the width of the frame, such as a view that fills it, get it from `layoutWidth`, which
- * `TRTypesetterCreateSimpleLine()` leaves at zero.
- *
- * @param typesetter
- *      The typesetter.
- * @param index
- *      The index of the first code unit of the line.
- * @param length
- *      The number of code units of the line, which MUST NOT be zero. The range of the line has to
- *      be within the text.
- * @param layoutWidth
- *      The width of the frame.
- * @return
- *      New line, or `NULL` on failure.
- */
-TR_PUBLIC TRComposedLineRef TRTypesetterCreateFrameLine(TRTypesetterRef typesetter,
     TRUInteger index, TRUInteger length, TRFloat layoutWidth);
 
 /**

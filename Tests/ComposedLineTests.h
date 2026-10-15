@@ -32,7 +32,7 @@ private:
     void testTrailingWhitespace();
     void testDistances();
     void testIndexOfCodeUnit();
-    void testEnumerateEdges();
+    void testEnumerateVisualEdges();
     void testIndicesAreChecked();
     void testInkBoxRestoresRenderer();
     void testEnumerationCanStop();

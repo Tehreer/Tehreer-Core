@@ -36,7 +36,7 @@ TR_EXTERN_C_BEGIN
 typedef const struct _TRComposedLine *TRComposedLineRef;
 
 /**
- * A function that receives the left and right edges of a part of a line.
+ * A function that receives the left and right visual edges of a part of a line.
  *
  * @param userData
  *      The pointer that was passed to the enumeration.
@@ -225,7 +225,7 @@ TR_PUBLIC TRBoolean TRComposedLineGetCodeUnitDistance(TRComposedLineRef line,
 
 /**
  * Passes the parts of the line that a range of code units covers to the function, as pairs of
- * their left and right edges, measured from the start of the line. There is a part for each glyph
+ * their left and right visual edges, measured from the start of the line. There is a part for each glyph
  * run that the range touches, in the order of the runs.
  *
  * @param line
@@ -243,7 +243,7 @@ TR_PUBLIC TRBoolean TRComposedLineGetCodeUnitDistance(TRComposedLineRef line,
  *      `TRTrue` if the enumeration is done, or stopped, `TRFalse` if the range is not within the
  *      line, in which case nothing is passed.
  */
-TR_PUBLIC TRBoolean TRComposedLineEnumerateEdges(TRComposedLineRef line, TRUInteger index,
+TR_PUBLIC TRBoolean TRComposedLineEnumerateVisualEdges(TRComposedLineRef line, TRUInteger index,
     TRUInteger length, TREdgeFunc func, void *userData);
 
 /**

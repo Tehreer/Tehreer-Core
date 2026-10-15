@@ -157,8 +157,7 @@ TR_INTERNAL TRComposedLine *TokenResolverCreateTokenLine(TRTypesetterRef typeset
             tokenTypesetter = TRTypesetterCreate(tokenText, attributes, 2);
 
             if (tokenTypesetter) {
-                tokenLine = LineResolverCreateSimpleLine(tokenTypesetter, 0,
-                    tokenLength, TRFalse, 0.0f);
+                tokenLine = LineResolverCreateSimpleLine(tokenTypesetter, 0, tokenLength, 0.0f);
 
                 TRTypesetterRelease(tokenTypesetter);
             }

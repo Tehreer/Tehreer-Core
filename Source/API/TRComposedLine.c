@@ -248,7 +248,7 @@ TRBoolean TRComposedLineGetCodeUnitDistance(TRComposedLineRef line, TRUInteger c
     return isFound;
 }
 
-TRBoolean TRComposedLineEnumerateEdges(TRComposedLineRef line, TRUInteger index,
+TRBoolean TRComposedLineEnumerateVisualEdges(TRComposedLineRef line, TRUInteger index,
     TRUInteger length, TREdgeFunc func, void *userData)
 {
     TRUInteger lineLength = line->codeUnitEnd - line->codeUnitStart;
@@ -294,7 +294,8 @@ TRUInteger TRComposedLineGetCodeUnitIndexAtDistance(TRComposedLineRef line,
         glyphRun = line->runs[runIndex];
 
         if (glyphRun->origin.x <= distance && (glyphRun->flags & TRGlyphRunFlagToken) == 0) {
-            codeUnitIndex = TRGlyphRunGetCodeUnitIndex(glyphRun, distance - glyphRun->origin.x);
+            codeUnitIndex = TRGlyphRunGetCodeUnitIndexAtDistance(glyphRun,
+                distance - glyphRun->origin.x);
             break;
         }
     }
