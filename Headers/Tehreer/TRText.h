@@ -258,7 +258,8 @@ TR_PUBLIC TRBoolean TRTextDeleteCodeUnits(TRMutableTextRef text, TRUInteger inde
 
 /**
  * Completely replaces the current text content with the new code units. This is equivalent to
- * deleting all existing content and then inserting the new content at position 0.
+ * replacing the whole range of the text with `TRTextReplaceCodeUnits()`, so the new content takes
+ * on the attributes of the content that it replaces.
  *
  * @param text
  *      Mutable text object.
@@ -271,15 +272,16 @@ TR_PUBLIC TRBoolean TRTextDeleteCodeUnits(TRMutableTextRef text, TRUInteger inde
  *      not zero.
  *
  * @warning
- *      All existing content and attributes are removed.
+ *      All existing content is removed, but its attributes are kept for the new content.
  *      The buffer must contain valid code units in the text's encoding format.
  */
 TR_PUBLIC TRBoolean TRTextSetCodeUnits(TRMutableTextRef text, const void *codeUnitBuffer,
     TRUInteger codeUnitCount);
 
 /**
- * Replaces a contiguous range of existing code units with new content. If the text is not in
- * editing mode, analysis is performed immediately.
+ * Replaces a contiguous range of existing code units with new content, which takes on the
+ * attributes of the range that it replaces. If the text is not in editing mode, analysis is
+ * performed immediately.
  *
  * @param text
  *      Mutable text object.
