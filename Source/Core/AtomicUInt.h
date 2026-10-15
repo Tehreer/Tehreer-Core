@@ -60,7 +60,9 @@ typedef AtomicUInt *AtomicUIntRef;
 
 #define AtomicUIntInit(aui, value)      (*(aui) = (value))
 #define AtomicUIntLoad(aui)             __sync_fetch_and_add(aui, 0)
-#define AtomicUIntStore(aui, value)     __sync_lock_test_and_set(aui, value)
+/* The exchange is an acquire barrier only, so a full barrier before it makes the store a release. */
+#define AtomicUIntStore(aui, value)     \
+    ((void)(__sync_synchronize(), __sync_lock_test_and_set(aui, value)))
 #define AtomicUIntCompareAndSet(aui, expected, desired) \
     __sync_bool_compare_and_swap(aui, *(expected), desired)
 #define AtomicUIntIncrement(aui)        __sync_add_and_fetch(aui, 1)
