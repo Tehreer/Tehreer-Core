@@ -131,7 +131,7 @@ When a function requires something of its input (a frame has at least one line, 
 - Every internal (`TR_INTERNAL`) function of a public type carries the `TR` prefix, like its public functions: `TRComposedLineCreate`, `TRGlyphRunCreateCopy`, `TRTypesetterFindParagraph`, never `ComposedLineCreate`. Only helpers of types that have no public counterpart (`TextRun`, `FaceMetadata`, ...) go without it. An internal function is named after its class (`TRComposedLineGetTop`). Do not write a second, internal copy of a function that the public API already has: call the public one.
 - The internal functions, structs and keys of a public type live in its own `Source/API/TRFoo.h` and `TRFoo.c`, next to the public API functions. Do not make a second `Foo.c`/`Foo.h` in another folder (`Graphics/`, `Layout/`, ...) for the same type; those folders are for classes that have no public type. Order inside the file stays static, then internal, then public.
 - When an internal function would get the name of a public one, the public function is the implementation: define it once, in the file that owns the data, and drop the internal copy and any forwarding wrapper (`TRGlyphCacheClear`, `TRGlyphCacheSetCapacity`).
-- Say which quantity a function returns. A line has several kinds of distance and index, so they are `TRComposedLineGetCodeUnitDistance` and `TRComposedLineGetCodeUnitIndex`, not `GetDistance` and `GetIndexOfCodeUnit`. Prefer `Get<Subject><Quantity>` over `GetIndexOf<Subject>`.
+- Say which quantity a function returns. A line has several kinds of distance and index, so they are `TRComposedLineGetCodeUnitDistance` and `TRComposedLineGetCodeUnitIndexAtDistance`, not `GetDistance` and `GetIndexOfCodeUnit`. Prefer `Get<Subject><Quantity>` over `GetIndexOf<Subject>`.
 - A public function has one purpose that its name states. Do not add a getter with several optional out-parameters; keep such lookups internal until there is a clear use for them.
 - In public structs, keep identifying members (name, tag, flags) together at the top, before the numeric members.
 
@@ -163,7 +163,7 @@ Use the memory management rules of Core Foundation for the whole library, intern
 - A value that has no sentinel is returned through an out parameter, with a `TRBoolean` result that says if it was set.
 - An enumeration function passes a `TRBoolean *stop` to each callback, which is `TRFalse` when the callback is called, and that the callback sets to `TRTrue` to end the enumeration after it returns.
 - Name the parameters of an index after what it is: `codeUnitIndex`, `glyphIndex`, not `index`, wherever the function has more than one kind of index.
-- Call the box around what is drawn an ink box (`GetInkBox`). A box of advances and metrics is a bounding box.
+- Call the box around what is drawn an ink box (`ComputeInkBox`). A box of advances and metrics is a bounding box.
 - A function that sets up a shared object (a renderer) for a call puts it back as it was before it returns.
 
 ## 17. Allocation size macros
