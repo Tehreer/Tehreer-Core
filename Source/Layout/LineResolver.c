@@ -129,11 +129,36 @@ static TRBoolean FindVisualRuns(TRTypesetterRef typesetter, TRUInteger start, TR
     return isFound;
 }
 
+/* Applies an attribute to what the text is painted with, if the attribute is about painting. */
+static void ApplyAttributeToPaint(GlyphRunPaint *paint, const TRAttribute *item)
+{
+    if (item->type == TRAttributeForegroundColor) {
+        paint->flags |= TRGlyphRunFlagForegroundColor;
+        paint->foregroundColor = item->value.foregroundColor;
+    } else if (item->type == TRAttributeBackgroundColor) {
+        paint->flags |= TRGlyphRunFlagBackgroundColor;
+        paint->backgroundColor = item->value.backgroundColor;
+    } else if (item->type == TRAttributeUnderline) {
+        if (item->value.underline) {
+            paint->flags |= TRGlyphRunFlagUnderline;
+        }
+    } else if (item->type == TRAttributeStrikethrough) {
+        if (item->value.strikethrough) {
+            paint->flags |= TRGlyphRunFlagStrikethrough;
+        }
+    } else if (item->type == TRAttributeDecorationColor) {
+        paint->flags |= TRGlyphRunFlagDecorationColor;
+        paint->decorationColor = item->value.decorationColor;
+    } else if (item->type == TRAttributeUserData) {
+        paint->userData = item->value.userData;
+    }
+}
+
 /* Gets what the text is painted with from the attributes at an index. */
 static TRUInteger GetPaint(TRTypesetterRef typesetter, TRUInteger index, GlyphRunPaint *paint)
 {
-    SBTextRef sbText = TRTextGetSheenBidiText(typesetter->text);
     TRUInteger length = 0;
+    SBTextRef sbText = TRTextGetSheenBidiText(typesetter->text);
     SBAttributeListRef sbAttributes;
     TRAttributeListRef attributes;
 
@@ -153,30 +178,7 @@ static TRUInteger GetPaint(TRTypesetterRef typesetter, TRUInteger index, GlyphRu
         TRUInteger itemIndex;
 
         for (itemIndex = 0; itemIndex < count; itemIndex++) {
-            const TRAttribute *item = TRAttributeListGetItem(attributes, itemIndex);
-
-            if (item->type == TRAttributeForegroundColor) {
-                paint->flags |= TRGlyphRunFlagForegroundColor;
-                paint->foregroundColor = item->value.foregroundColor;
-            } else if (item->type == TRAttributeBackgroundColor) {
-                paint->flags |= TRGlyphRunFlagBackgroundColor;
-                paint->backgroundColor = item->value.backgroundColor;
-            } else if (item->type == TRAttributeUnderline) {
-
-                if (item->value.underline) {
-                    paint->flags |= TRGlyphRunFlagUnderline;
-                }
-            } else if (item->type == TRAttributeStrikethrough) {
-
-                if (item->value.strikethrough) {
-                    paint->flags |= TRGlyphRunFlagStrikethrough;
-                }
-            } else if (item->type == TRAttributeDecorationColor) {
-                paint->flags |= TRGlyphRunFlagDecorationColor;
-                paint->decorationColor = item->value.decorationColor;
-            } else if (item->type == TRAttributeUserData) {
-                paint->userData = item->value.userData;
-            }
+            ApplyAttributeToPaint(paint, TRAttributeListGetItem(attributes, itemIndex));
         }
 
         TRAttributeListRelease(attributes);

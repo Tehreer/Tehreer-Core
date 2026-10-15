@@ -47,6 +47,8 @@ typedef struct _RunPen {
     TRFloat totalAdvance;
 } RunPen;
 
+/* ---------- Glyph Cache and Scale ---------- */
+
 static void FinalizeRenderer(ObjectRef object)
 {
     TRRenderer *renderer = object;
@@ -124,6 +126,8 @@ static void GetImageScale(const TRRenderer *renderer, TRFloat *scaleX, TRFloat *
     }
 }
 
+/* ---------- Run Pen ---------- */
+
 static void BeginGlyph(const TRRenderer *renderer, RunPen *pen, const TRPoint *offsets,
     const TRFloat *advances, TRUInteger index, TRFloat *outOffsetX, TRFloat *outOffsetY,
     TRFloat *outAdvance)
@@ -154,6 +158,8 @@ static void SetupPen(const TRRenderer *renderer, RunPen *pen)
     pen->penX = 0.0f;
     pen->totalAdvance = 0.0f;
 }
+
+/* ---------- Internal Functions ---------- */
 
 TR_INTERNAL TRFloat TRRendererRoundPixel(TRFloat value)
 {
@@ -191,6 +197,8 @@ TR_INTERNAL void TRRendererEnumeratePathPlacements(TRRendererRef renderer,
     }
 }
 
+/* ---------- Creation ---------- */
+
 TRRendererRef TRRendererCreate(void)
 {
     const TRUInteger size = sizeof(TRRenderer);
@@ -225,6 +233,8 @@ TRRendererRef TRRendererCreate(void)
 
     return renderer;
 }
+
+/* ---------- Properties ---------- */
 
 TRGlyphCacheRef TRRendererGetGlyphCache(TRRendererRef renderer)
 {
@@ -452,6 +462,8 @@ void TRRendererSetDrawCallbacks(TRRendererRef renderer, const TRDrawCallbacks *c
     }
 }
 
+/* ---------- Glyph Images and Paths ---------- */
+
 TRBoolean TRRendererIsRenderable(TRRendererRef renderer)
 {
     /* The least size that FreeType can render is one pixel in each direction. */
@@ -611,6 +623,8 @@ TRRect TRRendererGetRunInkBox(TRRendererRef renderer, const TRGlyphID *glyphIDs,
     return box;
 }
 
+/* ---------- Enumeration ---------- */
+
 void TRRendererEnumerateGlyphPlacements(TRRendererRef renderer, TRGlyphImageKind kind,
     const TRGlyphID *glyphIDs, const TRPoint *offsets, const TRFloat *advances, TRUInteger count,
     TRGlyphPlacementFunc func, void *userData)
@@ -687,6 +701,8 @@ void TRRendererEnumerateGlyphPaths(TRRendererRef renderer, const TRGlyphID *glyp
         }
     }
 }
+
+/* ---------- Reference Counting ---------- */
 
 TRRendererRef TRRendererRetain(TRRendererRef renderer)
 {

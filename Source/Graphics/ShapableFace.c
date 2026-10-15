@@ -38,6 +38,8 @@ static hb_blob_t *GetFontTableData(hb_face_t *face, hb_tag_t tag, void *object)
     void *data;
     TRUInteger length;
 
+    (void)face;
+
     RenderableFaceCopyTable(renderableFace, tag, &data, &length);
 
     return hb_blob_create(data, length, HB_MEMORY_MODE_WRITABLE, data, AllocatorDeallocateBlock);
@@ -84,6 +86,9 @@ static hb_bool_t GetNominalGlyph(hb_font_t *font, void *object, hb_codepoint_t u
     ShapableFaceRef shapableFace = object;
     TRGlyphID glyphID = RenderableFaceGetCodePointGlyphID(shapableFace->renderableFace, unicode);
 
+    (void)font;
+    (void)userData;
+
     if (glyphID != 0) {
         *glyph = glyphID;
         hasGlyph = 1;
@@ -98,6 +103,9 @@ static unsigned int GetNominalGlyphs(hb_font_t *font, void *object, unsigned int
 {
     ShapableFaceRef shapableFace = object;
     unsigned int done;
+
+    (void)font;
+    (void)userData;
 
     for (done = 0; done < count; done++) {
         hb_codepoint_t unicode = *StrideAt(firstUnicode, unicodeStride, done, const hb_codepoint_t);
@@ -122,6 +130,9 @@ static hb_bool_t GetVariationGlyph(hb_font_t *font, void *object, hb_codepoint_t
     TRGlyphID glyphID = RenderableFaceGetVariantGlyphID(shapableFace->renderableFace, unicode,
         variationSelector);
 
+    (void)font;
+    (void)userData;
+
     if (glyphID != 0) {
         *glyph = glyphID;
         hasGlyph = 1;
@@ -133,6 +144,9 @@ static hb_bool_t GetVariationGlyph(hb_font_t *font, void *object, hb_codepoint_t
 static hb_position_t GetGlyphHAdvance(hb_font_t *font, void *object, hb_codepoint_t glyph,
     void *userData)
 {
+    (void)font;
+    (void)userData;
+
     return GetGlyphAdvance(object, (TRGlyphID)glyph);
 }
 
@@ -141,6 +155,9 @@ static void GetGlyphHAdvances(hb_font_t *font, void *object, unsigned int count,
     unsigned int advanceStride, void *userData)
 {
     unsigned int index;
+
+    (void)font;
+    (void)userData;
 
     for (index = 0; index < count; index++) {
         hb_codepoint_t glyph = *StrideAt(firstGlyph, glyphStride, index, const hb_codepoint_t);

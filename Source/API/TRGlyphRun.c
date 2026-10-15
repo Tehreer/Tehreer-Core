@@ -91,6 +91,8 @@ typedef struct _GlyphPass {
     TRColor color;
 } GlyphPass;
 
+/* ---------- Lifecycle ---------- */
+
 static void FinalizeGlyphRun(ObjectRef object)
 {
     TRGlyphRun *glyphRun = object;
@@ -149,6 +151,8 @@ static TRGlyphRun *AllocateGlyphRun(TextRunRef textRun, TRUInteger codeUnitStart
 #undef CARET_EDGES
 #undef COUNT
 
+/* ---------- Paint and Renderer State ---------- */
+
 static void SetPaint(TRGlyphRun *glyphRun, const GlyphRunPaint *paint)
 {
     if (paint) {
@@ -205,6 +209,8 @@ static void RestoreRendererState(TRRendererRef renderer, const RendererState *st
         TRTypefaceRelease(state->typeface);
     }
 }
+
+/* ---------- Glyph Clips ---------- */
 
 /* Makes a rectangle from the user space edges, which are rounded to whole pixels. */
 static TRRect MakePixelRect(TRFloat scale, TRFloat left, TRFloat top, TRFloat right,
@@ -361,6 +367,8 @@ static const TRRect *SelectGlyphClip(const GlyphClips *clips, TRUInteger glyphIn
 
     return clip;
 }
+
+/* ---------- Drawing ---------- */
 
 static void PassGlyphImage(void *userData, TRUInteger glyphIndex, TRGlyphImageRef image,
     TRPoint origin, TRFloat scaleX, TRFloat scaleY, TRBoolean *stop)
@@ -586,6 +594,8 @@ static void DrawDecorations(TRGlyphRunRef glyphRun, TRRendererRef renderer, TRPo
     }
 }
 
+/* ---------- Internal Functions ---------- */
+
 TR_INTERNAL TRGlyphRun *TRGlyphRunCreate(TextRunRef textRun, TRUInteger start, TRUInteger end,
     const GlyphRunPaint *paint)
 {
@@ -743,6 +753,8 @@ TR_INTERNAL void TRGlyphRunDrawInExtent(TRGlyphRunRef glyphRun, TRRendererRef re
     DrawDecorations(glyphRun, renderer, origin);
 }
 
+/* ---------- Run Properties ---------- */
+
 TRUInteger TRGlyphRunGetCodeUnitStart(TRGlyphRunRef run)
 {
     return run->codeUnitStart;
@@ -881,6 +893,8 @@ TRFloat TRGlyphRunGetHeight(TRGlyphRunRef run)
     return run->textRun->ascent + run->textRun->descent + run->textRun->leading;
 }
 
+/* ---------- Glyph Data ---------- */
+
 TRUInteger TRGlyphRunGetGlyphCount(TRGlyphRunRef run)
 {
     return run->glyphCount;
@@ -960,6 +974,8 @@ TRUInteger TRGlyphRunGetCodeUnitIndex(TRGlyphRunRef run, TRFloat distance)
         first, last);
 }
 
+/* ---------- Ink Box and Drawing ---------- */
+
 TRRect TRGlyphRunGetInkBox(TRGlyphRunRef run, TRRendererRef renderer)
 {
     TextRunRef textRun = run->textRun;
@@ -995,6 +1011,8 @@ void TRGlyphRunDraw(TRGlyphRunRef run, TRRendererRef renderer, TRPoint origin)
         TRGlyphRunDrawInExtent(run, renderer, origin, top, bottom);
     }
 }
+
+/* ---------- Reference Counting ---------- */
 
 TRGlyphRunRef TRGlyphRunRetain(TRGlyphRunRef run)
 {

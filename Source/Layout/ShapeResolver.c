@@ -326,6 +326,20 @@ static TRBoolean ResolveAllParagraphs(ResolverContext *context, SBUniformRunIter
     return isResolved;
 }
 
+/* Returns the number of bytes in a code unit of the encoding. */
+static TRUInteger GetCodeUnitSize(TRStringEncoding encoding)
+{
+    TRUInteger codeUnitSize = 4;
+
+    if (encoding == TRStringEncodingUTF8) {
+        codeUnitSize = 1;
+    } else if (encoding == TRStringEncodingUTF16) {
+        codeUnitSize = 2;
+    }
+
+    return codeUnitSize;
+}
+
 TR_INTERNAL TRBoolean ShapeResolverResolve(TRTypesetter *typesetter,
     const TRAttribute *defaultAttributes, TRUInteger defaultAttributeCount)
 {
@@ -340,8 +354,7 @@ TR_INTERNAL TRBoolean ShapeResolverResolve(TRTypesetter *typesetter,
 
         context.typesetter = typesetter;
         context.engine = engine;
-        context.unitSize = (typesetter->buffer.encoding == TRStringEncodingUTF8 ? 1
-                            : (typesetter->buffer.encoding == TRStringEncodingUTF16 ? 2 : 4));
+        context.unitSize = GetCodeUnitSize(typesetter->buffer.encoding);
 
         InitializeStyle(&context.defaultStyle);
         if (defaultAttributes) {

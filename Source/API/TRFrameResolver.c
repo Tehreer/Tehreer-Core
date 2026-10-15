@@ -520,7 +520,6 @@ static void TruncateLastLine(FrameContext *context, TRFrameResolverRef resolver,
     TRUInteger segmentStart;
     TRUInteger lineIndex;
     TRUInteger index;
-    TRFloat width, height;
 
     /* The last line might be in a paragraph before the one that the filling stopped in. */
     TRTypesetterGetParagraph(typesetter, lastStart, &paragraph);
@@ -562,6 +561,8 @@ static void TruncateLastLine(FrameContext *context, TRFrameResolverRef resolver,
         TRComposedLineRelease(token);
 
         if (line) {
+            TRFloat width, height;
+
             ResolveAttributes(context, resolver, line);
 
             /* Replace the line and update the occupied size. */

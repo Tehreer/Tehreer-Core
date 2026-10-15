@@ -220,6 +220,7 @@ static GlyphBitmapRef RenderStrokedOutline(FreeTypeRef freetype, FT_Outline *str
         TRUInt32 height = (TRUInt32)((box.yMax - box.yMin) >> 6);
         TRUInteger bufferSize;
         FT_Bitmap bitmap;
+        FT_Error error;
 
         bitmap.width = width;
         bitmap.rows = height;
@@ -237,7 +238,12 @@ static GlyphBitmapRef RenderStrokedOutline(FreeTypeRef freetype, FT_Outline *str
         if (bitmap.buffer) {
             FT_Outline_Translate(stroked, -box.xMin, -box.yMin);
 
-            if (FT_Outline_Get_Bitmap(freetype->library, stroked, &bitmap) == FT_Err_Ok) {
+            /* The rendering goes through the renderers of the library, which are shared. */
+            MutexLock(&freetype->mutex);
+            error = FT_Outline_Get_Bitmap(freetype->library, stroked, &bitmap);
+            MutexUnlock(&freetype->mutex);
+
+            if (error == FT_Err_Ok) {
                 glyphBitmap = GlyphBitmapCreateFromBitmap(&bitmap, (TRInt32)(box.xMin >> 6),
                     (TRInt32)(box.yMax >> 6));
             }
@@ -315,8 +321,7 @@ TR_INTERNAL GlyphBitmapRef GlyphBitmapCreateFromStroke(const FT_Outline *outline
         FreeTypeRef freetype = FreeTypeGetDefault();
         FT_Stroker stroker = NULL;
 
-        MutexLock(&freetype->mutex);
-
+        /* The stroker and the outlines only use the memory allocator of the library, so no lock. */
         if (FT_Stroker_New(freetype->library, &stroker) == FT_Err_Ok) {
             FT_Stroker_Set(stroker, lineRadius, lineCap, lineJoin, miterLimit);
 
@@ -324,8 +329,6 @@ TR_INTERNAL GlyphBitmapRef GlyphBitmapCreateFromStroke(const FT_Outline *outline
 
             FT_Stroker_Done(stroker);
         }
-
-        MutexUnlock(&freetype->mutex);
     }
 
     return glyphBitmap;

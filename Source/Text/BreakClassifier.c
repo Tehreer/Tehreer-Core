@@ -104,9 +104,7 @@ TR_INTERNAL BreakClassifierRef BreakClassifierCreate(const void *codeUnits, TRUI
     sizes[BREAKS] = length;
 
     if (encoding <= TRStringEncodingUTF32 && (length == 0 || codeUnits)) {
-        char *types = NULL;
-
-        types = (length > 0 ? AllocatorAllocateBlock(length) : NULL);
+        char *types = (length > 0 ? AllocatorAllocateBlock(length) : NULL);
 
         if (length == 0 || types) {
             void *pointers[COUNT] = { NULL };

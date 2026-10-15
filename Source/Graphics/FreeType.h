@@ -25,7 +25,7 @@
 
 typedef struct _FreeType {
     Mutex mutex;
-    FT_Library library;
+    FT_Library library; /* NULL if the initialization of FreeType failed. */
 } FreeType, *FreeTypeRef;
 
 TR_INTERNAL FreeTypeRef FreeTypeGetDefault(void);
