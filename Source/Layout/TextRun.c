@@ -243,7 +243,7 @@ TR_INTERNAL TextRunRef TextRunCreateForLayoutWidth(TextRunRef textRun, TRFloat l
 {
     TextRunRef sizedRun;
 
-    if (textRun->kind == TextRunKindReplacement) {
+    if (textRun->kind == TextRunKindReplacement && layoutWidth != 0.0f) {
         sizedRun = TextRunCreateReplacement(textRun->codeUnitStart, textRun->codeUnitEnd,
             textRun->bidiLevel, textRun->replacement, textRun->typeface, textRun->typeSize,
             layoutWidth);

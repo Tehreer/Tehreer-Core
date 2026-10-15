@@ -88,7 +88,8 @@ TR_INTERNAL TextRunRef TextRunCreateReplacement(TRUInteger codeUnitStart, TRUInt
 /*
  * Returns the same replacement run for another layout width, which a frame decides. Its leading is
  * zero, as the room that a frame gives includes the space around the replacement. A run that is
- * not a replacement is returned as it is, with a new reference.
+ * not a replacement is returned as it is, with a new reference, and so is a replacement run for a
+ * layout width of zero, which is the one that it is shaped for.
  */
 TR_INTERNAL TextRunRef TextRunCreateForLayoutWidth(TextRunRef textRun, TRFloat layoutWidth);
 
