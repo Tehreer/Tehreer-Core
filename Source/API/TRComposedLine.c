@@ -360,8 +360,8 @@ TRRect TRComposedLineComputeInkBox(TRComposedLineRef line, TRRendererRef rendere
 void TRComposedLineDraw(TRComposedLineRef line, TRRendererRef renderer, TRPoint origin)
 {
     if (renderer) {
-        TRFloat top = origin.y + GetLineTop(line);
-        TRFloat bottom = origin.y + GetLineBottom(line);
+        TRFloat top = origin.y + TRComposedLineGetTop(line);
+        TRFloat bottom = origin.y + TRComposedLineGetBottom(line);
         TRUInteger runIndex;
 
         for (runIndex = 0; runIndex < line->runCount; runIndex++) {

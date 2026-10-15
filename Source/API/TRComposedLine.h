@@ -57,8 +57,8 @@ TR_INTERNAL TRComposedLine *TRComposedLineCreate(const TextBuffer *buffer, TRUIn
     TRUInteger end, TRGlyphRun **runs, TRUInteger runCount, TRUInt8 paragraphLevel);
 
 /* Top edge of the line, which is its ascent above the y of its origin. */
-#define GetLineTop(line_)       ((line_)->origin.y - (line_)->ascent)
+#define TRComposedLineGetTop(line_)       ((line_)->origin.y - (line_)->ascent)
 /* Bottom edge of the line, which is its descent and leading below the y of its origin. */
-#define GetLineBottom(line_)    ((line_)->origin.y + (line_)->descent + (line_)->leading)
+#define TRComposedLineGetBottom(line_)    ((line_)->origin.y + (line_)->descent + (line_)->leading)
 
 #endif
