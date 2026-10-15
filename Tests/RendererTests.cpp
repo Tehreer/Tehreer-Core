@@ -250,7 +250,7 @@ void RendererTests::testWithoutTypeface() {
 
     TRRect box = TRRendererGetGlyphInkBox(renderer, GlyphA);
     assert(box.size.width == 0.0f && box.size.height == 0.0f);
-    box = TRRendererGetRunInkBox(renderer, glyphs, offsets, advances, 2);
+    box = TRRendererComputeRunInkBox(renderer, glyphs, offsets, advances, 2);
     assert(box.origin.x == 0.0f && box.size.width == 0.0f && box.size.height == 0.0f);
 
     GlyphPlacement placements[2];
@@ -538,25 +538,25 @@ void RendererTests::testRunBoundingBox() {
     Fixture f;
 
     /* The rectangles are those of the placements: from 1 to 58 across, and from -24 to 0 down. */
-    TRRect box = TRRendererGetRunInkBox(f.renderer, Run, NoOffsets, RunAdvances, 3);
+    TRRect box = TRRendererComputeRunInkBox(f.renderer, Run, NoOffsets, RunAdvances, 3);
     assert(isNear(box.origin.x, 1.0f) && isNear(box.origin.y, -24.0f));
     assert(isNear(box.size.width, 57.0f) && isNear(box.size.height, 24.0f));
 
     /* A single glyph gives the box of its own. */
-    box = TRRendererGetRunInkBox(f.renderer, Run, NoOffsets, RunAdvances, 1);
+    box = TRRendererComputeRunInkBox(f.renderer, Run, NoOffsets, RunAdvances, 1);
     assert(isNear(box.origin.x, 1.0f) && isNear(box.origin.y, -17.0f));
     assert(isNear(box.size.width, 15.0f) && isNear(box.size.height, 17.0f));
 
     /* An offset moves the glyph and so its box. */
     const TRPoint offsets[] = { { 0, 10.0f }, { 0, 0 }, { 0, 0 } };
-    box = TRRendererGetRunInkBox(f.renderer, Run, offsets, RunAdvances, 3);
+    box = TRRendererComputeRunInkBox(f.renderer, Run, offsets, RunAdvances, 3);
     assert(isNear(box.origin.y, -27.0f) && isNear(box.size.height, 27.0f));
 
     /* The user space divides the pixels by the render scale. */
     TRRendererSetTypeSize(f.renderer, 16.0f);
     TRRendererSetRenderScale(f.renderer, 2.0f);
     const TRFloat doubled[] = { 10.0f, 11.0f, 9.0f };
-    box = TRRendererGetRunInkBox(f.renderer, Run, NoOffsets, doubled, 3);
+    box = TRRendererComputeRunInkBox(f.renderer, Run, NoOffsets, doubled, 3);
     assert(isNear(box.origin.x, 0.5f) && isNear(box.origin.y, -12.0f));
     assert(isNear(box.size.width, 28.5f) && isNear(box.size.height, 12.0f));
 }
@@ -569,7 +569,7 @@ void RendererTests::testRunBoundingBoxRightToLeft() {
      * The placements go from -59 to -4, and the box is shifted by the advance of the run, which is
      * 60, so that it is in the coordinates that the run has from its start.
      */
-    TRRect box = TRRendererGetRunInkBox(f.renderer, Run, NoOffsets, RunAdvances, 3);
+    TRRect box = TRRendererComputeRunInkBox(f.renderer, Run, NoOffsets, RunAdvances, 3);
     assert(isNear(box.origin.x, 1.0f) && isNear(box.origin.y, -24.0f));
     assert(isNear(box.size.width, 55.0f) && isNear(box.size.height, 24.0f));
 }
@@ -578,7 +578,7 @@ void RendererTests::testEmptyRuns() {
     Fixture f;
     GlyphPlacement placement;
 
-    TRRect box = TRRendererGetRunInkBox(f.renderer, Run, NoOffsets, RunAdvances, 0);
+    TRRect box = TRRendererComputeRunInkBox(f.renderer, Run, NoOffsets, RunAdvances, 0);
     assert(box.origin.x == 0.0f && box.origin.y == 0.0f);
     assert(box.size.width == 0.0f && box.size.height == 0.0f);
 
@@ -593,7 +593,7 @@ void RendererTests::testEmptyRuns() {
 
     /* A run of glyphs without any image has an empty box, while the pen still moves. */
     const TRGlyphID spaces[] = { 0, 0 };
-    box = TRRendererGetRunInkBox(f.renderer, spaces, NoOffsets, RunAdvances, 2);
+    box = TRRendererComputeRunInkBox(f.renderer, spaces, NoOffsets, RunAdvances, 2);
     assert(box.size.width == 0.0f && box.size.height == 0.0f);
 }
 
@@ -815,7 +815,7 @@ void RendererTests::testConcurrentRenderers() {
 
                 releasePlacements(placements, 3);
 
-                TRRect box = TRRendererGetRunInkBox(renderer, Run, NoOffsets, RunAdvances, 3);
+                TRRect box = TRRendererComputeRunInkBox(renderer, Run, NoOffsets, RunAdvances, 3);
                 if (box.size.width <= 0.0f) {
                     failures++;
                 }
@@ -896,7 +896,7 @@ void RendererTests::testBitmapGlyphs() {
     assert(isNear(box.size.width, 2.0f * width) && isNear(box.size.height, 2.0f * height));
     assert(isNear(box.origin.x, 2.0f * left) && isNear(box.origin.y, -2.0f * top));
 
-    TRRect runBox = TRRendererGetRunInkBox(f.renderer, &glyphID, &offset, &advance, 1);
+    TRRect runBox = TRRendererComputeRunInkBox(f.renderer, &glyphID, &offset, &advance, 1);
     assert(isNear(runBox.size.width, 2.0f * width) && isNear(runBox.size.height, 2.0f * height));
 
     /* A smaller size is scaled down, and the render scale does not change what the image holds. */

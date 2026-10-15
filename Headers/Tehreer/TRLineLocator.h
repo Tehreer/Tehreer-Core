@@ -58,7 +58,7 @@ typedef void (*TRLineLocatorFunc)(void *userData, TRUInteger lineIndex, TRBoolea
 /**
  * Creates a locator for the lines of a frame. The box of every line is computed here, so the time
  * it takes grows with the number of lines. The ink boxes are measured by the renderer, which is set
- * up for each run and gets back what it had, as `TRComposedLineGetInkBox()` does.
+ * up for each run and gets back what it had, as `TRComposedLineComputeInkBox()` does.
  *
  * @param frame
  *      The frame whose lines are located.

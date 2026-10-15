@@ -37,6 +37,15 @@
 using namespace std;
 using namespace Tehreer;
 
+static TRFloat lineTop(TRComposedLineRef line) {
+    return TRComposedLineGetOrigin(line).y - TRComposedLineGetAscent(line);
+}
+
+static TRFloat lineBottom(TRComposedLineRef line) {
+    return TRComposedLineGetOrigin(line).y + TRComposedLineGetDescent(line)
+         + TRComposedLineGetLeading(line);
+}
+
 static TRSize makeSize(TRFloat width, TRFloat height)
 {
     TRSize size = { width, height };
@@ -144,14 +153,14 @@ void FrameTests::testSingleLine() {
     TRComposedFrameRef frame = f.frame();
 
     assert(TRComposedFrameGetLineCount(frame) == 1);
-    TRRange range = { TRComposedFrameGetCodeUnitStart(frame), TRComposedFrameGetCodeUnitEnd(frame) - TRComposedFrameGetCodeUnitStart(frame) };
+    TRRange range = { TRComposedFrameGetStartIndex(frame), TRComposedFrameGetEndIndex(frame) - TRComposedFrameGetStartIndex(frame) };
     assert(range.index == 0 && range.length == 3);
 
     TRComposedLineRef line = TRComposedFrameGetLine(frame, 0);
     assert(TRComposedLineGetOrigin(line).x == 0.0f);
     assert(TRComposedLineGetOrigin(line).y == Ascent);
-    assert(TRComposedLineGetTop(line) == 0.0f);
-    assert(TRComposedLineGetBottom(line) == Height);
+    assert(lineTop(line) == 0.0f);
+    assert(lineBottom(line) == Height);
 
     /* A frame without a size is as big as it can be. */
     assert(TRComposedFrameGetWidth(frame) > 1.0e30f);
@@ -186,8 +195,8 @@ void FrameTests::testWrapping() {
     TRComposedFrameRef frame = f.frame();
     assert(TRComposedFrameGetLineCount(frame) == 2);
 
-    TRRange first = { TRComposedLineGetCodeUnitStart(TRComposedFrameGetLine(frame, 0)), TRComposedLineGetCodeUnitEnd(TRComposedFrameGetLine(frame, 0)) - TRComposedLineGetCodeUnitStart(TRComposedFrameGetLine(frame, 0)) };
-    TRRange second = { TRComposedLineGetCodeUnitStart(TRComposedFrameGetLine(frame, 1)), TRComposedLineGetCodeUnitEnd(TRComposedFrameGetLine(frame, 1)) - TRComposedLineGetCodeUnitStart(TRComposedFrameGetLine(frame, 1)) };
+    TRRange first = { TRComposedLineGetStartIndex(TRComposedFrameGetLine(frame, 0)), TRComposedLineGetEndIndex(TRComposedFrameGetLine(frame, 0)) - TRComposedLineGetStartIndex(TRComposedFrameGetLine(frame, 0)) };
+    TRRange second = { TRComposedLineGetStartIndex(TRComposedFrameGetLine(frame, 1)), TRComposedLineGetEndIndex(TRComposedFrameGetLine(frame, 1)) - TRComposedLineGetStartIndex(TRComposedFrameGetLine(frame, 1)) };
     assert(first.index == 0 && first.length == 4);
     assert(second.index == 4 && second.length == 3);
 
@@ -204,7 +213,7 @@ void FrameTests::testFrameRange() {
 
     TRComposedFrameRef frame = f.frame(4, 7);
     assert(TRComposedFrameGetLineCount(frame) == 1);
-    TRRange range = { TRComposedFrameGetCodeUnitStart(frame), TRComposedFrameGetCodeUnitEnd(frame) - TRComposedFrameGetCodeUnitStart(frame) };
+    TRRange range = { TRComposedFrameGetStartIndex(frame), TRComposedFrameGetEndIndex(frame) - TRComposedFrameGetStartIndex(frame) };
     assert(range.index == 4 && range.length == 3);
     TRComposedFrameRelease(frame);
 }
@@ -216,7 +225,7 @@ void FrameTests::testHeightLimit() {
     /* The second line would end at 4800. */
     TRComposedFrameRef frame = f.frame();
     assert(TRComposedFrameGetLineCount(frame) == 1);
-    TRRange range = { TRComposedFrameGetCodeUnitStart(frame), TRComposedFrameGetCodeUnitEnd(frame) - TRComposedFrameGetCodeUnitStart(frame) };
+    TRRange range = { TRComposedFrameGetStartIndex(frame), TRComposedFrameGetEndIndex(frame) - TRComposedFrameGetStartIndex(frame) };
     assert(range.index == 0 && range.length == 4);
     TRComposedFrameRelease(frame);
 
@@ -238,7 +247,7 @@ void FrameTests::testMaxLines() {
     TRFrameResolverSetMaxLines(f.resolver, 2);
     frame = f.frame();
     assert(TRComposedFrameGetLineCount(frame) == 2);
-    TRRange range = { TRComposedFrameGetCodeUnitStart(frame), TRComposedFrameGetCodeUnitEnd(frame) - TRComposedFrameGetCodeUnitStart(frame) };
+    TRRange range = { TRComposedFrameGetStartIndex(frame), TRComposedFrameGetEndIndex(frame) - TRComposedFrameGetStartIndex(frame) };
     assert(range.index == 0 && range.length == 8);
     TRComposedFrameRelease(frame);
 }
@@ -251,24 +260,24 @@ void FrameTests::testTruncation() {
     /* Without truncation, the frame shows what fits. */
     TRComposedFrameRef frame = f.frame();
     assert(TRComposedFrameGetLineCount(frame) == 1);
-    assert((TRComposedFrameGetCodeUnitEnd(frame) - TRComposedFrameGetCodeUnitStart(frame)) == 4);
+    assert((TRComposedFrameGetEndIndex(frame) - TRComposedFrameGetStartIndex(frame)) == 4);
     TRComposedFrameRelease(frame);
 
     /* The last line is cut so that the three dots fit after 'ab'. */
     TRFrameResolverSetTruncationPlace(f.resolver, TRTruncationPlaceEnd);
     frame = f.frame();
-    assert((TRComposedFrameGetCodeUnitEnd(frame) - TRComposedFrameGetCodeUnitStart(frame)) == 4);
+    assert((TRComposedFrameGetEndIndex(frame) - TRComposedFrameGetStartIndex(frame)) == 4);
     TRComposedFrameRelease(frame);
 
     TRFrameResolverSetTruncationEnabled(f.resolver, TRTrue);
     frame = f.frame();
     assert(TRComposedFrameGetLineCount(frame) == 1);
-    assert((TRComposedFrameGetCodeUnitEnd(frame) - TRComposedFrameGetCodeUnitStart(frame)) == 7);
+    assert((TRComposedFrameGetEndIndex(frame) - TRComposedFrameGetStartIndex(frame)) == 7);
 
     TRComposedLineRef line = TRComposedFrameGetLine(frame, 0);
     assert(isNear(TRComposedLineGetWidth(line), A + B + 3.0f * Notdef));
-    assert(TRComposedLineGetCodeUnitStart(line) == 0);
-    assert(TRComposedLineGetCodeUnitEnd(line) == 7);
+    assert(TRComposedLineGetStartIndex(line) == 0);
+    assert(TRComposedLineGetEndIndex(line) == 7);
     TRComposedFrameRelease(frame);
 
     /* A line that shows the token is not justified, as it would lose it. */
@@ -289,7 +298,7 @@ void FrameTests::testTruncation() {
     TRFrameResolverSetTruncationEnabled(f.resolver, TRFalse);
     TRFrameResolverSetFrameSize(f.resolver, makeSize(6000.0f, Height));
     frame = f.frame();
-    assert((TRComposedFrameGetCodeUnitEnd(frame) - TRComposedFrameGetCodeUnitStart(frame)) == 4);
+    assert((TRComposedFrameGetEndIndex(frame) - TRComposedFrameGetStartIndex(frame)) == 4);
     TRComposedFrameRelease(frame);
 }
 
@@ -304,14 +313,14 @@ void FrameTests::testTruncationAcrossParagraphs() {
     TRComposedFrameRef frame = f.frame();
     assert(TRComposedFrameGetLineCount(frame) == 1);
     assert(TRComposedLineIsTruncated(TRComposedFrameGetLine(frame, 0)));
-    assert(TRComposedFrameGetCodeUnitStart(frame) == 0);
-    assert((TRComposedFrameGetCodeUnitEnd(frame) - TRComposedFrameGetCodeUnitStart(frame)) == 15);
+    assert(TRComposedFrameGetStartIndex(frame) == 0);
+    assert((TRComposedFrameGetEndIndex(frame) - TRComposedFrameGetStartIndex(frame)) == 15);
     TRComposedFrameRelease(frame);
 
     /* A range in the middle of the text ends where it is asked to. */
     frame = f.frame(2, 12);
-    assert(TRComposedFrameGetCodeUnitStart(frame) == 2);
-    assert((TRComposedFrameGetCodeUnitEnd(frame) - TRComposedFrameGetCodeUnitStart(frame)) == 10);
+    assert(TRComposedFrameGetStartIndex(frame) == 2);
+    assert((TRComposedFrameGetEndIndex(frame) - TRComposedFrameGetStartIndex(frame)) == 10);
     TRComposedFrameRelease(frame);
 }
 
@@ -525,16 +534,16 @@ void FrameTests::testIndexOfLine() {
     TRFrameResolverSetFrameSize(f.resolver, makeSize(3500.0f, 100000.0f));
 
     TRComposedFrameRef frame = f.frame();
-    assert(TRComposedFrameGetIndexOfLineForCodeUnit(frame, 0) == 0);
-    assert(TRComposedFrameGetIndexOfLineForCodeUnit(frame, 3) == 0);
-    assert(TRComposedFrameGetIndexOfLineForCodeUnit(frame, 4) == 1);
-    assert(TRComposedFrameGetIndexOfLineForCodeUnit(frame, 6) == 1);
-    assert(TRComposedFrameGetIndexOfLineForCodeUnit(frame, 7) == TRInvalidIndex);
+    assert(TRComposedFrameGetLineIndexForCodeUnit(frame, 0) == 0);
+    assert(TRComposedFrameGetLineIndexForCodeUnit(frame, 3) == 0);
+    assert(TRComposedFrameGetLineIndexForCodeUnit(frame, 4) == 1);
+    assert(TRComposedFrameGetLineIndexForCodeUnit(frame, 6) == 1);
+    assert(TRComposedFrameGetLineIndexForCodeUnit(frame, 7) == TRInvalidIndex);
 
-    assert(TRComposedFrameGetIndexOfLineAtPosition(frame, { 10.0f, 100.0f }) == 0);
-    assert(TRComposedFrameGetIndexOfLineAtPosition(frame, { 10.0f, 3000.0f }) == 1);
-    assert(TRComposedFrameGetIndexOfLineAtPosition(frame, { 10.0f, -50.0f }) == 1);
-    assert(TRComposedFrameGetIndexOfLineAtPosition(frame, { 10.0f, 99999.0f }) == 1);
+    assert(TRComposedFrameGetLineIndexAtPosition(frame, { 10.0f, 100.0f }) == 0);
+    assert(TRComposedFrameGetLineIndexAtPosition(frame, { 10.0f, 3000.0f }) == 1);
+    assert(TRComposedFrameGetLineIndexAtPosition(frame, { 10.0f, -50.0f }) == 1);
+    assert(TRComposedFrameGetLineIndexAtPosition(frame, { 10.0f, 99999.0f }) == 1);
 
     TRComposedFrameRelease(frame);
 }
@@ -594,11 +603,11 @@ void FrameTests::testTruncatedSelection() {
 
         /* The truncated line covers the range of the frame, so every code unit has a line. */
         TRComposedFrameRef frame = f.frame();
-        assert(TRComposedFrameGetCodeUnitEnd(frame) == 19);
+        assert(TRComposedFrameGetEndIndex(frame) == 19);
         assert(TRComposedLineIsTruncated(TRComposedFrameGetLine(frame, 1)));
-        assert(TRComposedLineGetCodeUnitEnd(TRComposedFrameGetLine(frame, 1)) == 19);
+        assert(TRComposedLineGetEndIndex(TRComposedFrameGetLine(frame, 1)) == 19);
         for (TRUInteger index = 0; index < 19; index++) {
-            assert(TRComposedFrameGetIndexOfLineForCodeUnit(frame, index) != TRInvalidIndex);
+            assert(TRComposedFrameGetLineIndexForCodeUnit(frame, index) != TRInvalidIndex);
         }
 
         /* Every range is selected without trouble, within the frame. */
@@ -710,8 +719,8 @@ void FrameTests::testRangesAreChecked() {
     /* A range that is within the text is the frame, up to the end of the text. */
     TRComposedFrameRef frame = TRFrameResolverCreateFrame(f.resolver, 4, 3);
     assert(frame != nullptr);
-    assert(TRComposedFrameGetCodeUnitStart(frame) == 4);
-    assert(TRComposedFrameGetCodeUnitEnd(frame) == 7);
+    assert(TRComposedFrameGetStartIndex(frame) == 4);
+    assert(TRComposedFrameGetEndIndex(frame) == 7);
     TRComposedFrameRelease(frame);
 
     frame = TRFrameResolverCreateFrame(f.resolver, 0, 7);
@@ -721,10 +730,10 @@ void FrameTests::testRangesAreChecked() {
     assert(TRComposedFrameGetLine(frame, 2) == nullptr);
     assert(TRComposedFrameGetLine(frame, max) == nullptr);
     assert(TRComposedFrameGetLine(frame, 1) != nullptr);
-    assert(TRComposedFrameGetIndexOfLineForCodeUnit(frame, 7) == TRInvalidIndex);
-    assert(TRComposedFrameGetIndexOfLineForCodeUnit(frame, max) == TRInvalidIndex);
-    assert(TRComposedFrameGetIndexOfLineForCodeUnit(frame, 99) == TRInvalidIndex);
-    assert(TRComposedFrameGetIndexOfLineForCodeUnit(frame, 0) == 0);
+    assert(TRComposedFrameGetLineIndexForCodeUnit(frame, 7) == TRInvalidIndex);
+    assert(TRComposedFrameGetLineIndexForCodeUnit(frame, max) == TRInvalidIndex);
+    assert(TRComposedFrameGetLineIndexForCodeUnit(frame, 99) == TRInvalidIndex);
+    assert(TRComposedFrameGetLineIndexForCodeUnit(frame, 0) == 0);
 
     /* A selection is only of a range that is within the frame. */
     vector<TRRect> expected;

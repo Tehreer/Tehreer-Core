@@ -53,7 +53,7 @@ typedef void (*TRSelectionFunc)(void *userData, TRRect rect, TRBoolean *stop);
  * @return
  *      The index of the first code unit that the frame covers.
  */
-TR_PUBLIC TRUInteger TRComposedFrameGetCodeUnitStart(TRComposedFrameRef frame);
+TR_PUBLIC TRUInteger TRComposedFrameGetStartIndex(TRComposedFrameRef frame);
 
 /**
  * Returns the index after the last code unit that the frame covers.
@@ -63,7 +63,7 @@ TR_PUBLIC TRUInteger TRComposedFrameGetCodeUnitStart(TRComposedFrameRef frame);
  * @return
  *      The index after the last code unit that the frame covers.
  */
-TR_PUBLIC TRUInteger TRComposedFrameGetCodeUnitEnd(TRComposedFrameRef frame);
+TR_PUBLIC TRUInteger TRComposedFrameGetEndIndex(TRComposedFrameRef frame);
 
 /**
  * Returns the width of the frame.
@@ -119,7 +119,7 @@ TR_PUBLIC TRComposedLineRef TRComposedFrameGetLine(TRComposedFrameRef frame, TRU
  * @return
  *      The index of the line.
  */
-TR_PUBLIC TRUInteger TRComposedFrameGetIndexOfLineForCodeUnit(TRComposedFrameRef frame,
+TR_PUBLIC TRUInteger TRComposedFrameGetLineIndexForCodeUnit(TRComposedFrameRef frame,
     TRUInteger codeUnitIndex);
 
 /**
@@ -134,7 +134,7 @@ TR_PUBLIC TRUInteger TRComposedFrameGetIndexOfLineForCodeUnit(TRComposedFrameRef
  * @return
  *      The index of the line, which is the first one if more than one has the y.
  */
-TR_PUBLIC TRUInteger TRComposedFrameGetIndexOfLineAtPosition(TRComposedFrameRef frame,
+TR_PUBLIC TRUInteger TRComposedFrameGetLineIndexAtPosition(TRComposedFrameRef frame,
     TRPoint position);
 
 /**

@@ -304,7 +304,7 @@ static void PlanGlyphClips(TRGlyphRunRef glyphRun, TRRendererRef renderer, TRPoi
     GlyphExtent extent, GlyphClips *clips)
 {
     TRFloat scale = renderer->renderScale;
-    TRRect inkBox = TRGlyphRunGetInkBox(glyphRun, renderer);
+    TRRect inkBox = TRGlyphRunComputeInkBox(glyphRun, renderer);
     TRFloat inkLeft = baseline.x + extent.left + inkBox.origin.x;
     TRFloat inkRight = inkLeft + inkBox.size.width;
     TRFloat inkTop = baseline.y + inkBox.origin.y;
@@ -755,12 +755,12 @@ TR_INTERNAL void TRGlyphRunDrawInExtent(TRGlyphRunRef glyphRun, TRRendererRef re
 
 /* ---------- Run Properties ---------- */
 
-TRUInteger TRGlyphRunGetCodeUnitStart(TRGlyphRunRef run)
+TRUInteger TRGlyphRunGetStartIndex(TRGlyphRunRef run)
 {
     return run->codeUnitStart;
 }
 
-TRUInteger TRGlyphRunGetCodeUnitEnd(TRGlyphRunRef run)
+TRUInteger TRGlyphRunGetEndIndex(TRGlyphRunRef run)
 {
     return run->codeUnitEnd;
 }
@@ -976,7 +976,7 @@ TRUInteger TRGlyphRunGetCodeUnitIndex(TRGlyphRunRef run, TRFloat distance)
 
 /* ---------- Ink Box and Drawing ---------- */
 
-TRRect TRGlyphRunGetInkBox(TRGlyphRunRef run, TRRendererRef renderer)
+TRRect TRGlyphRunComputeInkBox(TRGlyphRunRef run, TRRendererRef renderer)
 {
     TextRunRef textRun = run->textRun;
     TRRect box;
@@ -993,7 +993,7 @@ TRRect TRGlyphRunGetInkBox(TRGlyphRunRef run, TRRendererRef renderer)
         SaveRendererState(renderer, &state);
         ApplyRunToRenderer(renderer, textRun);
 
-        box = TRRendererGetRunInkBox(renderer, TRGlyphRunGetGlyphIDsPtr(run),
+        box = TRRendererComputeRunInkBox(renderer, TRGlyphRunGetGlyphIDsPtr(run),
             TRGlyphRunGetGlyphOffsetsPtr(run), TRGlyphRunGetAdvances(run), run->glyphCount);
 
         RestoreRendererState(renderer, &state);

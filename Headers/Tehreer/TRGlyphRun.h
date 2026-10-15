@@ -49,7 +49,7 @@ typedef const struct _TRGlyphRun *TRGlyphRunRef;
  * @return
  *      The index of the first code unit that the run covers.
  */
-TR_PUBLIC TRUInteger TRGlyphRunGetCodeUnitStart(TRGlyphRunRef run);
+TR_PUBLIC TRUInteger TRGlyphRunGetStartIndex(TRGlyphRunRef run);
 
 /**
  * Returns the index after the last code unit that the run covers.
@@ -59,7 +59,7 @@ TR_PUBLIC TRUInteger TRGlyphRunGetCodeUnitStart(TRGlyphRunRef run);
  * @return
  *      The index after the last code unit that the run covers.
  */
-TR_PUBLIC TRUInteger TRGlyphRunGetCodeUnitEnd(TRGlyphRunRef run);
+TR_PUBLIC TRUInteger TRGlyphRunGetEndIndex(TRGlyphRunRef run);
 
 /**
  * Returns how many code units of the cluster at the start of the run are before the run. It is
@@ -446,7 +446,7 @@ TR_PUBLIC TRUInteger TRGlyphRunGetCodeUnitIndex(TRGlyphRunRef run, TRFloat dista
  *      The ink box. For a replacement, which is not drawn from glyphs, it is the box of its width
  *      and height at the origin.
  */
-TR_PUBLIC TRRect TRGlyphRunGetInkBox(TRGlyphRunRef run, TRRendererRef renderer);
+TR_PUBLIC TRRect TRGlyphRunComputeInkBox(TRGlyphRunRef run, TRRendererRef renderer);
 
 /**
  * Draws the run through the draw callbacks of a renderer, which receive absolute positions in

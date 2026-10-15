@@ -796,16 +796,16 @@ void TypesetterTests::testRangesAreChecked() {
     /* A range that is within the text is the line, up to the end of the text. */
     TRComposedLineRef line = TRTypesetterCreateSimpleLine(typesetter, 4, 3);
     assert(line != nullptr);
-    assert(TRComposedLineGetCodeUnitStart(line) == 4);
-    assert(TRComposedLineGetCodeUnitEnd(line) == 7);
+    assert(TRComposedLineGetStartIndex(line) == 4);
+    assert(TRComposedLineGetEndIndex(line) == 7);
     TRComposedLineRelease(line);
 
     line = TRTypesetterCreateFrameLine(typesetter, 2, 5, 10000.0f);
-    assert(line != nullptr && TRComposedLineGetCodeUnitEnd(line) == 7);
+    assert(line != nullptr && TRComposedLineGetEndIndex(line) == 7);
     TRComposedLineRelease(line);
 
     line = TRTypesetterCreateJustifiedLine(typesetter, 0, 7, 1.0f, 10000.0f);
-    assert(line != nullptr && TRComposedLineGetCodeUnitEnd(line) == 7);
+    assert(line != nullptr && TRComposedLineGetEndIndex(line) == 7);
     TRComposedLineRelease(line);
 
     /* Nothing is made of a range that is empty or is not within the text, however big it is. */

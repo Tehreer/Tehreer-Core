@@ -58,7 +58,7 @@ typedef void (*TREdgeFunc)(void *userData, TRFloat left, TRFloat right, TRBoolea
  * @return
  *      The index of the first code unit that the line covers.
  */
-TR_PUBLIC TRUInteger TRComposedLineGetCodeUnitStart(TRComposedLineRef line);
+TR_PUBLIC TRUInteger TRComposedLineGetStartIndex(TRComposedLineRef line);
 
 /**
  * Returns the index after the last code unit that the line covers.
@@ -68,7 +68,7 @@ TR_PUBLIC TRUInteger TRComposedLineGetCodeUnitStart(TRComposedLineRef line);
  * @return
  *      The index after the last code unit that the line covers.
  */
-TR_PUBLIC TRUInteger TRComposedLineGetCodeUnitEnd(TRComposedLineRef line);
+TR_PUBLIC TRUInteger TRComposedLineGetEndIndex(TRComposedLineRef line);
 
 /**
  * Returns the base level of the paragraph of the line: even for left-to-right and odd for
@@ -148,46 +148,6 @@ TR_PUBLIC TRFloat TRComposedLineGetWidth(TRComposedLineRef line);
  *      The height of the line, which is the sum of its ascent, descent and leading.
  */
 TR_PUBLIC TRFloat TRComposedLineGetHeight(TRComposedLineRef line);
-
-/**
- * Returns the top edge of the line, which is its ascent above the y of its origin.
- *
- * @param line
- *      The line.
- * @return
- *      The top edge of the line, which is its ascent above the y of its origin.
- */
-TR_PUBLIC TRFloat TRComposedLineGetTop(TRComposedLineRef line);
-
-/**
- * Returns the bottom edge of the line, which is its descent and leading below the y of its origin.
- *
- * @param line
- *      The line.
- * @return
- *      The bottom edge of the line, which is its descent and leading below the y of its origin.
- */
-TR_PUBLIC TRFloat TRComposedLineGetBottom(TRComposedLineRef line);
-
-/**
- * Returns the left edge of the line, which is the x of its origin.
- *
- * @param line
- *      The line.
- * @return
- *      The left edge of the line, which is the x of its origin.
- */
-TR_PUBLIC TRFloat TRComposedLineGetLeft(TRComposedLineRef line);
-
-/**
- * Returns the right edge of the line, which is its width after the x of its origin.
- *
- * @param line
- *      The line.
- * @return
- *      The right edge of the line, which is its width after the x of its origin.
- */
-TR_PUBLIC TRFloat TRComposedLineGetRight(TRComposedLineRef line);
 
 /**
  * Returns the extent of the whitespace at the end of the line, which is part of its width.
@@ -299,7 +259,8 @@ TR_PUBLIC TRBoolean TRComposedLineEnumerateEdges(TRComposedLineRef line, TRUInte
  * @return
  *      The index of the code unit before the boundary.
  */
-TR_PUBLIC TRUInteger TRComposedLineGetCodeUnitIndex(TRComposedLineRef line, TRFloat distance);
+TR_PUBLIC TRUInteger TRComposedLineGetCodeUnitIndexAtDistance(TRComposedLineRef line,
+    TRFloat distance);
 
 /**
  * Returns how far to move the start of the line so that it is aligned. The extent that is not taken
@@ -322,7 +283,7 @@ TR_PUBLIC TRFloat TRComposedLineGetPenOffset(TRComposedLineRef line, TRFloat flu
 
 /**
  * Returns the ink box of the glyphs of the line, relative to its origin. The renderer is set up for
- * each run, and restored, as `TRGlyphRunGetInkBox()` does.
+ * each run, and restored, as `TRGlyphRunComputeInkBox()` does.
  *
  * @param line
  *      The line.
@@ -333,7 +294,7 @@ TR_PUBLIC TRFloat TRComposedLineGetPenOffset(TRComposedLineRef line, TRFloat flu
  *      The union of the ink boxes of the runs that have one, or an empty rectangle at the origin if
  *      none has.
  */
-TR_PUBLIC TRRect TRComposedLineGetInkBox(TRComposedLineRef line, TRRendererRef renderer);
+TR_PUBLIC TRRect TRComposedLineComputeInkBox(TRComposedLineRef line, TRRendererRef renderer);
 
 /**
  * Draws the runs of the line through the draw callbacks of a renderer, one after another in their

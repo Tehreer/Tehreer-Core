@@ -144,12 +144,12 @@ TR_INTERNAL TRComposedLine *TRComposedLineCreate(const TextBuffer *buffer, TRUIn
     return line;
 }
 
-TRUInteger TRComposedLineGetCodeUnitStart(TRComposedLineRef line)
+TRUInteger TRComposedLineGetStartIndex(TRComposedLineRef line)
 {
     return line->codeUnitStart;
 }
 
-TRUInteger TRComposedLineGetCodeUnitEnd(TRComposedLineRef line)
+TRUInteger TRComposedLineGetEndIndex(TRComposedLineRef line)
 {
     return line->codeUnitEnd;
 }
@@ -187,26 +187,6 @@ TRFloat TRComposedLineGetWidth(TRComposedLineRef line)
 TRFloat TRComposedLineGetHeight(TRComposedLineRef line)
 {
     return line->ascent + line->descent + line->leading;
-}
-
-TRFloat TRComposedLineGetTop(TRComposedLineRef line)
-{
-    return line->origin.y - line->ascent;
-}
-
-TRFloat TRComposedLineGetBottom(TRComposedLineRef line)
-{
-    return line->origin.y + line->descent + line->leading;
-}
-
-TRFloat TRComposedLineGetLeft(TRComposedLineRef line)
-{
-    return line->origin.x;
-}
-
-TRFloat TRComposedLineGetRight(TRComposedLineRef line)
-{
-    return line->origin.x + line->extent;
 }
 
 TRFloat TRComposedLineGetTrailingWhitespaceExtent(TRComposedLineRef line)
@@ -301,7 +281,8 @@ TRBoolean TRComposedLineEnumerateEdges(TRComposedLineRef line, TRUInteger index,
     return isValid;
 }
 
-TRUInteger TRComposedLineGetCodeUnitIndex(TRComposedLineRef line, TRFloat distance)
+TRUInteger TRComposedLineGetCodeUnitIndexAtDistance(TRComposedLineRef line,
+    TRFloat distance)
 {
     TRUInteger codeUnitIndex = line->codeUnitStart;
     TRUInteger runIndex = line->runCount;
@@ -334,7 +315,7 @@ TRFloat TRComposedLineGetPenOffset(TRComposedLineRef line, TRFloat flushFactor,
     return penOffset;
 }
 
-TRRect TRComposedLineGetInkBox(TRComposedLineRef line, TRRendererRef renderer)
+TRRect TRComposedLineComputeInkBox(TRComposedLineRef line, TRRendererRef renderer)
 {
     TRFloat minX = 0.0f, minY = 0.0f, maxX = 0.0f, maxY = 0.0f;
     TRBoolean hasBox = TRFalse;
@@ -346,7 +327,7 @@ TRRect TRComposedLineGetInkBox(TRComposedLineRef line, TRRendererRef renderer)
         TRRect runBox;
         TRFloat left, top, right, bottom;
 
-        runBox = TRGlyphRunGetInkBox(glyphRun, renderer);
+        runBox = TRGlyphRunComputeInkBox(glyphRun, renderer);
         left = runBox.origin.x + glyphRun->origin.x;
         top = runBox.origin.y + glyphRun->origin.y;
         right = left + runBox.size.width;
@@ -379,8 +360,8 @@ TRRect TRComposedLineGetInkBox(TRComposedLineRef line, TRRendererRef renderer)
 void TRComposedLineDraw(TRComposedLineRef line, TRRendererRef renderer, TRPoint origin)
 {
     if (renderer) {
-        TRFloat top = origin.y + TRComposedLineGetTop(line);
-        TRFloat bottom = origin.y + TRComposedLineGetBottom(line);
+        TRFloat top = origin.y + GetLineTop(line);
+        TRFloat bottom = origin.y + GetLineBottom(line);
         TRUInteger runIndex;
 
         for (runIndex = 0; runIndex < line->runCount; runIndex++) {

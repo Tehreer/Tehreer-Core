@@ -56,4 +56,9 @@ typedef struct _TRComposedLine {
 TR_INTERNAL TRComposedLine *TRComposedLineCreate(const TextBuffer *buffer, TRUInteger start,
     TRUInteger end, TRGlyphRun **runs, TRUInteger runCount, TRUInt8 paragraphLevel);
 
+/* Top edge of the line, which is its ascent above the y of its origin. */
+#define GetLineTop(line_)       ((line_)->origin.y - (line_)->ascent)
+/* Bottom edge of the line, which is its descent and leading below the y of its origin. */
+#define GetLineBottom(line_)    ((line_)->origin.y + (line_)->descent + (line_)->leading)
+
 #endif

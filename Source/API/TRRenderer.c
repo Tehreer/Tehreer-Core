@@ -557,7 +557,7 @@ TRRect TRRendererGetGlyphInkBox(TRRendererRef renderer, TRGlyphID glyphID)
     return box;
 }
 
-TRRect TRRendererGetRunInkBox(TRRendererRef renderer, const TRGlyphID *glyphIDs,
+TRRect TRRendererComputeRunInkBox(TRRendererRef renderer, const TRGlyphID *glyphIDs,
     const TRPoint *offsets, const TRFloat *advances, TRUInteger count)
 {
     TRFloat minX = 0.0f, minY = 0.0f, maxX = 0.0f, maxY = 0.0f;

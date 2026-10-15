@@ -41,6 +41,15 @@
 using namespace std;
 using namespace Tehreer;
 
+static TRFloat lineTop(TRComposedLineRef line) {
+    return TRComposedLineGetOrigin(line).y - TRComposedLineGetAscent(line);
+}
+
+static TRFloat lineBottom(TRComposedLineRef line) {
+    return TRComposedLineGetOrigin(line).y + TRComposedLineGetDescent(line)
+         + TRComposedLineGetLeading(line);
+}
+
 /*
  * In the test font, "abc" is 3335 units wide at a point size of 2048, and the space shows the
  * notdef glyph that is 908 units wide. A frame that is 3500 units wide holds one word per line, and
@@ -258,14 +267,14 @@ void LineLocatorTests::testManyLines() {
     vector<TRRect> boxes = getBoxes(locator);
     for (TRUInteger i = 0; i < Count; i++) {
         TRComposedLineRef line = TRComposedFrameGetLine(frame, i);
-        assert(boxes[i].origin.y <= TRComposedLineGetTop(line));
-        assert(getBottom(boxes[i]) >= TRComposedLineGetBottom(line));
+        assert(boxes[i].origin.y <= lineTop(line));
+        assert(getBottom(boxes[i]) >= lineBottom(line));
     }
 
     /* A rect in the middle of a line finds that line only, in whichever band it is. */
     for (TRUInteger i = 0; i < Count; i++) {
         TRComposedLineRef line = TRComposedFrameGetLine(frame, i);
-        TRFloat middle = (TRComposedLineGetTop(line) + TRComposedLineGetBottom(line)) / 2.0f;
+        TRFloat middle = (lineTop(line) + lineBottom(line)) / 2.0f;
         vector<TRUInteger> lines = collect(locator, makeRect(100.0f, middle, 50.0f, 1.0f));
         assert(lines.size() == 1 && lines[0] == i);
     }
@@ -361,8 +370,8 @@ void LineLocatorTests::testOverlappingBoxes() {
     size_t overlapCount = 0;
     for (TRUInteger i = 0; i < boxes.size(); i++) {
         TRComposedLineRef line = TRComposedFrameGetLine(frame, i);
-        assert(boxes[i].origin.y < TRComposedLineGetTop(line)
-            || getBottom(boxes[i]) > TRComposedLineGetBottom(line));
+        assert(boxes[i].origin.y < lineTop(line)
+            || getBottom(boxes[i]) > lineBottom(line));
 
         if (i + 1 < boxes.size() && intersects(boxes[i], boxes[i + 1])) {
             overlapCount++;

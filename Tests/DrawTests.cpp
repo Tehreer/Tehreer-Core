@@ -48,6 +48,15 @@ extern "C" {
 using namespace std;
 using namespace Tehreer;
 
+static TRFloat lineTop(TRComposedLineRef line) {
+    return TRComposedLineGetOrigin(line).y - TRComposedLineGetAscent(line);
+}
+
+static TRFloat lineBottom(TRComposedLineRef line) {
+    return TRComposedLineGetOrigin(line).y + TRComposedLineGetDescent(line)
+         + TRComposedLineGetLeading(line);
+}
+
 static TRSize makeSize(TRFloat width, TRFloat height)
 {
     TRSize size = { width, height };
@@ -313,12 +322,12 @@ constexpr TRFloat ClipSlack = 2.0f;
 /* The free edges of the clip of a split cluster, from the ink box and the metrics of the run. */
 ClipEdges expectedClipEdges(TRGlyphRunRef run, TRPoint baseline, TRFloat scale) {
     TRRendererRef renderer = TRRendererCreate();
-    TRRect ink = TRGlyphRunGetInkBox(run, renderer);
+    TRRect ink = TRGlyphRunComputeInkBox(run, renderer);
     TRRendererRelease(renderer);
 
-    TRFloat extentLeft = min(distanceOf(run, TRGlyphRunGetCodeUnitStart(run)
+    TRFloat extentLeft = min(distanceOf(run, TRGlyphRunGetStartIndex(run)
                                               - TRGlyphRunGetStartExtraLength(run)),
-                             distanceOf(run, TRGlyphRunGetCodeUnitEnd(run)
+                             distanceOf(run, TRGlyphRunGetEndIndex(run)
                                               + TRGlyphRunGetEndExtraLength(run)));
     TRFloat inkLeft = baseline.x + extentLeft + ink.origin.x;
     TRFloat inkRight = inkLeft + ink.size.width;
@@ -736,7 +745,7 @@ void DrawTests::testSplitClusterOfRightToLeftRun() {
     TRPoint origin = { 30.0f, 170.0f };
     TRGlyphRunDraw(run, renderer, origin);
 
-    TRFloat spanLeft = distanceOf(run, TRGlyphRunGetCodeUnitEnd(run)
+    TRFloat spanLeft = distanceOf(run, TRGlyphRunGetEndIndex(run)
                                        + TRGlyphRunGetEndExtraLength(run));
     assert(spanLeft < 0.0f);
     assert(recorder.ops.size() == 1 && recorder.ops[0].hasClip);
@@ -1051,8 +1060,8 @@ void DrawTests::testBackgrounds() {
 
     /* It covers the extent of the run, from the top of the line to its bottom. */
     const Op &backgroundOp = recorder.ops[1];
-    TRFloat top = 20.0f + TRComposedLineGetTop(line);
-    TRFloat bottom = 20.0f + TRComposedLineGetBottom(line);
+    TRFloat top = 20.0f + lineTop(line);
+    TRFloat bottom = 20.0f + lineBottom(line);
     assert(backgroundOp.color == Green);
     assert(backgroundOp.rect.origin.x == roundPixel(5.0f + A));
     assert(backgroundOp.rect.origin.x + backgroundOp.rect.size.width == roundPixel(5.0f + A + B));
@@ -1078,8 +1087,8 @@ void DrawTests::testBackgroundsFillTheLine() {
     vector<Op> rects = filter(recorder.ops, Op::Rect);
     assert(rects.size() == 1);
     assert(TRComposedLineGetHeight(line) > TRGlyphRunGetHeight(run));
-    assert(rects[0].rect.size.height == roundPixel(300.0f + TRComposedLineGetBottom(line))
-                                      - roundPixel(300.0f + TRComposedLineGetTop(line)));
+    assert(rects[0].rect.size.height == roundPixel(300.0f + lineBottom(line))
+                                      - roundPixel(300.0f + lineTop(line)));
 
     /* A run drawn alone uses its own metrics. */
     recorder.ops.clear();

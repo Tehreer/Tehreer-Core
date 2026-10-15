@@ -660,7 +660,7 @@ TR_PUBLIC TRRect TRRendererGetGlyphInkBox(TRRendererRef renderer, TRGlyphID glyp
  * @return
  *      The ink box of the run.
  */
-TR_PUBLIC TRRect TRRendererGetRunInkBox(TRRendererRef renderer, const TRGlyphID *glyphIDs,
+TR_PUBLIC TRRect TRRendererComputeRunInkBox(TRRendererRef renderer, const TRGlyphID *glyphIDs,
     const TRPoint *offsets, const TRFloat *advances, TRUInteger count);
 
 /**

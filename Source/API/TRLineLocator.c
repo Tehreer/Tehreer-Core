@@ -73,11 +73,11 @@ static double GetBandNumber(TRFloat y)
 static TRRect MakeLineBox(TRComposedLineRef line, TRFloat frameWidth, TRRendererRef renderer)
 {
     TRPoint origin = TRComposedLineGetOrigin(line);
-    TRRect inkBox = TRComposedLineGetInkBox(line, renderer);
+    TRRect inkBox = TRComposedLineComputeInkBox(line, renderer);
     TRFloat left = 0.0f;
-    TRFloat top = TRComposedLineGetTop(line);
+    TRFloat top = origin.y - TRComposedLineGetAscent(line);
     TRFloat right = frameWidth;
-    TRFloat bottom = TRComposedLineGetBottom(line);
+    TRFloat bottom = origin.y + TRComposedLineGetDescent(line) + TRComposedLineGetLeading(line);
     TRRect box;
 
     /* An empty ink box means that the line has no ink. */

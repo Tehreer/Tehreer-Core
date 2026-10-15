@@ -101,8 +101,8 @@ static void AddSelectionPart(void *userData, TRFloat left, TRFloat right, TRBool
 {
     SelectionContext *context = userData;
     TRComposedLineRef line = context->line;
-    TRFloat top = TRComposedLineGetTop(line);
-    TRFloat bottom = TRComposedLineGetBottom(line);
+    TRFloat top = GetLineTop(line);
+    TRFloat bottom = GetLineBottom(line);
     TRRect rect;
 
     rect = MakeRect(left + line->origin.x, top, right + line->origin.x, bottom);
@@ -138,11 +138,11 @@ static void AddSelectionAcrossLines(SelectionContext *context, TRComposedFrameRe
 
     /* Select trailing padding of first line. */
     if (isFirstRTL) {
-        rect = MakeRect(frameLeft, TRComposedLineGetTop(firstLine), firstLine->origin.x,
-            TRComposedLineGetBottom(firstLine));
+        rect = MakeRect(frameLeft, GetLineTop(firstLine), firstLine->origin.x,
+            GetLineBottom(firstLine));
     } else {
-        rect = MakeRect(firstLine->origin.x + firstLine->extent, TRComposedLineGetTop(firstLine),
-            frameRight, TRComposedLineGetBottom(firstLine));
+        rect = MakeRect(firstLine->origin.x + firstLine->extent, GetLineTop(firstLine),
+            frameRight, GetLineBottom(firstLine));
     }
     AddSelectionRect(context, rect);
 
@@ -150,18 +150,18 @@ static void AddSelectionAcrossLines(SelectionContext *context, TRComposedFrameRe
     for (midIndex = firstIndex + 1; midIndex < lastIndex; midIndex++) {
         TRComposedLineRef midLine = GetFrameLine(frame, midIndex);
 
-        rect = MakeRect(frameLeft, TRComposedLineGetTop(midLine), frameRight,
-            TRComposedLineGetBottom(midLine));
+        rect = MakeRect(frameLeft, GetLineTop(midLine), frameRight,
+            GetLineBottom(midLine));
         AddSelectionRect(context, rect);
     }
 
     /* Select leading padding of last line. */
     if (isLastRTL) {
-        rect = MakeRect(lastLine->origin.x + lastLine->extent, TRComposedLineGetTop(lastLine),
-            frameRight, TRComposedLineGetBottom(lastLine));
+        rect = MakeRect(lastLine->origin.x + lastLine->extent, GetLineTop(lastLine),
+            frameRight, GetLineBottom(lastLine));
     } else {
-        rect = MakeRect(frameLeft, TRComposedLineGetTop(lastLine), lastLine->origin.x,
-            TRComposedLineGetBottom(lastLine));
+        rect = MakeRect(frameLeft, GetLineTop(lastLine), lastLine->origin.x,
+            GetLineBottom(lastLine));
     }
     AddSelectionRect(context, rect);
 
@@ -196,12 +196,12 @@ TR_INTERNAL TRComposedFrame *TRComposedFrameCreate(TRUInteger start, TRUInteger 
     return frame;
 }
 
-TRUInteger TRComposedFrameGetCodeUnitStart(TRComposedFrameRef frame)
+TRUInteger TRComposedFrameGetStartIndex(TRComposedFrameRef frame)
 {
     return frame->codeUnitStart;
 }
 
-TRUInteger TRComposedFrameGetCodeUnitEnd(TRComposedFrameRef frame)
+TRUInteger TRComposedFrameGetEndIndex(TRComposedFrameRef frame)
 {
     return frame->codeUnitEnd;
 }
@@ -232,7 +232,7 @@ TRComposedLineRef TRComposedFrameGetLine(TRComposedFrameRef frame, TRUInteger in
     return line;
 }
 
-TRUInteger TRComposedFrameGetIndexOfLineForCodeUnit(TRComposedFrameRef frame,
+TRUInteger TRComposedFrameGetLineIndexForCodeUnit(TRComposedFrameRef frame,
     TRUInteger codeUnitIndex)
 {
     TRUInteger lineIndex = TRInvalidIndex;
@@ -261,7 +261,7 @@ TRUInteger TRComposedFrameGetIndexOfLineForCodeUnit(TRComposedFrameRef frame,
     return lineIndex;
 }
 
-TRUInteger TRComposedFrameGetIndexOfLineAtPosition(TRComposedFrameRef frame, TRPoint position)
+TRUInteger TRComposedFrameGetLineIndexAtPosition(TRComposedFrameRef frame, TRPoint position)
 {
     TRUInteger lineIndex = TRInvalidIndex;
     TRUInteger index;
@@ -272,8 +272,8 @@ TRUInteger TRComposedFrameGetIndexOfLineAtPosition(TRComposedFrameRef frame, TRP
     for (index = 0; index < GetFrameLineCount(frame); index++) {
         TRComposedLineRef line = GetFrameLine(frame, index);
 
-        if (position.y >= TRComposedLineGetTop(line)
-                && position.y <= TRComposedLineGetBottom(line)) {
+        if (position.y >= GetLineTop(line)
+                && position.y <= GetLineBottom(line)) {
             lineIndex = index;
             break;
         }
@@ -295,8 +295,8 @@ TRBoolean TRComposedFrameEnumerateSelection(TRComposedFrameRef frame, TRUInteger
 
     if (isValid && length > 0) {
         TRUInteger rangeEnd = index + length;
-        TRUInteger firstIndex = TRComposedFrameGetIndexOfLineForCodeUnit(frame, index);
-        TRUInteger lastIndex = TRComposedFrameGetIndexOfLineForCodeUnit(frame, rangeEnd - 1);
+        TRUInteger firstIndex = TRComposedFrameGetLineIndexForCodeUnit(frame, index);
+        TRUInteger lastIndex = TRComposedFrameGetLineIndexForCodeUnit(frame, rangeEnd - 1);
         SelectionContext context;
 
         context.line = NULL;
