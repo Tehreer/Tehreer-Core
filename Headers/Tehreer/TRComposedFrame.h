@@ -141,6 +141,24 @@ TR_PUBLIC TRUInteger TRComposedFrameGetLineIndexAtPosition(TRComposedFrameRef fr
     TRPoint position);
 
 /**
+ * Returns the start of the cluster that is under a position, which is the character that a point
+ * hits, for any direction of text. The line is the one whose top and bottom have the y of the
+ * position, and the x is measured from the origin of the line (see
+ * `TRComposedLineGetClusterStartAtDistance`). A cluster is never split.
+ *
+ * @param frame
+ *      The frame.
+ * @param position
+ *      The position in the coordinates of the frame.
+ * @return
+ *      The index of the first code unit of the cluster, or `TRInvalidIndex` if no character is
+ *      there: the position is above or below the lines, outside the runs of the line, or the
+ *      frame has no lines.
+ */
+TR_PUBLIC TRUInteger TRComposedFrameGetClusterStartAtPosition(TRComposedFrameRef frame,
+    TRPoint position);
+
+/**
  * Passes the rectangles that cover a range of code units to the function. A range that spans
  * lines is covered with the paddings of the lines too: the space after the text of the first line
  * up to the edge of the frame, the whole width of each line in between, and the space before the

@@ -69,6 +69,7 @@ void FrameTests::run() {
     testJustification();
     testRightToLeft();
     testIndexOfLine();
+    testClusterStartAtPosition();
     testSelection();
     testSelectionIsClipped();
     testSelectionPaddingFollowsEachLine();
@@ -654,6 +655,42 @@ void FrameTests::testSelectionPaddingFollowsEachLine() {
     }
     assert(hasPadding);
 
+    TRComposedFrameRelease(frame);
+}
+
+void FrameTests::testClusterStartAtPosition() {
+    Fixture f(u"abc abc");
+    TRFrameResolverSetFrameSize(f.resolver, makeSize(3500.0f, 100000.0f));
+
+    TRComposedFrameRef frame = f.frame();
+    TRFloat firstY = Ascent - Height / 2.0f;
+    TRFloat secondY = firstY + Height;
+
+    /* The line is chosen by the y, and the x is measured from the origin of the line. */
+    assert(TRComposedFrameGetClusterStartAtPosition(frame, { 1.0f, firstY }) == 0);
+    assert(TRComposedFrameGetClusterStartAtPosition(frame, { A + 1.0f, firstY }) == 1);
+    assert(TRComposedFrameGetClusterStartAtPosition(frame, { A + B + C + 1.0f, firstY }) == 3);
+    assert(TRComposedFrameGetClusterStartAtPosition(frame, { 1.0f, secondY }) == 4);
+    assert(TRComposedFrameGetClusterStartAtPosition(frame, { A + B + 1.0f, secondY }) == 6);
+
+    /* Nothing is hit outside of the text. */
+    assert(TRComposedFrameGetClusterStartAtPosition(frame, { -1.0f, firstY }) == TRInvalidIndex);
+    assert(TRComposedFrameGetClusterStartAtPosition(frame, { 3400.0f, secondY }) == TRInvalidIndex);
+    assert(TRComposedFrameGetClusterStartAtPosition(frame, { 1.0f, -50.0f }) == TRInvalidIndex);
+    assert(TRComposedFrameGetClusterStartAtPosition(frame, { 1.0f, 99999.0f }) == TRInvalidIndex);
+    assert(TRComposedFrameGetClusterStartAtPosition(frame, { NAN, firstY }) == TRInvalidIndex);
+    TRComposedFrameRelease(frame);
+
+    /* The origin of a right-to-left line is on the right, and its first letter is the rightmost. */
+    Fixture g(u"\u05E9\u05DC\u05D5\u05DD");
+    TRFrameResolverSetFrameSize(g.resolver, makeSize(5000.0f, 5000.0f));
+
+    frame = g.frame();
+    TRFloat left = 5000.0f - 4.0f * Notdef;
+    assert(TRComposedFrameGetClusterStartAtPosition(frame, { left - 1.0f, firstY }) == TRInvalidIndex);
+    assert(TRComposedFrameGetClusterStartAtPosition(frame, { left + 1.0f, firstY }) == 3);
+    assert(TRComposedFrameGetClusterStartAtPosition(frame, { 4999.0f, firstY }) == 0);
+    assert(TRComposedFrameGetClusterStartAtPosition(frame, { 5000.0f, firstY }) == TRInvalidIndex);
     TRComposedFrameRelease(frame);
 }
 

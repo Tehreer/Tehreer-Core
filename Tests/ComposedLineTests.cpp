@@ -55,6 +55,10 @@ void ComposedLineTests::run() {
     testTrailingWhitespace();
     testDistances();
     testIndexOfCodeUnit();
+    testClusterStartAtDistance();
+    testClusterStartInMixedDirections();
+    testClusterStartOfSurrogatePair();
+    testClusterStartOfComplexScript();
     testEnumerateVisualEdges();
     testIndicesAreChecked();
     testInkBoxRestoresRenderer();
@@ -96,9 +100,10 @@ struct Fixture {
     TRMutableTextRef text;
     TRTypesetterRef typesetter;
 
-    explicit Fixture(const u16string &string) {
-        typeface = createTestTypeface("Roboto-Regular.abc.ttf");
-        text = makeTestText(string, typeface, EmSize);
+    explicit Fixture(const u16string &string, const char *fontName = "Roboto-Regular.abc.ttf",
+        TRFloat typeSize = EmSize) {
+        typeface = createTestTypeface(fontName);
+        text = makeTestText(string, typeface, typeSize);
         typesetter = nullptr;
     }
 
@@ -306,6 +311,136 @@ void ComposedLineTests::testIndexOfCodeUnit() {
     assert(TRComposedLineGetCodeUnitIndexAtDistance(line, 100000.0f) == 3);
 
     TRComposedLineRelease(line);
+}
+
+static TRUInteger clusterStartAt(TRComposedLineRef line, TRFloat distance) {
+    return TRComposedLineGetClusterStartAtDistance(line, distance);
+}
+
+void ComposedLineTests::testClusterStartAtDistance() {
+    Fixture f(u"abc");
+    TRComposedLineRef line = f.line(0, 3);
+    TRFloat width = A + B + C;
+
+    /* The cluster that is hit is found, not the closest boundary. */
+    assert(clusterStartAt(line, 0.0f) == 0);
+    assert(clusterStartAt(line, A - 1.0f) == 0);
+    assert(clusterStartAt(line, A + 1.0f) == 1);
+    assert(clusterStartAt(line, A + B - 1.0f) == 1);
+    assert(clusterStartAt(line, A + B) == 2);
+    assert(clusterStartAt(line, width - 1.0f) == 2);
+
+    /* The ends are not clamped. */
+    assert(clusterStartAt(line, -1.0f) == TRInvalidIndex);
+    assert(clusterStartAt(line, width) == TRInvalidIndex);
+    assert(clusterStartAt(line, width + 100.0f) == TRInvalidIndex);
+    assert(clusterStartAt(line, NAN) == TRInvalidIndex);
+    assert(clusterStartAt(line, -INFINITY) == TRInvalidIndex);
+    assert(clusterStartAt(line, INFINITY) == TRInvalidIndex);
+
+    TRComposedLineRelease(line);
+
+    /* A line of a subrange gives indices of the text. */
+    line = f.line(1, 3);
+    assert(clusterStartAt(line, 1.0f) == 1);
+    assert(clusterStartAt(line, B + 1.0f) == 2);
+    TRComposedLineRelease(line);
+}
+
+void ComposedLineTests::testClusterStartInMixedDirections() {
+    Fixture f(u"ab \u05E9\u05DC\u05D5\u05DD cd");
+    TRComposedLineRef line = f.line(0, 10);
+    TRFloat hebrew = A + B + Notdef;
+
+    assert(clusterStartAt(line, 1.0f) == 0);
+    assert(clusterStartAt(line, A + 1.0f) == 1);
+    assert(clusterStartAt(line, A + B + 1.0f) == 2);
+
+    /* The first letter of the word is at the right end of it. */
+    assert(clusterStartAt(line, hebrew + 1.0f) == 6);
+    assert(clusterStartAt(line, hebrew + Notdef + 1.0f) == 5);
+    assert(clusterStartAt(line, hebrew + 2.0f * Notdef + 1.0f) == 4);
+    assert(clusterStartAt(line, hebrew + 3.0f * Notdef + 1.0f) == 3);
+    assert(clusterStartAt(line, hebrew + 4.0f * Notdef - 1.0f) == 3);
+
+    /* The text after the word continues to the right. */
+    assert(clusterStartAt(line, hebrew + 4.0f * Notdef + 1.0f) == 7);
+    assert(clusterStartAt(line, hebrew + 5.0f * Notdef + 1.0f) == 8);
+    assert(clusterStartAt(line, hebrew + 5.0f * Notdef + C + 1.0f) == 9);
+    assert(clusterStartAt(line, TRComposedLineGetWidth(line)) == TRInvalidIndex);
+
+    TRComposedLineRelease(line);
+
+    /* In a right-to-left paragraph the first letter is at the right end of the line. */
+    Fixture g(u"\u05E9\u05DC\u05D5\u05DD");
+    line = g.line(0, 4);
+    assert(TRComposedLineGetParagraphLevel(line) == 1);
+    assert(clusterStartAt(line, 1.0f) == 3);
+    assert(clusterStartAt(line, Notdef + 1.0f) == 2);
+    assert(clusterStartAt(line, 2.0f * Notdef + 1.0f) == 1);
+    assert(clusterStartAt(line, 4.0f * Notdef - 1.0f) == 0);
+    assert(clusterStartAt(line, 4.0f * Notdef) == TRInvalidIndex);
+    TRComposedLineRelease(line);
+}
+
+void ComposedLineTests::testClusterStartOfSurrogatePair() {
+    Fixture f(u"a\U0001F600" "b");
+    TRComposedLineRef line = f.line(0, 4);
+
+    /* The caret edge in the middle of the pair does not split it. */
+    assert(clusterStartAt(line, A - 1.0f) == 0);
+    assert(clusterStartAt(line, A + 1.0f) == 1);
+    assert(clusterStartAt(line, A + Notdef / 2.0f - 1.0f) == 1);
+    assert(clusterStartAt(line, A + Notdef / 2.0f + 1.0f) == 1);
+    assert(clusterStartAt(line, A + Notdef - 1.0f) == 1);
+    assert(clusterStartAt(line, A + Notdef + 1.0f) == 3);
+    TRComposedLineRelease(line);
+
+    /* A line that is cut in the middle of the pair starts at its start. */
+    line = f.line(2, 4);
+    assert(clusterStartAt(line, 1.0f) == 2);
+    assert(clusterStartAt(line, Notdef / 2.0f + 1.0f) == 3);
+    TRComposedLineRelease(line);
+}
+
+void ComposedLineTests::testClusterStartOfComplexScript() {
+    /* Lam with alef, then a letter with a mark, in a font that shapes them into joined glyphs. */
+    const char *urduFont = "NotoNastaliqUrdu-Regular.ttf";
+    const u16string strings[] = { u"\u0644\u0627", u"\u0627\u0628\u064E\u0631\u0627", u"\u0627\u0628\u0631" };
+
+    for (const u16string &string : strings) {
+        Fixture f(string, urduFont, 40.0f);
+        TRUInteger length = TRTextGetLength(f.text);
+        TRComposedLineRef line = f.line(0, length);
+        TRFloat width = TRComposedLineGetWidth(line);
+        vector<bool> isHit(length, false);
+
+        /* Every position hits a cluster start of its run, and every cluster is hit somewhere. */
+        for (TRFloat distance = 0.0f; distance < width; distance += 0.25f) {
+            TRUInteger clusterStart = clusterStartAt(line, distance);
+            assert(clusterStart != TRInvalidIndex && clusterStart < length);
+
+            TRGlyphRunRef run = TRComposedLineGetGlyphRun(line, 0);
+            assert(TRGlyphRunGetClusterStart(run, clusterStart) == clusterStart);
+            isHit[clusterStart] = true;
+        }
+
+        TRGlyphRunRef run = TRComposedLineGetGlyphRun(line, 0);
+        assert(TRGlyphRunGetBidiLevel(run) == 1);
+
+        for (TRUInteger index = 0; index < length; index++) {
+            if (TRGlyphRunGetClusterStart(run, index) == index) {
+                assert(isHit[index] || TRGlyphRunGetClusterEnd(run, index) == index);
+            } else {
+                assert(!isHit[index]);
+            }
+        }
+
+        /* The start of the text is at the right end. */
+        assert(clusterStartAt(line, width - 0.1f) == 0);
+        assert(clusterStartAt(line, width) == TRInvalidIndex);
+        TRComposedLineRelease(line);
+    }
 }
 
 namespace {

@@ -90,6 +90,31 @@ static void ResolveLineMetrics(TRComposedLine *line, const TextBuffer *buffer)
     }
 }
 
+/* Finds the start of the cluster that covers a distance from the start of a run. */
+static TRUInteger FindClusterStartInRun(TRGlyphRunRef glyphRun, TRFloat distance)
+{
+    TRUInteger clusterStart = TRInvalidIndex;
+    TRUInteger codeUnitIndex;
+
+    for (codeUnitIndex = glyphRun->codeUnitStart; codeUnitIndex < glyphRun->codeUnitEnd;
+            codeUnitIndex++) {
+        TRFloat firstEdge = TRGlyphRunGetCaretEdge(glyphRun, codeUnitIndex);
+        TRFloat secondEdge = TRGlyphRunGetCaretEdge(glyphRun, codeUnitIndex + 1);
+        TRFloat leftEdge = NumberMin(firstEdge, secondEdge);
+        TRFloat rightEdge = NumberMax(firstEdge, secondEdge);
+
+        if (distance >= leftEdge && distance < rightEdge) {
+            /* A cluster that is cut by the line starts at the start of the run. */
+            TRUInteger actualStart = TRGlyphRunGetClusterStart(glyphRun, codeUnitIndex);
+
+            clusterStart = NumberMax(actualStart, glyphRun->codeUnitStart);
+            break;
+        }
+    }
+
+    return clusterStart;
+}
+
 TR_INTERNAL TRComposedLine *TRComposedLineCreate(const TextBuffer *buffer, TRUInteger start,
     TRUInteger end, TRGlyphRun **runs, TRUInteger runCount, TRUInt8 paragraphLevel)
 {
@@ -301,6 +326,26 @@ TRUInteger TRComposedLineGetCodeUnitIndexAtDistance(TRComposedLineRef line,
     }
 
     return codeUnitIndex;
+}
+
+TRUInteger TRComposedLineGetClusterStartAtDistance(TRComposedLineRef line, TRFloat distance)
+{
+    TRUInteger clusterStart = TRInvalidIndex;
+    TRUInteger runIndex;
+
+    for (runIndex = 0; runIndex < line->runCount; runIndex++) {
+        TRGlyphRunRef glyphRun = line->runs[runIndex];
+        TRFloat runStart = glyphRun->origin.x;
+        TRFloat runEnd = runStart + TRGlyphRunGetWidth(glyphRun);
+
+        if (distance >= runStart && distance < runEnd
+            && (glyphRun->flags & TRGlyphRunFlagToken) == 0) {
+            clusterStart = FindClusterStartInRun(glyphRun, distance - runStart);
+            break;
+        }
+    }
+
+    return clusterStart;
 }
 
 TRFloat TRComposedLineGetPenOffset(TRComposedLineRef line, TRFloat flushFactor,

@@ -263,6 +263,29 @@ TR_PUBLIC TRUInteger TRComposedLineGetCodeUnitIndexAtDistance(TRComposedLineRef 
     TRFloat distance);
 
 /**
+ * Returns the start of the cluster that covers a distance from the start of the line, which is its
+ * left edge. A cluster is the code units that are shaped together, such as a surrogate pair, a
+ * base character with its combining marks, or a ligature, so it is never split, in either
+ * direction of text. The distance is measured along the screen, as for the visual order of the
+ * runs of a bidirectional line.
+ *
+ * Unlike `TRComposedLineGetCodeUnitIndexAtDistance`, which gives the closest boundary and can be
+ * inside a cluster, this gives the cluster that is hit. A cluster that the line cuts starts at the
+ * start of the line.
+ *
+ * @param line
+ *      The line.
+ * @param distance
+ *      The distance from the left edge of the line.
+ * @return
+ *      The index of the first code unit of the cluster, or `TRInvalidIndex` if nothing is hit: the
+ *      distance is before the left edge or at or after the right edge of the runs, it is NaN, it
+ *      is on a truncation token, or the line has no runs.
+ */
+TR_PUBLIC TRUInteger TRComposedLineGetClusterStartAtDistance(TRComposedLineRef line,
+    TRFloat distance);
+
+/**
  * Returns how far to move the start of the line so that it is aligned. The extent that is not taken
  * by the line, without its trailing whitespace, is multiplied by the flush factor. For a
  * right-to-left paragraph, the trailing whitespace is subtracted too, since it lies before the

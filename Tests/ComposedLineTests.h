@@ -32,6 +32,10 @@ private:
     void testTrailingWhitespace();
     void testDistances();
     void testIndexOfCodeUnit();
+    void testClusterStartAtDistance();
+    void testClusterStartInMixedDirections();
+    void testClusterStartOfSurrogatePair();
+    void testClusterStartOfComplexScript();
     void testEnumerateVisualEdges();
     void testIndicesAreChecked();
     void testInkBoxRestoresRenderer();

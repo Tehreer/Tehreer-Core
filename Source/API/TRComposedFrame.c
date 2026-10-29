@@ -294,6 +294,26 @@ TRUInteger TRComposedFrameGetLineIndexAtPosition(TRComposedFrameRef frame, TRPoi
     return lineIndex;
 }
 
+TRUInteger TRComposedFrameGetClusterStartAtPosition(TRComposedFrameRef frame, TRPoint position)
+{
+    TRUInteger clusterStart = TRInvalidIndex;
+
+    if (GetFrameLineCount(frame) > 0) {
+        TRUInteger lineIndex = TRComposedFrameGetLineIndexAtPosition(frame, position);
+        TRComposedLineRef line = GetFrameLine(frame, lineIndex);
+        TRFloat top = TRComposedLineGetTop(line);
+        TRFloat bottom = TRComposedLineGetBottom(line);
+
+        if (position.y >= top && position.y <= bottom) {
+            TRFloat distance = position.x - line->origin.x;
+
+            clusterStart = TRComposedLineGetClusterStartAtDistance(line, distance);
+        }
+    }
+
+    return clusterStart;
+}
+
 TRBoolean TRComposedFrameEnumerateSelection(TRComposedFrameRef frame, TRUInteger index,
     TRUInteger length, TRSelectionFunc func, void *userData)
 {

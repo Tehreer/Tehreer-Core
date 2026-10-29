@@ -42,6 +42,7 @@ private:
     void testJustification();
     void testRightToLeft();
     void testIndexOfLine();
+    void testClusterStartAtPosition();
     void testSelection();
     void testSelectionIsClipped();
     void testSelectionPaddingFollowsEachLine();
