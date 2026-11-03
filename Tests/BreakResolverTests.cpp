@@ -21,7 +21,7 @@
 
 #include <Tehreer/TRAttribute.h>
 #include <Tehreer/TRReplacement.h>
-#include <Tehreer/TRText.h>
+#include <Tehreer/TRTypesetter.h>
 #include <Tehreer/TRTypesetter.h>
 
 #include "TestText.h"
@@ -62,19 +62,19 @@ constexpr TRFloat EmSize = 2048.0f;
 
 struct Fixture {
     TRTypefaceRef typeface;
-    TRMutableTextRef text;
+    TRMutableTypesetterRef text;
     TRTypesetterRef typesetter;
 
     explicit Fixture(const u16string &string) {
         typeface = createTestTypeface("Roboto-Regular.abc.ttf");
         text = makeTestText(string, typeface, EmSize);
-        typesetter = TRTypesetterCreate(text, nullptr, 0);
+        typesetter = TRTypesetterCreateCopy(text);
         assert(typesetter != nullptr);
     }
 
     ~Fixture() {
         TRTypesetterRelease(typesetter);
-        TRTextRelease(text);
+        TRTypesetterRelease(text);
         TRTypefaceRelease(typeface);
     }
 
@@ -226,7 +226,7 @@ void BreakResolverTests::testMixedSizes() {
     /* The second half of the text is half as big, so it takes half the extent. */
     setTestFloat(f.text, 4, 3, TRAttributeTypeSize, 1024.0f);
     TRTypesetterRelease(f.typesetter);
-    f.typesetter = TRTypesetterCreate(f.text, nullptr, 0);
+    f.typesetter = TRTypesetterCreateCopy(f.text);
 
     /* The segments are 3171, then 1072 + 454 for "c " and 557 + 574.5 for "ab". */
     assert(f.forward(0, 7, 100000.0f) == 7);
@@ -251,11 +251,11 @@ TRReplacementRef createBlock() {
     return TRReplacementCreate(&callbacks, nullptr, TRReplacementKindBlock);
 }
 
-void setReplacement(TRMutableTextRef text, size_t index, TRReplacementRef replacement) {
+void setReplacement(TRMutableTypesetterRef text, size_t index, TRReplacementRef replacement) {
     TRAttribute attribute = {};
     attribute.type = TRAttributeReplacement;
     attribute.value.replacement = replacement;
-    TRTextSetAttribute(text, index, 1, &attribute);
+    TRTypesetterSetAttribute(text, index, 1, &attribute);
 }
 
 }
@@ -265,7 +265,7 @@ void BreakResolverTests::testBlocksEndLinesBeforeThem() {
     Fixture f(u"ab\uFFFC cd");
     setReplacement(f.text, 2, block);
     TRTypesetterRelease(f.typesetter);
-    f.typesetter = TRTypesetterCreate(f.text, nullptr, 0);
+    f.typesetter = TRTypesetterCreateCopy(f.text);
 
     /* A line that has text before the block ends right before it, whatever the extent. */
     assert(f.forward(0, 6, 100000.0f) == 2);
@@ -273,7 +273,7 @@ void BreakResolverTests::testBlocksEndLinesBeforeThem() {
     assert(f.forward(1, 6, 100000.0f) == 2);
     assert(f.forward(0, 2, 100000.0f) == 2);
 
-    TRTextRelease(f.text);
+    TRTypesetterRelease(f.text);
     f.text = makeTestText(u"x");
     TRReplacementRelease(block);
 }
@@ -283,7 +283,7 @@ void BreakResolverTests::testBlockLines() {
     Fixture f(u"ab\uFFFC  cd");
     setReplacement(f.text, 2, block);
     TRTypesetterRelease(f.typesetter);
-    f.typesetter = TRTypesetterCreate(f.text, nullptr, 0);
+    f.typesetter = TRTypesetterCreateCopy(f.text);
 
     /* A block at the start of a line is the line, together with the whitespace that follows it. */
     assert(f.forward(2, 7, 100000.0f) == 5);
@@ -291,11 +291,11 @@ void BreakResolverTests::testBlockLines() {
     assert(f.forward(2, 4, 100000.0f) == 4);
 
     /* The line of a block also ends at the newline that ends its paragraph. */
-    TRTextRelease(f.text);
+    TRTypesetterRelease(f.text);
     TRTypesetterRelease(f.typesetter);
     f.text = makeTestText(u"\uFFFC \n x", f.typeface, EmSize);
     setReplacement(f.text, 0, block);
-    f.typesetter = TRTypesetterCreate(f.text, nullptr, 0);
+    f.typesetter = TRTypesetterCreateCopy(f.text);
     assert(f.forward(0, 5, 100000.0f) == 3);
 
     TRReplacementRelease(block);

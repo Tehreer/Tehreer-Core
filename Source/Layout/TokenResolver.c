@@ -17,7 +17,6 @@
 #include <stddef.h>
 
 #include <Tehreer/TRAttribute.h>
-#include <Tehreer/TRText.h>
 #include <Tehreer/TRTypeface.h>
 #include <Tehreer/TRTypesetter.h>
 
@@ -103,7 +102,7 @@ TR_INTERNAL TRComposedLine *TokenResolverCreateTokenLine(TRTypesetterRef typeset
 {
     TRComposedLine *tokenLine = NULL;
     TRUInteger truncationIndex;
-    TRUInteger runIndex;
+    RunCursor suitableRun;
 
     /* The range MUST NOT be empty. */
     TRAssert(start < end);
@@ -122,22 +121,18 @@ TR_INTERNAL TRComposedLine *TokenResolverCreateTokenLine(TRTypesetterRef typeset
         break;
     }
 
-    runIndex = TRTypesetterFindRun(typesetter, truncationIndex);
-
-    if (runIndex != TRInvalidIndex) {
-        TextRunRef suitableRun;
-        TRTextRef tokenText;
+    if (TextSourceFindRun(&typesetter->source, truncationIndex, &suitableRun)) {
+        TRTypefaceRef typeface = suitableRun.textRun->typeface;
+        TRTypesetterRef tokenTypesetter;
         TRAttribute attributes[2];
         TokenBuffer defaultToken;
 
-        suitableRun = TRTypesetterGetRun(typesetter, runIndex);
-
         if (!tokenString || tokenLength == 0) {
             /* The ellipsis character is used if the typeface has it, and three dots if not. */
-            tokenEncoding = typesetter->buffer.encoding;
+            tokenEncoding = TRTypesetterGetEncoding(typesetter);
             tokenString = &defaultToken;
 
-            if (TRTypefaceGetGlyphID(suitableRun->typeface, EllipsisCodePoint) == 0) {
+            if (TRTypefaceGetGlyphID(typeface, EllipsisCodePoint) == 0) {
                 tokenLength = EncodeDots(tokenEncoding, &defaultToken);
             } else {
                 tokenLength = EncodeEllipsis(tokenEncoding, &defaultToken);
@@ -145,24 +140,18 @@ TR_INTERNAL TRComposedLine *TokenResolverCreateTokenLine(TRTypesetterRef typeset
         }
 
         attributes[0].type = TRAttributeTypeface;
-        attributes[0].value.typeface = suitableRun->typeface;
+        attributes[0].value.typeface = typeface;
         attributes[1].type = TRAttributeTypeSize;
-        attributes[1].value.typeSize = suitableRun->typeSize;
+        attributes[1].value.typeSize = suitableRun.textRun->typeSize;
 
-        tokenText = TRTextCreate(tokenString, tokenLength, tokenEncoding);
+        tokenTypesetter = TRTypesetterCreate(tokenString, tokenLength, tokenEncoding, attributes,
+            2);
 
-        if (tokenText) {
-            TRTypesetterRef tokenTypesetter;
+        if (tokenTypesetter) {
+            tokenLine = LineResolverCreateSimpleLine(&tokenTypesetter->source, 0, tokenLength,
+                                                     0.0f);
 
-            tokenTypesetter = TRTypesetterCreate(tokenText, attributes, 2);
-
-            if (tokenTypesetter) {
-                tokenLine = LineResolverCreateSimpleLine(tokenTypesetter, 0, tokenLength, 0.0f);
-
-                TRTypesetterRelease(tokenTypesetter);
-            }
-
-            TRTextRelease(tokenText);
+            TRTypesetterRelease(tokenTypesetter);
         }
     }
 

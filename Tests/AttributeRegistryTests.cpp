@@ -59,6 +59,17 @@ void AttributeRegistryTests::testAttributeIDs() {
     assert(AttributeRegistryGetAttributeID(TRAttributeTypeSize) == pointSizeID);
 }
 
+/* A config that uses the registry, which lives as long as the test program does. */
+static SBTextConfigRef TestConfig() {
+    struct Holder {
+        SBTextConfigRef config = AttributeRegistryCreateConfig();
+        ~Holder() { SBTextConfigRelease(config); }
+    };
+    static Holder holder;
+
+    return holder.config;
+}
+
 void AttributeRegistryTests::testUnknownAttributeType() {
     assert(AttributeRegistryGetAttributeID(0) == SBAttributeIDNone);
     assert(AttributeRegistryGetAttributeID(27) == SBAttributeIDNone);
@@ -67,15 +78,20 @@ void AttributeRegistryTests::testUnknownAttributeType() {
 }
 
 void AttributeRegistryTests::testDefaultConfig() {
-    SBTextConfigRef config = AttributeRegistryGetDefaultConfig();
+    SBTextConfigRef config = AttributeRegistryCreateConfig();
+    SBTextConfigRef other = AttributeRegistryCreateConfig();
 
     assert(config != nullptr);
-    assert(AttributeRegistryGetDefaultConfig() == config);
+    assert(other != nullptr);
+    assert(other != config);
+
+    SBTextConfigRelease(other);
+    SBTextConfigRelease(config);
 }
 
 void AttributeRegistryTests::testRegisteredAttributeInfo() {
     SBMutableTextRef text = SBTextCreateMutable(SBStringEncodingUTF8,
-        AttributeRegistryGetDefaultConfig());
+        TestConfig());
     SBAttributeRegistryRef registry = SBTextGetAttributeRegistry(text);
     SBAttributeID typefaceID = AttributeRegistryGetAttributeID(TRAttributeTypeface);
     SBAttributeID pointSizeID = AttributeRegistryGetAttributeID(TRAttributeTypeSize);
@@ -145,7 +161,7 @@ void AttributeRegistryTests::testAllAttributeTypes() {
     }
 
     SBMutableTextRef text = SBTextCreateMutable(SBStringEncodingUTF8,
-        AttributeRegistryGetDefaultConfig());
+        TestConfig());
     SBAttributeRegistryRef registry = SBTextGetAttributeRegistry(text);
     vector<SBAttributeID> ids;
 
@@ -172,7 +188,7 @@ void AttributeRegistryTests::testAllAttributeTypes() {
 void AttributeRegistryTests::testParagraphScopes() {
     /* A paragraph attribute that is set on a part of a paragraph covers all of it. */
     SBMutableTextRef text = SBTextCreateMutable(SBStringEncodingUTF8,
-        AttributeRegistryGetDefaultConfig());
+        TestConfig());
     SBTextAppendCodeUnits(text, "ab\ncd\nef", 8);
 
     TRAttribute attribute = {};
@@ -201,7 +217,7 @@ void AttributeRegistryTests::testParagraphScopes() {
 
 static SBMutableTextRef createText() {
     SBMutableTextRef text = SBTextCreateMutable(SBStringEncodingUTF8,
-        AttributeRegistryGetDefaultConfig());
+        TestConfig());
 
     SBTextAppendCodeUnits(text, "abcd", 4);
 

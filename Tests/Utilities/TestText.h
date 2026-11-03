@@ -23,38 +23,38 @@
 
 #include <Tehreer/TRAttribute.h>
 #include <Tehreer/TRString.h>
-#include <Tehreer/TRText.h>
+#include <Tehreer/TRTypesetter.h>
 #include <Tehreer/TRTypeface.h>
 
 namespace Tehreer {
 
 /* Creates a mutable UTF-16 text, with the typeface and the point size set on all of it. */
-inline TRMutableTextRef makeTestText(const std::u16string &string, TRTypefaceRef typeface = nullptr,
+inline TRMutableTypesetterRef makeTestText(const std::u16string &string, TRTypefaceRef typeface = nullptr,
     TRFloat typeSize = 0.0f) {
-    TRMutableTextRef text = TRTextCreateMutable(TRStringEncodingUTF16);
+    TRMutableTypesetterRef text = TRTypesetterCreateMutable(TRStringEncodingUTF16, nullptr, 0);
     assert(text != nullptr);
 
-    TRTextAppendCodeUnits(text, string.data(), string.size());
+    TRTypesetterAppendCodeUnits(text, string.data(), string.size());
 
     if (!string.empty()) {
         if (typeface) {
             TRAttribute attribute = {};
             attribute.type = TRAttributeTypeface;
             attribute.value.typeface = typeface;
-            TRTextSetAttribute(text, 0, string.size(), &attribute);
+            TRTypesetterSetAttribute(text, 0, string.size(), &attribute);
         }
         if (typeSize > 0.0f) {
             TRAttribute attribute = {};
             attribute.type = TRAttributeTypeSize;
             attribute.value.typeSize = typeSize;
-            TRTextSetAttribute(text, 0, string.size(), &attribute);
+            TRTypesetterSetAttribute(text, 0, string.size(), &attribute);
         }
     }
 
     return text;
 }
 
-inline void setTestFloat(TRMutableTextRef text, size_t index, size_t length, TRAttributeType type,
+inline void setTestFloat(TRMutableTypesetterRef text, size_t index, size_t length, TRAttributeType type,
     TRFloat value) {
     TRAttribute attribute = {};
     attribute.type = type;
@@ -77,7 +77,7 @@ inline void setTestFloat(TRMutableTextRef text, size_t index, size_t length, TRA
     default: assert(false);
     }
 
-    TRTextSetAttribute(text, index, length, &attribute);
+    TRTypesetterSetAttribute(text, index, length, &attribute);
 }
 
 }

@@ -24,10 +24,10 @@
 #include <SheenBidi/SheenBidi.h>
 
 #include <Tehreer/TRSheenBidi.h>
-#include <Tehreer/TRText.h>
+#include <Tehreer/TRTypesetter.h>
 
 extern "C" {
-#include <API/TRText.h>
+#include <API/TRTypesetter.h>
 #include <Core/AtomicUInt.h>
 #include <Text/AttributeRegistry.h>
 }
@@ -58,173 +58,173 @@ void TextTests::run() {
     testConcurrentReads();
 }
 
-static string readUTF8(TRTextRef text) {
-    string result(TRTextGetLength(text), '\0');
-    TRTextGetCodeUnits(text, 0, result.size(), &result[0]);
+static string readUTF8(TRTypesetterRef text) {
+    string result(TRTypesetterGetLength(text), '\0');
+    TRTypesetterGetCodeUnits(text, 0, result.size(), &result[0]);
 
     return result;
 }
 
-static TRMutableTextRef createMutableText(const char *string) {
-    TRMutableTextRef text = TRTextCreateMutable(TRStringEncodingUTF8);
+static TRMutableTypesetterRef createMutableText(const char *string) {
+    TRMutableTypesetterRef text = TRTypesetterCreateMutable(TRStringEncodingUTF8, nullptr, 0);
     assert(text != nullptr);
 
-    TRTextAppendCodeUnits(text, string, strlen(string));
+    TRTypesetterAppendCodeUnits(text, string, strlen(string));
 
     return text;
 }
 
 void TextTests::testCreateUTF8() {
     const char string[] = "Hello \xD9\x85";
-    TRTextRef text = TRTextCreate(string, strlen(string), TRStringEncodingUTF8);
+    TRTypesetterRef text = TRTypesetterCreate(string, strlen(string), TRStringEncodingUTF8, nullptr, 0);
 
     assert(text != nullptr);
-    assert(TRTextGetEncoding(text) == TRStringEncodingUTF8);
-    assert(TRTextGetLength(text) == 8);
+    assert(TRTypesetterGetEncoding(text) == TRStringEncodingUTF8);
+    assert(TRTypesetterGetLength(text) == 8);
     assert(readUTF8(text) == string);
     assert(text->isMutable == TRFalse);
 
-    TRTextRelease(text);
+    TRTypesetterRelease(text);
 }
 
 void TextTests::testCreateUTF16() {
     const u16string string = u"H\u00E9llo \U0001F600";
-    TRTextRef text = TRTextCreate(string.data(), string.size(), TRStringEncodingUTF16);
+    TRTypesetterRef text = TRTypesetterCreate(string.data(), string.size(), TRStringEncodingUTF16, nullptr, 0);
 
     assert(text != nullptr);
-    assert(TRTextGetEncoding(text) == TRStringEncodingUTF16);
-    assert(TRTextGetLength(text) == 8);
+    assert(TRTypesetterGetEncoding(text) == TRStringEncodingUTF16);
+    assert(TRTypesetterGetLength(text) == 8);
 
     u16string copy(string.size(), 0);
-    TRTextGetCodeUnits(text, 0, copy.size(), &copy[0]);
+    TRTypesetterGetCodeUnits(text, 0, copy.size(), &copy[0]);
     assert(copy == string);
 
-    TRTextRelease(text);
+    TRTypesetterRelease(text);
 }
 
 void TextTests::testCreateUTF32() {
     const u32string string = U"abc\U0001F600";
-    TRTextRef text = TRTextCreate(string.data(), string.size(), TRStringEncodingUTF32);
+    TRTypesetterRef text = TRTypesetterCreate(string.data(), string.size(), TRStringEncodingUTF32, nullptr, 0);
 
     assert(text != nullptr);
-    assert(TRTextGetEncoding(text) == TRStringEncodingUTF32);
-    assert(TRTextGetLength(text) == 4);
+    assert(TRTypesetterGetEncoding(text) == TRStringEncodingUTF32);
+    assert(TRTypesetterGetLength(text) == 4);
 
     u32string copy(string.size(), 0);
-    TRTextGetCodeUnits(text, 0, copy.size(), &copy[0]);
+    TRTypesetterGetCodeUnits(text, 0, copy.size(), &copy[0]);
     assert(copy == string);
 
-    TRTextRelease(text);
+    TRTypesetterRelease(text);
 }
 
 void TextTests::testCreateEmpty() {
-    TRTextRef text = TRTextCreate("", 0, TRStringEncodingUTF8);
+    TRTypesetterRef text = TRTypesetterCreate("", 0, TRStringEncodingUTF8, nullptr, 0);
 
     assert(text != nullptr);
-    assert(TRTextGetLength(text) == 0);
+    assert(TRTypesetterGetLength(text) == 0);
 
-    TRTextRelease(text);
+    TRTypesetterRelease(text);
 }
 
 void TextTests::testGetCodeUnitsRange() {
     const char string[] = "abcdefgh";
-    TRTextRef text = TRTextCreate(string, 8, TRStringEncodingUTF8);
+    TRTypesetterRef text = TRTypesetterCreate(string, 8, TRStringEncodingUTF8, nullptr, 0);
     char buffer[4] = { 0 };
 
-    TRTextGetCodeUnits(text, 2, 3, buffer);
+    TRTypesetterGetCodeUnits(text, 2, 3, buffer);
     assert(memcmp(buffer, "cde", 3) == 0);
 
-    TRTextGetCodeUnits(text, 7, 1, buffer);
+    TRTypesetterGetCodeUnits(text, 7, 1, buffer);
     assert(buffer[0] == 'h');
 
-    TRTextRelease(text);
+    TRTypesetterRelease(text);
 }
 
 void TextTests::testRangesAreChecked() {
     const TRUInteger max = TRInvalidIndex;
     const char string[] = "abcdefgh";
-    TRTextRef text = TRTextCreate(string, 8, TRStringEncodingUTF8);
+    TRTypesetterRef text = TRTypesetterCreate(string, 8, TRStringEncodingUTF8, nullptr, 0);
     char buffer[16];
 
     /* Code units are only copied from a range that is within the text. */
     memset(buffer, '.', sizeof(buffer));
-    assert(TRTextGetCodeUnits(text, 6, 2, buffer));
+    assert(TRTypesetterGetCodeUnits(text, 6, 2, buffer));
     assert(memcmp(buffer, "gh.", 3) == 0);
-    assert(TRTextGetCodeUnits(text, 8, 0, buffer));
-    assert(!TRTextGetCodeUnits(text, 6, 10, buffer));
-    assert(!TRTextGetCodeUnits(text, 6, max, buffer));
-    assert(!TRTextGetCodeUnits(text, 8, 3, buffer));
-    assert(!TRTextGetCodeUnits(text, 100, 3, buffer));
-    assert(!TRTextGetCodeUnits(text, max, max, buffer));
-    assert(!TRTextGetCodeUnits(text, 0, 8, nullptr));
+    assert(TRTypesetterGetCodeUnits(text, 8, 0, buffer));
+    assert(!TRTypesetterGetCodeUnits(text, 6, 10, buffer));
+    assert(!TRTypesetterGetCodeUnits(text, 6, max, buffer));
+    assert(!TRTypesetterGetCodeUnits(text, 8, 3, buffer));
+    assert(!TRTypesetterGetCodeUnits(text, 100, 3, buffer));
+    assert(!TRTypesetterGetCodeUnits(text, max, max, buffer));
+    assert(!TRTypesetterGetCodeUnits(text, 0, 8, nullptr));
     assert(memcmp(buffer, "gh.", 3) == 0);
 
     /* The attributes of a position that is not in the text are not there. */
     TRUInteger length = 99;
-    assert(TRTextCopyAttributes(text, 8, &length) == nullptr && length == 0);
-    assert(TRTextCopyAttributes(text, max, nullptr) == nullptr);
-    TRTextRelease(text);
+    assert(TRTypesetterCopyAttributes(text, 8, &length) == nullptr && length == 0);
+    assert(TRTypesetterCopyAttributes(text, max, nullptr) == nullptr);
+    TRTypesetterRelease(text);
 
-    TRMutableTextRef mutableText = TRTextCreateMutable(TRStringEncodingUTF8);
-    assert(TRTextAppendCodeUnits(mutableText, "abcd", 4));
+    TRMutableTypesetterRef mutableText = TRTypesetterCreateMutable(TRStringEncodingUTF8, nullptr, 0);
+    assert(TRTypesetterAppendCodeUnits(mutableText, "abcd", 4));
 
     /* An index can be the end of the text to insert there, but not past it. */
-    assert(TRTextInsertCodeUnits(mutableText, 4, "ef", 2));
-    assert(TRTextGetLength(mutableText) == 6);
-    assert(!TRTextInsertCodeUnits(mutableText, 7, "XX", 2));
-    assert(!TRTextInsertCodeUnits(mutableText, max, "XX", 2));
-    assert(TRTextGetLength(mutableText) == 6);
-    TRTextGetCodeUnits(mutableText, 0, 6, buffer);
+    assert(TRTypesetterInsertCodeUnits(mutableText, 4, "ef", 2));
+    assert(TRTypesetterGetLength(mutableText) == 6);
+    assert(!TRTypesetterInsertCodeUnits(mutableText, 7, "XX", 2));
+    assert(!TRTypesetterInsertCodeUnits(mutableText, max, "XX", 2));
+    assert(TRTypesetterGetLength(mutableText) == 6);
+    TRTypesetterGetCodeUnits(mutableText, 0, 6, buffer);
     assert(memcmp(buffer, "abcdef", 6) == 0);
 
     /* A range that is not in the text is not deleted, not even a part of it. */
-    assert(!TRTextDeleteCodeUnits(mutableText, 4, max));
-    assert(!TRTextDeleteCodeUnits(mutableText, 4, 3));
-    assert(!TRTextDeleteCodeUnits(mutableText, 10, 2));
-    assert(TRTextGetLength(mutableText) == 6);
-    assert(TRTextDeleteCodeUnits(mutableText, 4, 2));
-    assert(TRTextDeleteCodeUnits(mutableText, 2, 0));
-    assert(TRTextGetLength(mutableText) == 4);
+    assert(!TRTypesetterDeleteCodeUnits(mutableText, 4, max));
+    assert(!TRTypesetterDeleteCodeUnits(mutableText, 4, 3));
+    assert(!TRTypesetterDeleteCodeUnits(mutableText, 10, 2));
+    assert(TRTypesetterGetLength(mutableText) == 6);
+    assert(TRTypesetterDeleteCodeUnits(mutableText, 4, 2));
+    assert(TRTypesetterDeleteCodeUnits(mutableText, 2, 0));
+    assert(TRTypesetterGetLength(mutableText) == 4);
 
-    assert(!TRTextReplaceCodeUnits(mutableText, 3, 50, "XY", 2));
-    assert(!TRTextReplaceCodeUnits(mutableText, 99, 5, "Z", 1));
-    assert(TRTextGetLength(mutableText) == 4);
-    assert(TRTextReplaceCodeUnits(mutableText, 3, 1, "XY", 2));
-    assert(TRTextGetLength(mutableText) == 5);
-    TRTextGetCodeUnits(mutableText, 0, 5, buffer);
+    assert(!TRTypesetterReplaceCodeUnits(mutableText, 3, 50, "XY", 2));
+    assert(!TRTypesetterReplaceCodeUnits(mutableText, 99, 5, "Z", 1));
+    assert(TRTypesetterGetLength(mutableText) == 4);
+    assert(TRTypesetterReplaceCodeUnits(mutableText, 3, 1, "XY", 2));
+    assert(TRTypesetterGetLength(mutableText) == 5);
+    TRTypesetterGetCodeUnits(mutableText, 0, 5, buffer);
     assert(memcmp(buffer, "abcXY", 5) == 0);
 
     /* Replacing with nothing deletes the range. */
-    assert(TRTextReplaceCodeUnits(mutableText, 0, 2, nullptr, 0));
-    assert(TRTextGetLength(mutableText) == 3);
+    assert(TRTypesetterReplaceCodeUnits(mutableText, 0, 2, nullptr, 0));
+    assert(TRTypesetterGetLength(mutableText) == 3);
 
     /* Missing code units change nothing. */
-    assert(!TRTextInsertCodeUnits(mutableText, 1, nullptr, 3));
-    assert(!TRTextAppendCodeUnits(mutableText, nullptr, 3));
-    assert(!TRTextReplaceCodeUnits(mutableText, 0, 1, nullptr, 3));
-    assert(!TRTextSetCodeUnits(mutableText, nullptr, 3));
-    assert(TRTextGetLength(mutableText) == 3);
+    assert(!TRTypesetterInsertCodeUnits(mutableText, 1, nullptr, 3));
+    assert(!TRTypesetterAppendCodeUnits(mutableText, nullptr, 3));
+    assert(!TRTypesetterReplaceCodeUnits(mutableText, 0, 1, nullptr, 3));
+    assert(!TRTypesetterSetCodeUnits(mutableText, nullptr, 3));
+    assert(TRTypesetterGetLength(mutableText) == 3);
 
     /* An attribute is only set on a range that is in the text, with a type that is known. */
     TRAttribute attribute = {};
     attribute.type = TRAttributeTypeSize;
     attribute.value.typeSize = 12.0f;
-    assert(!TRTextSetAttribute(mutableText, 1, max, &attribute));
-    assert(!TRTextSetAttribute(mutableText, 1, 3, &attribute));
-    assert(!TRTextSetAttribute(mutableText, 99, 2, &attribute));
-    assert(!TRTextSetAttribute(mutableText, 0, 3, nullptr));
-    assert(TRTextSetAttribute(mutableText, 0, 0, &attribute));
+    assert(!TRTypesetterSetAttribute(mutableText, 1, max, &attribute));
+    assert(!TRTypesetterSetAttribute(mutableText, 1, 3, &attribute));
+    assert(!TRTypesetterSetAttribute(mutableText, 99, 2, &attribute));
+    assert(!TRTypesetterSetAttribute(mutableText, 0, 3, nullptr));
+    assert(TRTypesetterSetAttribute(mutableText, 0, 0, &attribute));
 
     TRAttribute unknown = {};
     unknown.type = 1000;
-    assert(!TRTextSetAttribute(mutableText, 0, 3, &unknown));
+    assert(!TRTypesetterSetAttribute(mutableText, 0, 3, &unknown));
 
-    assert(TRTextSetAttribute(mutableText, 1, 2, &attribute));
-    TRAttributeListRef list = TRTextCopyAttributes(mutableText, 0, &length);
+    assert(TRTypesetterSetAttribute(mutableText, 1, 2, &attribute));
+    TRAttributeListRef list = TRTypesetterCopyAttributes(mutableText, 0, &length);
     assert(TRAttributeListGetCount(list) == 0 && length == 1);
     TRAttributeListRelease(list);
 
-    list = TRTextCopyAttributes(mutableText, 1, &length);
+    list = TRTypesetterCopyAttributes(mutableText, 1, &length);
     assert(TRAttributeListGetCount(list) == 1 && length == 2);
 
     /* Items that are not in a list are not given. */
@@ -233,30 +233,30 @@ void TextTests::testRangesAreChecked() {
     assert(TRAttributeListGetItem(list, max) == nullptr);
     TRAttributeListRelease(list);
 
-    assert(!TRTextRemoveAttribute(mutableText, 2, max, TRAttributeTypeSize));
-    assert(!TRTextRemoveAttribute(mutableText, 50, 5, TRAttributeTypeSize));
-    assert(!TRTextRemoveAttribute(mutableText, 0, 3, 1000));
-    assert(TRTextRemoveAttribute(mutableText, 2, 1, TRAttributeTypeSize));
-    list = TRTextCopyAttributes(mutableText, 1, &length);
+    assert(!TRTypesetterRemoveAttribute(mutableText, 2, max, TRAttributeTypeSize));
+    assert(!TRTypesetterRemoveAttribute(mutableText, 50, 5, TRAttributeTypeSize));
+    assert(!TRTypesetterRemoveAttribute(mutableText, 0, 3, 1000));
+    assert(TRTypesetterRemoveAttribute(mutableText, 2, 1, TRAttributeTypeSize));
+    list = TRTypesetterCopyAttributes(mutableText, 1, &length);
     assert(TRAttributeListGetCount(list) == 1 && length == 1);
     TRAttributeListRelease(list);
 
     /* Text that is not given cannot be made. */
-    assert(TRTextCreate(nullptr, 3, TRStringEncodingUTF8) == nullptr);
+    assert(TRTypesetterCreate(nullptr, 3, TRStringEncodingUTF8, nullptr, 0) == nullptr);
 
     /* An encoding that is not known cannot be used, for an immutable text or a mutable one. */
-    assert(TRTextCreate("abc", 3, 3) == nullptr);
-    assert(TRTextCreate("abc", 3, 0xFFFF) == nullptr);
-    assert(TRTextCreate(nullptr, 0, 3) == nullptr);
-    assert(TRTextCreateMutable(3) == nullptr);
-    assert(TRTextCreateMutable(0xFFFFFFFF) == nullptr);
+    assert(TRTypesetterCreate("abc", 3, 3, nullptr, 0) == nullptr);
+    assert(TRTypesetterCreate("abc", 3, 0xFFFF, nullptr, 0) == nullptr);
+    assert(TRTypesetterCreate(nullptr, 0, 3, nullptr, 0) == nullptr);
+    assert(TRTypesetterCreateMutable(3, nullptr, 0) == nullptr);
+    assert(TRTypesetterCreateMutable(0xFFFFFFFF, nullptr, 0) == nullptr);
 
-    TRTextRelease(mutableText);
+    TRTypesetterRelease(mutableText);
 }
 
 void TextTests::testSheenBidiText() {
-    TRTextRef text = TRTextCreate("abc", 3, TRStringEncodingUTF8);
-    SBTextRef sbText = TRTextGetSheenBidiText(text);
+    TRTypesetterRef text = TRTypesetterCreate("abc", 3, TRStringEncodingUTF8, nullptr, 0);
+    SBTextRef sbText = TRTypesetterGetSheenBidiText(text);
 
     assert(sbText != nullptr);
     assert(SBTextGetLength(sbText) == 3);
@@ -265,135 +265,135 @@ void TextTests::testSheenBidiText() {
     assert(SBAttributeRegistryGetAttributeID(registry, "Typeface")
         == AttributeRegistryGetAttributeID(TRAttributeTypeface));
 
-    TRTextRelease(text);
+    TRTypesetterRelease(text);
 }
 
 void TextTests::testCreateCopy() {
-    TRTextRef text = TRTextCreate("copy me", 7, TRStringEncodingUTF8);
-    TRTextRef copy = TRTextCreateCopy(text);
+    TRTypesetterRef text = TRTypesetterCreate("copy me", 7, TRStringEncodingUTF8, nullptr, 0);
+    TRTypesetterRef copy = TRTypesetterCreateCopy(text);
 
     assert(copy != nullptr);
     assert(copy != text);
     assert(copy->isMutable == TRFalse);
-    assert(TRTextGetEncoding(copy) == TRStringEncodingUTF8);
+    assert(TRTypesetterGetEncoding(copy) == TRStringEncodingUTF8);
     assert(readUTF8(copy) == "copy me");
 
-    TRTextRelease(text);
+    TRTypesetterRelease(text);
     assert(readUTF8(copy) == "copy me");
 
-    TRTextRelease(copy);
+    TRTypesetterRelease(copy);
 }
 
 void TextTests::testCreateMutable() {
-    TRMutableTextRef text = TRTextCreateMutable(TRStringEncodingUTF16);
+    TRMutableTypesetterRef text = TRTypesetterCreateMutable(TRStringEncodingUTF16, nullptr, 0);
 
     assert(text != nullptr);
     assert(text->isMutable == TRTrue);
     assert(text->isEditing == TRFalse);
-    assert(TRTextGetEncoding(text) == TRStringEncodingUTF16);
-    assert(TRTextGetLength(text) == 0);
+    assert(TRTypesetterGetEncoding(text) == TRStringEncodingUTF16);
+    assert(TRTypesetterGetLength(text) == 0);
 
-    TRTextRelease(text);
+    TRTypesetterRelease(text);
 }
 
 void TextTests::testAppendInsertDelete() {
-    TRMutableTextRef text = createMutableText("abc");
+    TRMutableTypesetterRef text = createMutableText("abc");
     assert(readUTF8(text) == "abc");
 
-    TRTextAppendCodeUnits(text, "def", 3);
+    TRTypesetterAppendCodeUnits(text, "def", 3);
     assert(readUTF8(text) == "abcdef");
 
-    TRTextInsertCodeUnits(text, 3, "XY", 2);
+    TRTypesetterInsertCodeUnits(text, 3, "XY", 2);
     assert(readUTF8(text) == "abcXYdef");
 
-    TRTextDeleteCodeUnits(text, 3, 2);
+    TRTypesetterDeleteCodeUnits(text, 3, 2);
     assert(readUTF8(text) == "abcdef");
 
-    TRTextDeleteCodeUnits(text, 0, 6);
-    assert(TRTextGetLength(text) == 0);
+    TRTypesetterDeleteCodeUnits(text, 0, 6);
+    assert(TRTypesetterGetLength(text) == 0);
 
-    TRTextRelease(text);
+    TRTypesetterRelease(text);
 }
 
 void TextTests::testSetAndReplace() {
-    TRMutableTextRef text = createMutableText("hello");
+    TRMutableTypesetterRef text = createMutableText("hello");
 
-    TRTextSetCodeUnits(text, "world!", 6);
+    TRTypesetterSetCodeUnits(text, "world!", 6);
     assert(readUTF8(text) == "world!");
 
-    TRTextReplaceCodeUnits(text, 1, 4, "ar", 2);
+    TRTypesetterReplaceCodeUnits(text, 1, 4, "ar", 2);
     assert(readUTF8(text) == "war!");
 
-    TRTextReplaceCodeUnits(text, 0, 0, ">> ", 3);
+    TRTypesetterReplaceCodeUnits(text, 0, 0, ">> ", 3);
     assert(readUTF8(text) == ">> war!");
 
-    TRTextRelease(text);
+    TRTypesetterRelease(text);
 }
 
 void TextTests::testBatchEditing() {
-    TRMutableTextRef text = createMutableText("abc");
+    TRMutableTypesetterRef text = createMutableText("abc");
 
-    TRTextBeginEditing(text);
+    TRTypesetterBeginEditing(text);
     assert(text->isEditing == TRTrue);
 
-    TRTextAppendCodeUnits(text, "def", 3);
-    TRTextInsertCodeUnits(text, 0, ">", 1);
-    TRTextEndEditing(text);
+    TRTypesetterAppendCodeUnits(text, "def", 3);
+    TRTypesetterInsertCodeUnits(text, 0, ">", 1);
+    TRTypesetterEndEditing(text);
 
     assert(text->isEditing == TRFalse);
     assert(readUTF8(text) == ">abcdef");
 
-    TRTextRelease(text);
+    TRTypesetterRelease(text);
 }
 
 void TextTests::testCreateMutableCopy() {
-    TRTextRef original = TRTextCreate("origin", 6, TRStringEncodingUTF8);
-    TRMutableTextRef copy = TRTextCreateMutableCopy(original);
+    TRTypesetterRef original = TRTypesetterCreate("origin", 6, TRStringEncodingUTF8, nullptr, 0);
+    TRMutableTypesetterRef copy = TRTypesetterCreateMutableCopy(original);
 
     assert(copy != nullptr);
     assert(copy->isMutable == TRTrue);
     assert(readUTF8(copy) == "origin");
 
-    TRTextAppendCodeUnits(copy, "!", 1);
+    TRTypesetterAppendCodeUnits(copy, "!", 1);
     assert(readUTF8(copy) == "origin!");
     assert(readUTF8(original) == "origin");
 
-    TRMutableTextRef nested = TRTextCreateMutableCopy(copy);
-    TRTextDeleteCodeUnits(nested, 0, 3);
+    TRMutableTypesetterRef nested = TRTypesetterCreateMutableCopy(copy);
+    TRTypesetterDeleteCodeUnits(nested, 0, 3);
     assert(readUTF8(nested) == "gin!");
     assert(readUTF8(copy) == "origin!");
 
-    TRTextRelease(nested);
-    TRTextRelease(copy);
-    TRTextRelease(original);
+    TRTypesetterRelease(nested);
+    TRTypesetterRelease(copy);
+    TRTypesetterRelease(original);
 }
 
 void TextTests::testRetainRelease() {
-    TRTextRef text = TRTextCreate("abc", 3, TRStringEncodingUTF8);
+    TRTypesetterRef text = TRTypesetterCreate("abc", 3, TRStringEncodingUTF8, nullptr, 0);
 
-    assert(TRTextRetain(text) == text);
+    assert(TRTypesetterRetain(text) == text);
     assert(AtomicUIntLoad(&text->_base.retainCount) == 2);
 
-    TRTextRelease(text);
+    TRTypesetterRelease(text);
     assert(AtomicUIntLoad(&text->_base.retainCount) == 1);
     assert(readUTF8(text) == "abc");
 
-    TRTextRelease(text);
+    TRTypesetterRelease(text);
 }
 
 void TextTests::testConcurrentReads() {
     const char string[] = "concurrent reads";
-    TRTextRef text = TRTextCreate(string, strlen(string), TRStringEncodingUTF8);
+    TRTypesetterRef text = TRTypesetterCreate(string, strlen(string), TRStringEncodingUTF8, nullptr, 0);
     vector<thread> threads;
 
     for (size_t i = 0; i < NumThreads; i++) {
         threads.emplace_back([text, &string]() {
             for (size_t j = 0; j < Iterations; j++) {
-                TRTextRef retained = TRTextRetain(text);
-                assert(TRTextGetLength(retained) == strlen(string));
+                TRTypesetterRef retained = TRTypesetterRetain(text);
+                assert(TRTypesetterGetLength(retained) == strlen(string));
                 assert(readUTF8(retained) == string);
 
-                TRTextRelease(retained);
+                TRTypesetterRelease(retained);
             }
         });
     }
@@ -404,7 +404,7 @@ void TextTests::testConcurrentReads() {
 
     assert(AtomicUIntLoad(&text->_base.retainCount) == 1);
 
-    TRTextRelease(text);
+    TRTypesetterRelease(text);
 }
 
 #ifdef STANDALONE_TESTING

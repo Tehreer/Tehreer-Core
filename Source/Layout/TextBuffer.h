@@ -31,6 +31,9 @@ typedef struct _TextBuffer {
     TRStringEncoding encoding;
 } TextBuffer;
 
+/* Returns the number of bytes in a code unit of the encoding. */
+TR_INTERNAL TRUInteger TextBufferGetCodeUnitSize(TRStringEncoding encoding);
+
 /*
  * Decodes the code point at `*index` and moves `*index` past it. The index MUST be less than the
  * length. Malformed sequences give a code point that is not whitespace.

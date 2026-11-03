@@ -48,6 +48,10 @@ typedef TRUInt8 TRGlyphRunFlags;
 typedef struct _TRGlyphRun {
     ObjectBase _base;
     TextRunRef textRun;
+
+    /* The text index of the start of the paragraph that the indexes of the text run are relative
+     * to. */
+    TRUInteger paragraphStart;
     TRUInteger codeUnitStart;
     TRUInteger codeUnitEnd;
     TRUInteger startExtra;
@@ -75,11 +79,13 @@ typedef struct _GlyphRunPaint {
 } GlyphRunPaint;
 
 /*
- * Creates a run for a range of a text run, which MUST NOT be empty. A replacement run is always
- * taken as a whole. Returns NULL on failure.
+ * Creates a run for a range of a text run, which MUST NOT be empty. The indexes of a text run are
+ * relative to its paragraph, so `paragraphStart` is the index of the start of the paragraph in the
+ * text, and the range is given in the indexes of the text. A replacement run is always taken as a
+ * whole. Returns NULL on failure.
  */
-TR_INTERNAL TRGlyphRun *TRGlyphRunCreate(TextRunRef textRun, TRUInteger start, TRUInteger end,
-    const GlyphRunPaint *paint);
+TR_INTERNAL TRGlyphRun *TRGlyphRunCreate(TextRunRef textRun, TRUInteger paragraphStart,
+    TRUInteger start, TRUInteger end, const GlyphRunPaint *paint);
 
 /* Creates a copy of a run, which can be given another origin. */
 TR_INTERNAL TRGlyphRun *TRGlyphRunCreateCopy(TRGlyphRunRef glyphRun);

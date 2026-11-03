@@ -46,6 +46,12 @@ private:
     void testUnknownScriptsAndNotdef();
     void testLanguageAndFeatureAttributes();
     void testRangesAreChecked();
+    void testEditReshapesOnlyTouchedParagraph();
+    void testEditsShiftUntouchedParagraphs();
+    void testCopiesShareParagraphs();
+    void testEditingBatch();
+    void testLaterParagraphsMatchTheFirst();
+    void testHelpersCrossParagraphs();
 };
 
 }

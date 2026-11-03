@@ -89,6 +89,16 @@ typedef uintptr_t                   TRUInteger;
 #define TRInvalidIndex              ((TRUInteger)(-1))
 
 /**
+ * A range of code units, which starts at `index` and has `length` code units. A function may
+ * return a range, but none takes one: they take the index and the length as they are. A function
+ * that cannot find a range returns one that starts at `TRInvalidIndex` and is empty.
+ */
+typedef struct _TRRange {
+    TRUInteger index;
+    TRUInteger length;
+} TRRange;
+
+/**
  * A type to represent a single-precision floating-point number.
  * Conforms to IEEE 754 standard.
  */

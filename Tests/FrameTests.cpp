@@ -26,7 +26,7 @@
 #include <Tehreer/TRComposedFrame.h>
 #include <Tehreer/TRComposedLine.h>
 #include <Tehreer/TRFrameResolver.h>
-#include <Tehreer/TRText.h>
+#include <Tehreer/TRTypesetter.h>
 #include <Tehreer/TRTypesetter.h>
 
 #include "TestText.h"
@@ -97,14 +97,14 @@ static bool isNear(TRFloat a, TRFloat b) {
 
 struct Fixture {
     TRTypefaceRef typeface;
-    TRMutableTextRef text;
+    TRMutableTypesetterRef text;
     TRTypesetterRef typesetter;
     TRFrameResolverRef resolver;
 
     explicit Fixture(const u16string &string) {
         typeface = createTestTypeface("Roboto-Regular.abc.ttf");
         text = makeTestText(string, typeface, EmSize);
-        typesetter = TRTypesetterCreate(text, nullptr, 0);
+        typesetter = TRTypesetterCreateCopy(text);
         assert(typesetter != nullptr);
 
         resolver = TRFrameResolverCreate();
@@ -120,33 +120,33 @@ struct Fixture {
     }
 
     TRComposedFrameRef frame() {
-        return frame(0, TRTextGetLength(text));
+        return frame(0, TRTypesetterGetLength(text));
     }
 
     ~Fixture() {
         TRFrameResolverRelease(resolver);
         TRTypesetterRelease(typesetter);
-        TRTextRelease(text);
+        TRTypesetterRelease(text);
         TRTypefaceRelease(typeface);
     }
 };
 
-static void setParagraphCount(TRMutableTextRef text, TRAttributeType type, TRUInteger value) {
+static void setParagraphCount(TRMutableTypesetterRef text, TRAttributeType type, TRUInteger value) {
     TRAttribute attribute = {};
     attribute.type = type;
     attribute.value.firstIndentLineCount = value;
-    TRTextSetAttribute(text, 0, TRTextGetLength(text), &attribute);
+    TRTypesetterSetAttribute(text, 0, TRTypesetterGetLength(text), &attribute);
 }
 
-static void setAlignment(TRMutableTextRef text, TRTextAlignment alignment) {
+static void setAlignment(TRMutableTypesetterRef text, TRTextAlignment alignment) {
     TRAttribute attribute = {};
     attribute.type = TRAttributeTextAlignment;
     attribute.value.textAlignment = alignment;
-    TRTextSetAttribute(text, 0, TRTextGetLength(text), &attribute);
+    TRTypesetterSetAttribute(text, 0, TRTypesetterGetLength(text), &attribute);
 }
 
-static void setParagraph(TRMutableTextRef text, TRAttributeType type, TRFloat value) {
-    setTestFloat(text, 0, TRTextGetLength(text), type, value);
+static void setParagraph(TRMutableTypesetterRef text, TRAttributeType type, TRFloat value) {
+    setTestFloat(text, 0, TRTypesetterGetLength(text), type, value);
 }
 
 void FrameTests::testSingleLine() {
@@ -357,7 +357,7 @@ void FrameTests::testAlignments() {
     /* The alignment of a paragraph wins over the one of the resolver. */
     setAlignment(f.text, TRTextAlignmentRight);
     TRTypesetterRelease(f.typesetter);
-    f.typesetter = TRTypesetterCreate(f.text, nullptr, 0);
+    f.typesetter = TRTypesetterCreateCopy(f.text);
     TRFrameResolverSetTypesetter(f.resolver, f.typesetter);
     TRFrameResolverSetTextAlignment(f.resolver, TRTextAlignmentLeft);
     frame = f.frame();
@@ -367,7 +367,7 @@ void FrameTests::testAlignments() {
 
 static void useText(Fixture &f) {
     TRTypesetterRelease(f.typesetter);
-    f.typesetter = TRTypesetterCreate(f.text, nullptr, 0);
+    f.typesetter = TRTypesetterCreateCopy(f.text);
     assert(f.typesetter != nullptr);
     TRFrameResolverSetTypesetter(f.resolver, f.typesetter);
 }
@@ -815,14 +815,14 @@ void FrameTests::testRangesAreChecked() {
     TRFrameResolverRelease(bare);
 
     /* An empty text has nothing to lay out either. */
-    TRMutableTextRef empty = makeTestText(u"", f.typeface, EmSize);
-    TRTypesetterRef emptyTypesetter = TRTypesetterCreate(empty, nullptr, 0);
+    TRMutableTypesetterRef empty = makeTestText(u"", f.typeface, EmSize);
+    TRTypesetterRef emptyTypesetter = TRTypesetterCreateCopy(empty);
     assert(emptyTypesetter != nullptr);
     TRFrameResolverSetTypesetter(f.resolver, emptyTypesetter);
     assert(TRFrameResolverCreateFrame(f.resolver, 0, 5) == nullptr);
     assert(TRFrameResolverCreateFrame(f.resolver, 0, 0) == nullptr);
     TRTypesetterRelease(emptyTypesetter);
-    TRTextRelease(empty);
+    TRTypesetterRelease(empty);
 }
 
 void FrameTests::testFramesOutliveResolver() {

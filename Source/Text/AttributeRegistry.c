@@ -65,7 +65,6 @@ static const AttributeDescription AttributeDescriptions[AttributeCount] = {
 };
 
 static AttributeRegistry GlobalAttributeRegistry;
-static SBTextConfigRef DefaultTextConfig;
 static SBAttributeID AttributeIDs[AttributeCount + 1];
 
 static SBBoolean EqualAttributeItem(const void *firstPtr, const void *secondPtr)
@@ -223,11 +222,6 @@ static void InitializeAttributeRegistry(void)
         }
 
         GlobalAttributeRegistry._registry = internalRegistry;
-
-        DefaultTextConfig = SBTextConfigCreate();
-        if (DefaultTextConfig) {
-            SBTextConfigSetAttributeRegistry(DefaultTextConfig, internalRegistry);
-        }
     }
 }
 
@@ -251,9 +245,19 @@ TR_INTERNAL SBAttributeID AttributeRegistryGetAttributeID(TRAttributeType type)
     return attributeID;
 }
 
-TR_INTERNAL SBTextConfigRef AttributeRegistryGetDefaultConfig(void)
+TR_INTERNAL SBTextConfigRef AttributeRegistryCreateConfig(void)
 {
+    SBTextConfigRef config = NULL;
+
     TryLazyInitializeAttributeRegistry();
 
-    return DefaultTextConfig;
+    if (GlobalAttributeRegistry._registry) {
+        config = SBTextConfigCreate();
+
+        if (config) {
+            SBTextConfigSetAttributeRegistry(config, GlobalAttributeRegistry._registry);
+        }
+    }
+
+    return config;
 }

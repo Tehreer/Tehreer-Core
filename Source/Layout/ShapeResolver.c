@@ -29,31 +29,19 @@
 #include <Tehreer/TRReplacement.h>
 #include <Tehreer/TRShapingEngine.h>
 #include <Tehreer/TRShapingResult.h>
-#include <Tehreer/TRText.h>
 #include <Tehreer/TRSheenBidi.h>
 #include <Tehreer/TRTypeface.h>
 
 #include <API/TRAttributeList.h>
 #include <API/TRBase.h>
 #include <API/TRFontFeatures.h>
-#include <API/TRTypesetter.h>
 #include <Core/Allocator.h>
+#include <Layout/ShapedParagraph.h>
+#include <Layout/TextBuffer.h>
 #include <Layout/TextRun.h>
 #include <Text/AttributeRegistry.h>
 
 #include "ShapeResolver.h"
-
-typedef struct _ShapingStyle {
-    TRTypefaceRef typeface;
-    TRFloat typeSize;
-    TRFloat baselineOffset;
-    TRFloat obliqueness;
-    TRFloat scaleX;
-    TRFloat scaleY;
-    TRReplacementRef replacement;
-    TRTag languageTag;
-    TRFontFeaturesRef fontFeatures;
-} ShapingStyle;
 
 typedef struct _PendingRun {
     TRBoolean isValid;
@@ -64,8 +52,10 @@ typedef struct _PendingRun {
     ShapingStyle style;
 } PendingRun;
 
+/* The indexes of the pending runs are relative to the start of the paragraph that has them. */
 typedef struct _ResolverContext {
-    TRTypesetter *typesetter;
+    ShapedParagraph *paragraph;
+    TRUInteger base;
     TRShapingEngineRef engine;
     TRUInteger unitSize;
     ShapingStyle defaultStyle;
@@ -165,7 +155,7 @@ static TRBoolean EqualStyles(const ShapingStyle *first, const ShapingStyle *seco
 
 static TRBoolean AppendRun(ResolverContext *context, TextRunRef textRun)
 {
-    return ArrayAppend(&context->typesetter->runs, &textRun);
+    return ArrayAppend(&context->paragraph->runs, &textRun);
 }
 
 /* Sets the features of the style on the engine, which are none if the style has no features. */
@@ -185,7 +175,7 @@ static TRBoolean SetupFeatures(TRShapingEngineRef engine, const ShapingStyle *st
 static TextRunRef ShapeIntrinsicRun(ResolverContext *context, const PendingRun *pending)
 {
     TextRunRef textRun = NULL;
-    TRTypesetter *typesetter = context->typesetter;
+    const ShapedParagraph *paragraph = context->paragraph;
     const ShapingStyle *style = &pending->style;
     TRTag scriptTag = GetScriptTag(pending->script);
     TRTag languageTag = (style->languageTag ? style->languageTag : TRTagMake('d', 'f', 'l', 't'));
@@ -193,7 +183,7 @@ static TextRunRef ShapeIntrinsicRun(ResolverContext *context, const PendingRun *
     TRBoolean isRTL = (pending->level & 1) == 1;
     TRBoolean isBackward = (isRTL && direction == TRWritingDirectionLeftToRight)
                         || (!isRTL && direction == TRWritingDirectionRightToLeft);
-    const TRUInt8 *units = (const TRUInt8 *)typesetter->buffer.codeUnits;
+    const TRUInt8 *units = (const TRUInt8 *)paragraph->buffer.codeUnits;
     TRShapingResultRef shapingResult = NULL;
 
     TRShapingEngineSetTypeface(context->engine, style->typeface);
@@ -207,7 +197,7 @@ static TextRunRef ShapeIntrinsicRun(ResolverContext *context, const PendingRun *
     if (SetupFeatures(context->engine, style)) {
         shapingResult = TRShapingEngineCreateShapingResult(context->engine,
             units + (pending->start * context->unitSize), pending->end - pending->start,
-            typesetter->buffer.encoding);
+            paragraph->buffer.encoding);
     }
 
     if (shapingResult) {
@@ -264,17 +254,19 @@ static void ResolveStyle(const ResolverContext *context, TRAttributeListRef attr
 }
 
 static TRBoolean ResolveParagraph(ResolverContext *context, SBUniformRunIteratorRef iterator,
-    const SBParagraphInfo *paragraph)
+    TRUInteger index, TRUInteger length)
 {
     TRBoolean isResolved = TRTrue;
     PendingRun pending;
 
     pending.isValid = TRFalse;
 
-    SBUniformRunIteratorReset(iterator, paragraph->index, paragraph->length);
+    SBUniformRunIteratorReset(iterator, index, length);
 
-    while (SBUniformRunIteratorMoveNext(iterator)) {
+    while (isResolved && SBUniformRunIteratorMoveNext(iterator)) {
         const SBUniformRun *uniformRun = SBUniformRunIteratorGetCurrent(iterator);
+        TRUInteger runStart = uniformRun->index - context->base;
+        TRUInteger runEnd = runStart + uniformRun->length;
         ShapingStyle style;
 
         ResolveStyle(context, TRAttributeListMake(uniformRun->attributes), &style);
@@ -282,21 +274,17 @@ static TRBoolean ResolveParagraph(ResolverContext *context, SBUniformRunIterator
         /* Runs that only differ in what is not about shaping are shaped together. */
         if (pending.isValid && pending.level == uniformRun->level
                 && pending.script == uniformRun->script && EqualStyles(&pending.style, &style)) {
-            pending.end = uniformRun->index + uniformRun->length;
+            pending.end = runEnd;
             continue;
         }
 
         if (pending.isValid) {
             isResolved = ShapeRun(context, &pending);
-
-            if (!isResolved) {
-                break;
-            }
         }
 
         pending.isValid = TRTrue;
-        pending.start = uniformRun->index;
-        pending.end = uniformRun->index + uniformRun->length;
+        pending.start = runStart;
+        pending.end = runEnd;
         pending.level = uniformRun->level;
         pending.script = uniformRun->script;
         pending.style = style;
@@ -309,59 +297,50 @@ static TRBoolean ResolveParagraph(ResolverContext *context, SBUniformRunIterator
     return isResolved;
 }
 
-static TRBoolean ResolveAllParagraphs(ResolverContext *context, SBUniformRunIteratorRef runIterator,
-    SBParagraphIteratorRef paragraphIterator)
+/* Copies the code units of a paragraph out of the text into a new record of it. */
+static ShapedParagraph *CreateParagraphRecord(SBTextRef sbText, TRUInteger index, TRUInteger length)
 {
-    TRBoolean isResolved = TRTrue;
+    TRStringEncoding encoding = SBTextGetEncoding(sbText);
+    TRUInteger unitSize = TextBufferGetCodeUnitSize(encoding);
+    void *codeUnits = AllocatorAllocateBlock(length * unitSize);
+    ShapedParagraph *paragraph = NULL;
 
-    /* Only the attributes of shaping decide the runs, not the paragraph ones nor the paint ones. */
-    SBUniformRunIteratorSetupFilter(runIterator,
-        SBAttributeFilterMakeCollection(AttributeGroupShaping, SBAttributeScopeCharacter));
+    if (codeUnits) {
+        SBTextGetCodeUnits(sbText, index, length, codeUnits);
+        paragraph = ShapedParagraphCreate(codeUnits, length, encoding);
 
-    while (isResolved && SBParagraphIteratorMoveNext(paragraphIterator)) {
-        isResolved = ResolveParagraph(context, runIterator,
-            SBParagraphIteratorGetCurrent(paragraphIterator));
+        AllocatorDeallocateBlock(codeUnits);
     }
 
-    return isResolved;
+    return paragraph;
 }
 
-/* Returns the number of bytes in a code unit of the encoding. */
-static TRUInteger GetCodeUnitSize(TRStringEncoding encoding)
+/*
+ * Splits the paragraph into runs that have a single bidirectional level, script, typeface, size
+ * and the other properties that decide the shape, and shapes them. The paragraph stays unshaped if
+ * some of its text has no typeface, or on failure.
+ */
+static void ShapeParagraph(ShapedParagraph *paragraph, SBTextRef sbText, TRUInteger index,
+    TRUInteger length, const ShapingStyle *defaultStyle)
 {
-    TRUInteger codeUnitSize = 4;
-
-    if (encoding == TRStringEncodingUTF8) {
-        codeUnitSize = 1;
-    } else if (encoding == TRStringEncodingUTF16) {
-        codeUnitSize = 2;
-    }
-
-    return codeUnitSize;
-}
-
-TR_INTERNAL TRBoolean ShapeResolverResolve(TRTypesetter *typesetter,
-    const TRAttribute *defaultAttributes, TRUInteger defaultAttributeCount)
-{
-    SBTextRef sbText = TRTextGetSheenBidiText(typesetter->text);
-    SBParagraphIteratorRef paragraphIterator = SBTextCreateParagraphIterator(sbText);
     SBUniformRunIteratorRef runIterator = SBTextCreateUniformRunIterator(sbText);
     TRShapingEngineRef engine = TRShapingEngineCreate();
-    TRBoolean isResolved = TRFalse;
 
-    if (paragraphIterator && runIterator && engine) {
+    if (runIterator && engine) {
         ResolverContext context;
 
-        context.typesetter = typesetter;
+        context.paragraph = paragraph;
+        context.base = index;
         context.engine = engine;
-        context.unitSize = GetCodeUnitSize(typesetter->buffer.encoding);
+        context.unitSize = TextBufferGetCodeUnitSize(paragraph->buffer.encoding);
+        context.defaultStyle = *defaultStyle;
 
-        InitializeStyle(&context.defaultStyle);
-        if (defaultAttributes) {
-            ApplyAttributes(&context.defaultStyle, defaultAttributes, defaultAttributeCount);
-        }
+        /* Only the attributes of shaping decide the runs, not the paragraph ones nor the paint
+         * ones. */
+        SBUniformRunIteratorSetupFilter(runIterator,
+            SBAttributeFilterMakeCollection(AttributeGroupShaping, SBAttributeScopeCharacter));
 
-        isResolved = ResolveAllParagraphs(&context, runIterator, paragraphIterator);
+        paragraph->isShaped = ResolveParagraph(&context, runIterator, index, length);
     }
 
     if (engine) {
@@ -370,9 +349,73 @@ TR_INTERNAL TRBoolean ShapeResolverResolve(TRTypesetter *typesetter,
     if (runIterator) {
         SBUniformRunIteratorRelease(runIterator);
     }
-    if (paragraphIterator) {
-        SBParagraphIteratorRelease(paragraphIterator);
+}
+
+static void FinalizeShapeDefaults(ObjectRef object)
+{
+    ShapeDefaults *defaults = object;
+
+    if (defaults->style.typeface) {
+        TRTypefaceRelease(defaults->style.typeface);
+    }
+    if (defaults->style.replacement) {
+        TRReplacementRelease(defaults->style.replacement);
+    }
+    if (defaults->style.fontFeatures) {
+        TRFontFeaturesRelease(defaults->style.fontFeatures);
+    }
+}
+
+TR_INTERNAL const void *ShapeResolverProvideParagraph(SBTextRef sbText, SBUInteger index,
+    SBUInteger length, void *context)
+{
+    ShapeDefaultsRef defaults = context;
+    ShapedParagraph *paragraph = CreateParagraphRecord(sbText, index, length);
+
+    if (paragraph) {
+        ShapeParagraph(paragraph, sbText, index, length, &defaults->style);
+        paragraph->isUnclaimed = TRTrue;
     }
 
-    return isResolved;
+    return paragraph;
+}
+
+TR_INTERNAL ShapeDefaultsRef ShapeDefaultsCreate(const TRAttribute *attributes, TRUInteger count)
+{
+    const TRUInteger size = sizeof(ShapeDefaults);
+    void *pointer = NULL;
+    ShapeDefaults *defaults;
+
+    defaults = ObjectCreate(&size, 1, &pointer, FinalizeShapeDefaults);
+
+    if (defaults) {
+        InitializeStyle(&defaults->style);
+
+        if (attributes) {
+            ApplyAttributes(&defaults->style, attributes, count);
+        }
+
+        /* The attributes belong to the caller, so the style keeps its own references. */
+        if (defaults->style.typeface) {
+            TRTypefaceRetain(defaults->style.typeface);
+        }
+        if (defaults->style.replacement) {
+            TRReplacementRetain(defaults->style.replacement);
+        }
+        if (defaults->style.fontFeatures) {
+            TRFontFeaturesRetain(defaults->style.fontFeatures);
+        }
+    }
+
+    return defaults;
+}
+
+TR_INTERNAL ShapeDefaultsRef ShapeDefaultsRetain(ShapeDefaultsRef defaults)
+{
+    return ObjectRetain((ObjectRef)defaults);
+}
+
+TR_INTERNAL void ShapeDefaultsRelease(ShapeDefaultsRef defaults)
+{
+    ObjectRelease((ObjectRef)defaults);
 }

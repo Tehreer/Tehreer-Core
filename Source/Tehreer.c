@@ -33,7 +33,6 @@
 #include <API/TRReplacement.c>
 #include <API/TRShapingEngine.c>
 #include <API/TRShapingResult.c>
-#include <API/TRText.c>
 #include <API/TRTypesetter.c>
 #include <API/TRTypeface.c>
 #include <API/TRTypefaceManager.c>
@@ -55,7 +54,9 @@
 #include <Layout/CaretUtils.c>
 #include <Layout/LineResolver.c>
 #include <Layout/ShapeResolver.c>
+#include <Layout/ShapedParagraph.c>
 #include <Layout/TokenResolver.c>
+#include <Layout/TextSource.c>
 #include <Layout/TextBuffer.c>
 #include <Layout/TextRun.c>
 #include <SFNT/Utilities.c>

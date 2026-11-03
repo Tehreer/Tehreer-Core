@@ -32,7 +32,7 @@
 #include <Tehreer/TRPath.h>
 #include <Tehreer/TRRenderer.h>
 #include <Tehreer/TRReplacement.h>
-#include <Tehreer/TRText.h>
+#include <Tehreer/TRTypesetter.h>
 #include <Tehreer/TRTypeface.h>
 #include <Tehreer/TRTypesetter.h>
 
@@ -366,7 +366,7 @@ ColorValue readDecoration(TRGlyphRunRef run) {
 
 struct Fixture {
     TRTypefaceRef typeface;
-    TRMutableTextRef text;
+    TRMutableTypesetterRef text;
     TRTypesetterRef typesetter;
 
     explicit Fixture(const u16string &string, const char *fontName = "Roboto-Regular.abc.ttf",
@@ -378,7 +378,7 @@ struct Fixture {
 
     TRTypesetterRef make() {
         if (!typesetter) {
-            typesetter = TRTypesetterCreate(text, nullptr, 0);
+            typesetter = TRTypesetterCreateCopy(text);
             assert(typesetter != nullptr);
         }
 
@@ -408,7 +408,7 @@ struct Fixture {
         TRFrameResolverSetTypesetter(resolver, make());
         TRFrameResolverSetFrameSize(resolver, makeSize(width, 10000.0f));
 
-        TRComposedFrameRef result = TRFrameResolverCreateFrame(resolver, 0, TRTextGetLength(text));
+        TRComposedFrameRef result = TRFrameResolverCreateFrame(resolver, 0, TRTypesetterGetLength(text));
         assert(result != nullptr);
 
         TRFrameResolverRelease(resolver);
@@ -428,7 +428,7 @@ struct Fixture {
             attribute.value.decorationColor = color;
         }
 
-        TRTextSetAttribute(text, index, length, &attribute);
+        TRTypesetterSetAttribute(text, index, length, &attribute);
     }
 
     void setFlag(TRUInteger index, TRUInteger length, TRAttributeType type) {
@@ -440,14 +440,14 @@ struct Fixture {
             attribute.value.strikethrough = TRTrue;
         }
 
-        TRTextSetAttribute(text, index, length, &attribute);
+        TRTypesetterSetAttribute(text, index, length, &attribute);
     }
 
     ~Fixture() {
         if (typesetter) {
             TRTypesetterRelease(typesetter);
         }
-        TRTextRelease(text);
+        TRTypesetterRelease(text);
         TRTypefaceRelease(typeface);
     }
 };
@@ -1239,7 +1239,7 @@ void DrawTests::testReplacement() {
     TRAttribute attribute = {};
     attribute.type = TRAttributeReplacement;
     attribute.value.replacement = replacement;
-    TRTextSetAttribute(f.text, 1, 1, &attribute);
+    TRTypesetterSetAttribute(f.text, 1, 1, &attribute);
 
     f.setColor(1, 1, TRAttributeBackgroundColor, Green);
     f.setFlag(1, 1, TRAttributeUnderline);
@@ -1590,7 +1590,7 @@ void DrawTests::testShadow() {
     TRAttribute attribute = {};
     attribute.type = TRAttributeReplacement;
     attribute.value.replacement = replacement;
-    TRTextSetAttribute(g.text, 1, 1, &attribute);
+    TRTypesetterSetAttribute(g.text, 1, 1, &attribute);
 
     TRComposedLineRef replacementLine = g.line(0, 3);
     assert(TRComposedLineGetGlyphRunCount(replacementLine) == 3);

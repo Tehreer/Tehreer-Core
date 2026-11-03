@@ -100,15 +100,6 @@
 #endif
 
 /**
- * A range of code units, which starts at `index` and has `length` code units. The public interface
- * takes the index and the length as they are, so a range is only made inside of the library.
- */
-typedef struct _TRRange {
-    TRUInteger index;
-    TRUInteger length;
-} TRRange;
-
-/**
  * Tells if an index is a position of a sequence that has the count, which is less than the count.
  * The arguments are evaluated more than once.
  */

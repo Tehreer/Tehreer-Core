@@ -39,6 +39,7 @@ void BreakClassifierTests::run() {
     testLineBreaks();
     testMandatoryBreaks();
     testGraphemeBreaks();
+    testWordBreaks();
     testSurrogatePairs();
     testEncodingsAgree();
     testForwardSearch();
@@ -137,6 +138,19 @@ void BreakClassifierTests::testGraphemeBreaks() {
     /* A Hangul syllable written with conjoining jamo is a single cluster. */
     classifier = create16(u"\u1100\u1161\u11A8x", 4);
     assert((breaksOf(classifier, BreakTypeGrapheme) == vector<size_t>{ 3, 4 }));
+    BreakClassifierRelease(classifier);
+}
+
+void BreakClassifierTests::testWordBreaks() {
+    BreakClassifierRef classifier = create16(u"Hello, world", 12);
+
+    /* Words, punctuation and spaces are separate segments. */
+    assert((breaksOf(classifier, BreakTypeWord) == vector<size_t>{ 5, 6, 7, 12 }));
+    BreakClassifierRelease(classifier);
+
+    /* An apostrophe between letters does not split a word. */
+    classifier = create16(u"don't stop", 10);
+    assert((breaksOf(classifier, BreakTypeWord) == vector<size_t>{ 5, 6, 10 }));
     BreakClassifierRelease(classifier);
 }
 

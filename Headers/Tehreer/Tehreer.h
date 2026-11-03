@@ -37,7 +37,6 @@
 #include <Tehreer/TRShapingEngine.h>
 #include <Tehreer/TRShapingResult.h>
 #include <Tehreer/TRString.h>
-#include <Tehreer/TRText.h>
 #include <Tehreer/TRTypeface.h>
 #include <Tehreer/TRTypefaceManager.h>
 #include <Tehreer/TRTypesetter.h>

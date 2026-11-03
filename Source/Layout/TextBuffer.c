@@ -25,6 +25,19 @@
 
 #define InvalidCodePoint    0xFFFFFFFF
 
+TR_INTERNAL TRUInteger TextBufferGetCodeUnitSize(TRStringEncoding encoding)
+{
+    TRUInteger codeUnitSize = 4;
+
+    if (encoding == TRStringEncodingUTF8) {
+        codeUnitSize = 1;
+    } else if (encoding == TRStringEncodingUTF16) {
+        codeUnitSize = 2;
+    }
+
+    return codeUnitSize;
+}
+
 TR_INTERNAL TRUInt32 TextBufferDecodeNext(const TextBuffer *buffer, TRUInteger *index)
 {
     TRUInt32 codePoint = InvalidCodePoint;

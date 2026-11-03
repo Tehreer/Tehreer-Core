@@ -24,7 +24,6 @@
 #include <API/TRBase.h>
 #include <API/TRGlyphRun.h>
 #include <Core/Object.h>
-#include <Layout/TextBuffer.h>
 
 typedef struct _TRComposedLine {
     ObjectBase _base;
@@ -50,11 +49,13 @@ typedef struct _TRComposedLine {
 /*
  * Creates a line from its runs, which are in visual order. The line takes the references of the
  * runs, and the array that holds them is the caller's. The origins of the runs are set here, and
- * the metrics of the line are the greatest of those of its runs. Returns NULL on failure, in which
- * case the runs are released as well.
+ * the metrics of the line are the greatest of those of its runs. The whitespace that ends the
+ * line starts at `trailingWhitespaceStart`, which is the end of the line if there is none. Returns
+ * NULL on failure, in which case the runs are released as well.
  */
-TR_INTERNAL TRComposedLine *TRComposedLineCreate(const TextBuffer *buffer, TRUInteger start,
-    TRUInteger end, TRGlyphRun **runs, TRUInteger runCount, TRUInt8 paragraphLevel);
+TR_INTERNAL TRComposedLine *TRComposedLineCreate(TRUInteger start, TRUInteger end,
+    TRUInteger trailingWhitespaceStart, TRGlyphRun **runs, TRUInteger runCount,
+    TRUInt8 paragraphLevel);
 
 /* Top edge of the line, which is its ascent above the y of its origin. */
 #define TRComposedLineGetTop(line_)       ((line_)->origin.y - (line_)->ascent)

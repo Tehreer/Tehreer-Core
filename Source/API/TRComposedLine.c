@@ -44,10 +44,8 @@ static void FinalizeComposedLine(ObjectRef object)
     AllocatorDeallocateBlock(line->runs);
 }
 
-static void ResolveLineMetrics(TRComposedLine *line, const TextBuffer *buffer)
+static void ResolveLineMetrics(TRComposedLine *line, TRUInteger trailingWhitespaceStart)
 {
-    TRUInteger trailingWhitespaceStart = TextBufferGetTrailingWhitespaceStart(buffer,
-        line->codeUnitStart, line->codeUnitEnd);
     TRGlyphRun *blockRun = NULL;
     TRUInteger index;
 
@@ -115,8 +113,9 @@ static TRUInteger FindClusterStartInRun(TRGlyphRunRef glyphRun, TRFloat distance
     return clusterStart;
 }
 
-TR_INTERNAL TRComposedLine *TRComposedLineCreate(const TextBuffer *buffer, TRUInteger start,
-    TRUInteger end, TRGlyphRun **runs, TRUInteger runCount, TRUInt8 paragraphLevel)
+TR_INTERNAL TRComposedLine *TRComposedLineCreate(TRUInteger start, TRUInteger end,
+    TRUInteger trailingWhitespaceStart, TRGlyphRun **runs, TRUInteger runCount,
+    TRUInt8 paragraphLevel)
 {
     const TRUInteger size = sizeof(TRComposedLine);
     TRComposedLine *line = NULL;
@@ -152,7 +151,7 @@ TR_INTERNAL TRComposedLine *TRComposedLineCreate(const TextBuffer *buffer, TRUIn
             line->flushFactor = 0.0f;
             line->intrinsicMargin = 0.0f;
 
-            ResolveLineMetrics(line, buffer);
+            ResolveLineMetrics(line, trailingWhitespaceStart);
         } else {
             AllocatorDeallocateBlock(lineRuns);
         }

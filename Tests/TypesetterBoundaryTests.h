@@ -14,21 +14,29 @@
  * limitations under the License.
  */
 
-#ifndef _TEHREER_API_TEXT_H
-#define _TEHREER_API_TEXT_H
+#ifndef _TEHREER__TYPESETTER_BOUNDARY_TESTS_H
+#define _TEHREER__TYPESETTER_BOUNDARY_TESTS_H
 
-#include <SheenBidi/SBText.h>
+namespace Tehreer {
 
-#include <Tehreer/TRBase.h>
-#include <Tehreer/TRText.h>
+class TypesetterBoundaryTests {
+public:
+    TypesetterBoundaryTests() = default;
 
-#include <Core/Object.h>
+    void run();
 
-typedef struct _TRText {
-    ObjectBase _base;
-    SBMutableTextRef _sbText;
-    TRBoolean isMutable;
-    TRBoolean isEditing;
-} TRText;
+private:
+    void testGraphemes();
+    void testWords();
+    void testParagraphs();
+    void testEdges();
+    void testRanges();
+    void testEditsAreSeen();
+    void testEditsAcrossParagraphs();
+    void testEncodingsAgree();
+    void testConcurrentSearches();
+};
+
+}
 
 #endif

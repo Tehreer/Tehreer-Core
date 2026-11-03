@@ -23,8 +23,8 @@
 #include <API/TRBase.h>
 #include <API/TRComposedLine.h>
 #include <API/TRGlyphRun.h>
-#include <API/TRTypesetter.h>
 #include <Core/Array.h>
+#include <Layout/TextSource.h>
 
 /* A growable list of glyph runs, which owns the references that it holds. */
 typedef struct _RunList {
@@ -48,14 +48,14 @@ TR_INTERNAL void RunListInsert(RunList *list, TRUInteger index, TRGlyphRun *glyp
  * added before those that precede them, which keeps the order in which they are shown. The room of
  * the replacements is that of the layout width.
  */
-TR_INTERNAL void LineResolverAppendVisualRuns(TRTypesetterRef typesetter, TRUInteger start,
+TR_INTERNAL void LineResolverAppendVisualRuns(TextSourceRef source, TRUInteger start,
     TRUInteger end, RunList *list, TRFloat layoutWidth);
 
 /*
  * Creates a line from a list of runs, whose references the line takes over. The list is left
  * empty. Returns NULL on failure.
  */
-TR_INTERNAL TRComposedLine *LineResolverCreateLine(TRTypesetterRef typesetter, TRUInteger start,
+TR_INTERNAL TRComposedLine *LineResolverCreateLine(TextSourceRef source, TRUInteger start,
     TRUInteger end, RunList *list, TRUInt8 paragraphLevel);
 
 /*
@@ -63,7 +63,7 @@ TR_INTERNAL TRComposedLine *LineResolverCreateLine(TRTypesetterRef typesetter, T
  * MUST NOT be empty. The runs of the replacements of the line are sized for the layout width,
  * which is zero when there is no frame.
  */
-TR_INTERNAL TRComposedLine *LineResolverCreateSimpleLine(TRTypesetterRef typesetter,
+TR_INTERNAL TRComposedLine *LineResolverCreateSimpleLine(TextSourceRef source,
     TRUInteger start, TRUInteger end, TRFloat layoutWidth);
 
 /*
@@ -71,7 +71,7 @@ TR_INTERNAL TRComposedLine *LineResolverCreateSimpleLine(TRTypesetterRef typeset
  * line in its place. The suggested breaks decide what is cut out. If nothing has to be cut, the
  * line is a simple one. The range MUST NOT be empty. Returns NULL on failure.
  */
-TR_INTERNAL TRComposedLine *LineResolverCreateTruncatedLine(TRTypesetterRef typesetter,
+TR_INTERNAL TRComposedLine *LineResolverCreateTruncatedLine(TextSourceRef source,
     TRUInteger start, TRUInteger end, TRFloat extent, TRBreakMode breakMode,
     TRTruncationPlace truncationPlace, TRComposedLineRef tokenLine);
 
@@ -80,7 +80,7 @@ TR_INTERNAL TRComposedLine *LineResolverCreateTruncatedLine(TRTypesetterRef type
  * justification extent, as far as the factor says. The range MUST NOT be empty. Returns NULL on
  * failure.
  */
-TR_INTERNAL TRComposedLine *LineResolverCreateJustifiedLine(TRTypesetterRef typesetter,
+TR_INTERNAL TRComposedLine *LineResolverCreateJustifiedLine(TextSourceRef source,
     TRUInteger start, TRUInteger end, TRFloat justificationFactor, TRFloat justificationExtent);
 
 #endif

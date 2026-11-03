@@ -20,26 +20,26 @@
 #include <SheenBidi/SBText.h>
 
 #include <Tehreer/TRBase.h>
-#include <Tehreer/TRText.h>
+#include <Tehreer/TRTypesetter.h>
 
 TR_EXTERN_C_BEGIN
 
 /**
- * Returns the SheenBidi text that holds the code units and the attributes of a text, for the
- * queries that the text interface does not have, such as the iterators of SheenBidi over the
+ * Returns the SheenBidi text that holds the code units and the attributes of a typesetter, for the
+ * queries that its interface does not have, such as the iterators of SheenBidi over the
  * paragraphs, the runs and the attributes.
  *
  * This header is not included by `Tehreer/Tehreer.h`, so that the rest of the interface does not
  * depend on SheenBidi. Including it needs the headers of SheenBidi, and its text interface is
  * available only if `SB_CONFIG_EXPERIMENTAL_TEXT_API` is defined.
  *
- * @param text
- *      The text object.
+ * @param typesetter
+ *      The typesetter.
  * @return
- *      The SheenBidi text of the text object, which is owned by it. It must not be modified, nor
- *      used after the text object is released.
+ *      The SheenBidi text of the typesetter, which is owned by it. It must not be modified, nor
+ *      used after the typesetter is released.
  */
-TR_PUBLIC SBTextRef TRTextGetSheenBidiText(TRTextRef text);
+TR_PUBLIC SBTextRef TRTypesetterGetSheenBidiText(TRTypesetterRef typesetter);
 
 TR_EXTERN_C_END
 

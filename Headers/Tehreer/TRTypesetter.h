@@ -21,7 +21,7 @@
 #include <Tehreer/TRBase.h>
 #include <Tehreer/TRComposedLine.h>
 #include <Tehreer/TRString.h>
-#include <Tehreer/TRText.h>
+#include <Tehreer/TRAttributeList.h>
 
 TR_EXTERN_C_BEGIN
 
@@ -55,48 +55,366 @@ enum {
 typedef TRUInt32 TRTruncationPlace;
 
 /**
- * A typesetter shapes the text that it is created with, and creates lines from it. It holds the
- * glyphs of the whole text, so lines can be made over and over again for different ranges, extents
- * and settings without shaping it again.
+ * Constants that specify the kinds of boundaries that a text can be searched for.
+ */
+enum {
+    TRBoundaryTypeGrapheme = 0,     /**< A boundary between two grapheme clusters. */
+    TRBoundaryTypeWord = 1,         /**< A boundary between two word segments, which are words,
+                                         spaces or punctuations. */
+    TRBoundaryTypeParagraph = 2     /**< A boundary between two paragraphs, which end with their
+                                         separator. */
+};
+/**
+ * A type to represent the kind of a boundary.
+ */
+typedef TRUInt8 TRBoundaryType;
+
+/**
+ * Constants that specify the direction of searching for a boundary.
+ */
+enum {
+    TRBoundaryDirectionBackward = 0,    /**< Search for the last boundary before an index. */
+    TRBoundaryDirectionForward = 1      /**< Search for the first boundary after an index. */
+};
+/**
+ * A type to represent the direction of searching for a boundary.
+ */
+typedef TRUInt8 TRBoundaryDirection;
+
+/**
+ * A typesetter holds a text with attributes on its ranges, shapes it, and creates lines from it. It
+ * shapes each paragraph of the text when the paragraph is made or changed, so lines can be made
+ * over and over again for different ranges, extents and settings without shaping it again.
  *
- * A typesetter never changes once it is created, so it can be used from multiple threads.
+ * The text is a string of code units in one encoding, which the typesetter keeps as a SheenBidi
+ * text; see `Tehreer/TRSheenBidi.h`. All ranges and indexes count its code units.
  *
- * All ranges and indexes count the code units of the text.
+ * A typesetter that is created as immutable never changes, so it can be used from multiple
+ * threads. A mutable one is used by a single thread at a time, and the lines or the boundaries it
+ * is asked for are available only outside of an editing batch; see `TRTypesetterBeginEditing()`.
+ *
+ * A paragraph that has some text without a typeface cannot be shaped, so the functions that
+ * suggest a break or create a line fail over a range that touches it, as they do for a range that
+ * is not valid.
  */
 typedef const struct _TRTypesetter *TRTypesetterRef;
 
 /**
- * Creates a typesetter for a text.
+ * Opaque reference to a mutable typesetter, which can be edited through the editing functions
+ * below. It is a typesetter too, so it can be passed to the functions of the typesetter, and
+ * retained and released with `TRTypesetterRetain()` and `TRTypesetterRelease()`.
+ */
+typedef struct _TRTypesetter *TRMutableTypesetterRef;
+
+/**
+ * Creates an immutable typesetter from raw code units.
  *
  * The typeface, size and other attributes of the text decide how each part of it is shaped. The
  * default attributes fill in what the text does not set; a typeface MUST be given by one of them
- * for every part of the text that is not a replacement. The text is copied, so it can be changed or
- * released afterwards.
+ * or by the attributes for every part of the text that is not a replacement, or lines cannot be
+ * made over that part.
  *
- * @param text
- *      The text to typeset.
+ * @param string
+ *      Pointer to code units in the specified encoding.
+ * @param length
+ *      Number of code units in string.
+ * @param encoding
+ *      String encoding (UTF-8, UTF-16, or UTF-32).
  * @param defaultAttributes
  *      Attributes to use where the text has none, or `NULL`. Only the ones that decide how the
  *      text is shaped are looked at: the typeface, type size, scales, baseline offset,
  *      obliqueness, replacement, language and font features. A negative type size is taken as
- *      zero.
+ *      zero. They are copied, and the typesetter retains what they hold.
  * @param defaultAttributeCount
  *      Number of default attributes.
  * @return
- *      New typesetter, or `NULL` if the text is `NULL`, some text has no typeface or on failure.
+ *      A reference to a typesetter that the caller owns, or `NULL` if the string is `NULL` for a
+ *      length that is not zero, the encoding is not valid, or on failure.
  */
-TR_PUBLIC TRTypesetterRef TRTypesetterCreate(TRTextRef text,
+TR_PUBLIC TRTypesetterRef TRTypesetterCreate(const void *string, TRUInteger length,
+    TRStringEncoding encoding, const TRAttribute *defaultAttributes,
+    TRUInteger defaultAttributeCount);
+
+/**
+ * Creates an empty mutable typesetter, which can be edited through the editing functions below. The
+ * encoding of the code units is fixed for its lifetime.
+ *
+ * @param encoding
+ *      Target encoding for the new typesetter (UTF-8/16/32).
+ * @param defaultAttributes
+ *      Attributes to use where the text has none, as for `TRTypesetterCreate()`, or `NULL`.
+ * @param defaultAttributeCount
+ *      Number of default attributes.
+ * @return
+ *      A reference to a mutable typesetter that the caller owns, or `NULL` if the encoding is not
+ *      valid or on failure.
+ */
+TR_PUBLIC TRMutableTypesetterRef TRTypesetterCreateMutable(TRStringEncoding encoding,
     const TRAttribute *defaultAttributes, TRUInteger defaultAttributeCount);
 
 /**
- * Returns the number of code units in the text.
+ * Creates an immutable typesetter that is an exact copy of the source, with its attributes and
+ * default attributes. The copy shares the shaping of the paragraphs, so it costs little, and
+ * the source can be changed afterwards without changing the copy.
+ *
+ * @param typesetter
+ *      Source typesetter to copy (can be immutable or mutable).
+ * @return
+ *      New immutable copy that the caller owns, or `NULL` if the source is in an editing batch
+ *      or on failure.
+ */
+TR_PUBLIC TRTypesetterRef TRTypesetterCreateCopy(TRTypesetterRef typesetter);
+
+/**
+ * Creates a mutable typesetter that is an exact copy of the source. The copy can be modified
+ * while the original remains unchanged.
+ *
+ * @param typesetter
+ *      Source typesetter to copy (can be immutable or mutable).
+ * @return
+ *      New mutable typesetter that the caller owns, with the same content, attributes and default
+ *      attributes as the source, or `NULL` if the source is in an editing batch or on failure.
+ */
+TR_PUBLIC TRMutableTypesetterRef TRTypesetterCreateMutableCopy(TRTypesetterRef typesetter);
+
+/**
+ * Returns the encoding specified at typesetter creation.
+ *
+ * This encoding remains constant for the lifetime of the typesetter.
  *
  * @param typesetter
  *      The typesetter.
  * @return
- *      The number of code units in the text of the typesetter.
+ *      String encoding used by this typesetter.
  */
-TR_PUBLIC TRUInteger TRTypesetterGetCodeUnitCount(TRTypesetterRef typesetter);
+TR_PUBLIC TRStringEncoding TRTypesetterGetEncoding(TRTypesetterRef typesetter);
+
+/**
+ * Returns the number of code units in the typesetter.
+ *
+ * @param typesetter
+ *      The typesetter.
+ * @return
+ *      Number of code units in the text.
+ */
+TR_PUBLIC TRUInteger TRTypesetterGetLength(TRTypesetterRef typesetter);
+
+/**
+ * Copies code units from the text into a caller-provided buffer.
+ *
+ * The buffer must be large enough to hold the requested number of code units in the text's encoding
+ * format.
+ *
+ * @param typesetter
+ *      The typesetter.
+ * @param index
+ *      Start index (in code units).
+ * @param length
+ *      Number of code units to copy.
+ * @param buffer
+ *      Output buffer (must be large enough for `length` code units).
+ * @return
+ *      `TRTrue` if the code units were copied, `TRFalse` if the range is not within the text or the
+ *      buffer is `NULL`.
+ */
+TR_PUBLIC TRBoolean TRTypesetterGetCodeUnits(TRTypesetterRef typesetter, TRUInteger index,
+    TRUInteger length, void *buffer);
+
+/**
+ * Copies the attributes active at `index`, and the length of the run over which they apply (the
+ * extent, starting at `index`, over which the attribute set stays the same). The list has an
+ * attribute for each type that is set at the index.
+ *
+ * For more complex queries (filtering by a specific attribute, or by group/scope), use
+ * `TRTypesetterGetSheenBidiText()` of `Tehreer/TRSheenBidi.h` to access the underlying `SBTextRef`.
+ *
+ * @param typesetter
+ *      The typesetter.
+ * @param index
+ *      Code-unit index to query.
+ * @param outLength
+ *      Receives the run length in code units, which is zero if there is no list. It may be `NULL`
+ *      if it is not needed.
+ * @return
+ *      A new attribute list that the caller owns, and has to release via
+ *      `TRAttributeListRelease()`. It is `NULL` if the index is not less than the length of the
+ *      text, or on failure.
+ */
+TR_PUBLIC TRAttributeListRef TRTypesetterCopyAttributes(TRTypesetterRef typesetter,
+    TRUInteger index, TRUInteger *outLength);
+
+/* ----------------------------------
+ * Editing
+ * ---------------------------------- */
+
+/**
+ * Signals the start of a batch of editing operations. While in editing mode, the analysis and
+ * shaping of the paragraphs are deferred until `TRTypesetterEndEditing()` is called, which improves
+ * performance when making multiple sequential modifications. No line can be made, no break can be
+ * suggested and no copy can be created until then. The attributes can be set and removed in the
+ * batch, and the paragraphs that they change are shaped once at the end of it, so a text with many
+ * attributes is built in a batch, not by one change after another, each of which shapes the
+ * paragraph again.
+ *
+ * @param typesetter
+ *      Mutable typesetter.
+ */
+TR_PUBLIC void TRTypesetterBeginEditing(TRMutableTypesetterRef typesetter);
+
+/**
+ * Signals the end of a batch editing session, and analyzes and shapes all modified paragraphs.
+ *
+ * @param typesetter
+ *      Mutable typesetter.
+ */
+TR_PUBLIC void TRTypesetterEndEditing(TRMutableTypesetterRef typesetter);
+
+/**
+ * Adds new code units to the end of the typesetter. If it is not in editing mode, the paragraphs
+ * that the new content touches are analyzed and shaped immediately.
+ *
+ * @param typesetter
+ *      Mutable typesetter.
+ * @param codeUnitBuffer
+ *      Pointer to code units in the text's encoding.
+ * @param codeUnitCount
+ *      Number of code units to append.
+ * @return
+ *      `TRTrue` if the code units were appended, `TRFalse` if the buffer is `NULL`.
+ *
+ * @warning
+ *      The buffer must contain valid code units in the text's encoding format.
+ */
+TR_PUBLIC TRBoolean TRTypesetterAppendCodeUnits(TRMutableTypesetterRef typesetter,
+    const void *codeUnitBuffer, TRUInteger codeUnitCount);
+
+/**
+ * Inserts new code units at the specified position in the text. Existing content at and after the
+ * insertion point is shifted right. If the typesetter is not in editing mode, the paragraphs that
+ * the insertion touches are analyzed and shaped immediately.
+ *
+ * @param typesetter
+ *      Mutable typesetter.
+ * @param index
+ *      Insertion index (in code units), which can be the length of the text to insert at its end.
+ * @param codeUnitBuffer
+ *      Pointer to code units in the text's encoding.
+ * @param codeUnitCount
+ *      Number of code units to insert.
+ * @return
+ *      `TRTrue` if the code units were inserted, `TRFalse` if the index is past the end of the text
+ *      or the buffer is `NULL`.
+ *
+ * @warning
+ *      The buffer must contain valid code units in the text's encoding format.
+ */
+TR_PUBLIC TRBoolean TRTypesetterInsertCodeUnits(TRMutableTypesetterRef typesetter, TRUInteger index,
+    const void *codeUnitBuffer, TRUInteger codeUnitCount);
+
+/**
+ * Removes a contiguous range of code units from the text. Content after the deletion range is
+ * shifted left. If the typesetter is not in editing mode, the paragraphs that the deletion touches
+ * are analyzed and shaped immediately.
+ *
+ * @param typesetter
+ *      Mutable typesetter.
+ * @param index
+ *      Start index of the range to delete (in code units).
+ * @param length
+ *      Number of code units to delete.
+ * @return
+ *      `TRTrue` if the code units were deleted, `TRFalse` if the range is not within the text.
+ */
+TR_PUBLIC TRBoolean TRTypesetterDeleteCodeUnits(TRMutableTypesetterRef typesetter, TRUInteger index,
+    TRUInteger length);
+
+/**
+ * Completely replaces the current text content with the new code units. This is equivalent to
+ * replacing the whole range of the text with `TRTypesetterReplaceCodeUnits()`, so the new content
+ * takes on the attributes of the content that it replaces.
+ *
+ * @param typesetter
+ *      Mutable typesetter.
+ * @param codeUnitBuffer
+ *      Pointer to code units in the text's encoding.
+ * @param codeUnitCount
+ *      Number of code units in codeUnitBuffer.
+ * @return
+ *      `TRTrue` if the content was replaced, `TRFalse` if the buffer is `NULL` for a count that is
+ *      not zero.
+ *
+ * @warning
+ *      All existing content is removed, but its attributes are kept for the new content.
+ *      The buffer must contain valid code units in the text's encoding format.
+ */
+TR_PUBLIC TRBoolean TRTypesetterSetCodeUnits(TRMutableTypesetterRef typesetter,
+    const void *codeUnitBuffer, TRUInteger codeUnitCount);
+
+/**
+ * Replaces a contiguous range of existing code units with new content, which takes on the
+ * attributes of the range that it replaces. If the typesetter is not in editing mode, the
+ * paragraphs that the replacement touches are analyzed and shaped immediately.
+ *
+ * @param typesetter
+ *      Mutable typesetter.
+ * @param index
+ *      Start index of the range to replace (in code units).
+ * @param length
+ *      Length of the range to replace (in code units).
+ * @param codeUnitBuffer
+ *      Pointer to replacement code units in the text's encoding. It may be `NULL` if the count is
+ *      zero, which only deletes the range.
+ * @param codeUnitCount
+ *      Number of replacement code units.
+ * @return
+ *      `TRTrue` if the range was replaced, `TRFalse` if the range is not within the text or the
+ *      buffer is `NULL` for a count that is not zero.
+ *
+ * @warning
+ *      The buffer must contain valid code units in the text's encoding format.
+ */
+TR_PUBLIC TRBoolean TRTypesetterReplaceCodeUnits(TRMutableTypesetterRef typesetter,
+    TRUInteger index, TRUInteger length, const void *codeUnitBuffer, TRUInteger codeUnitCount);
+
+/**
+ * Applies the specified attribute with the given value to the range of code units. If the attribute
+ * already exists in parts of the range, those values are replaced. The attribute is copied. The
+ * text retains the typeface, replacement or font features that the attribute holds; the user data
+ * is a pointer that it only compares.
+ *
+ * @param typesetter
+ *      Mutable typesetter.
+ * @param index
+ *      Start index of the range (in code units).
+ * @param length
+ *      Length of the range (in code units).
+ * @param attribute
+ *      Pointer to the attribute to set.
+ * @return
+ *      `TRTrue` if the attribute was set, `TRFalse` if the range is not within the text, the
+ *      attribute is `NULL` or its type is unknown.
+ */
+TR_PUBLIC TRBoolean TRTypesetterSetAttribute(TRMutableTypesetterRef typesetter, TRUInteger index,
+    TRUInteger length, const TRAttribute *attribute);
+
+/**
+ * Removes the specified attribute from the given range of code units. If the attribute is not
+ * present in the range, this operation has no effect.
+ *
+ * @param typesetter
+ *      Mutable typesetter.
+ * @param index
+ *      Start index of the range (in code units).
+ * @param length
+ *      Length of the range (in code units).
+ * @param attributeType
+ *      Type of the attribute to remove.
+ * @return
+ *      `TRTrue` if the attribute was removed, `TRFalse` if the range is not within the text, the
+ *      type is unknown.
+ */
+TR_PUBLIC TRBoolean TRTypesetterRemoveAttribute(TRMutableTypesetterRef typesetter, TRUInteger index,
+    TRUInteger length, TRAttributeType attributeType);
 
 /**
  * Suggests where to break a line forward from the start of a range. The measurement goes from the
@@ -249,6 +567,50 @@ TR_PUBLIC TRComposedLineRef TRTypesetterCreateTruncatedLine(TRTypesetterRef type
  */
 TR_PUBLIC TRComposedLineRef TRTypesetterCreateJustifiedLine(TRTypesetterRef typesetter,
     TRUInteger index, TRUInteger length, TRFloat justificationFactor, TRFloat justificationExtent);
+
+/**
+ * Finds the boundary of a given type that is next to a code unit index, according to Unicode
+ * Standard Annex #29 for graphemes and words, and the paragraph separators of the text for
+ * paragraphs. The start and the end of the text are boundaries of every type.
+ *
+ * The search is done on the current content of the text, and needs no typeface: the data it uses
+ * is made with each paragraph, so a typesetter that is not being edited can be searched from
+ * multiple threads.
+ *
+ * @param typesetter
+ *      The typesetter to search in.
+ * @param index
+ *      Code-unit index to search from. It may be the length of the text.
+ * @param type
+ *      Type of the boundary.
+ * @param direction
+ *      Direction of the search. A forward search finds the first boundary after the index, and a
+ *      backward search finds the last boundary before it.
+ * @return
+ *      Index of the boundary, or `TRInvalidIndex` if the index is greater than the length, there is
+ *      nothing after it for a forward search or before it for a backward search, the type or the
+ *      direction is not known, or the typesetter is being edited.
+ */
+TR_PUBLIC TRUInteger TRTypesetterFindBoundary(TRTypesetterRef typesetter, TRUInteger index,
+    TRBoundaryType type, TRBoundaryDirection direction);
+
+/**
+ * Gets the range of the segment of a given boundary type that contains a code unit, for example
+ * the word under a caret.
+ *
+ * @param typesetter
+ *      The typesetter to search in.
+ * @param index
+ *      Code-unit index that the segment contains. It may be the length of the text, which has an
+ *      empty segment.
+ * @param type
+ *      Type of the boundary.
+ * @return
+ *      The range of the segment, or a range that starts at `TRInvalidIndex` and is empty if the
+ *      index is greater than the length, the type is not known, or the typesetter is being edited.
+ */
+TR_PUBLIC TRRange TRTypesetterGetBoundaryRange(TRTypesetterRef typesetter, TRUInteger index,
+    TRBoundaryType type);
 
 /**
  * Increments the reference count of a typesetter.

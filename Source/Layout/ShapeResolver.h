@@ -17,21 +17,56 @@
 #ifndef _TEHREER_LAYOUT_SHAPE_RESOLVER_H
 #define _TEHREER_LAYOUT_SHAPE_RESOLVER_H
 
+#include <SheenBidi/SBText.h>
+
 #include <Tehreer/TRAttribute.h>
 #include <Tehreer/TRBase.h>
+#include <Tehreer/TRFontFeatures.h>
+#include <Tehreer/TRReplacement.h>
+#include <Tehreer/TRTypeface.h>
 
 #include <API/TRBase.h>
-#include <API/TRTypesetter.h>
+#include <Core/Object.h>
+
+/* What decides how a part of the text is shaped, beside its bidirectional level and script. */
+typedef struct _ShapingStyle {
+    TRTypefaceRef typeface;
+    TRFloat typeSize;
+    TRFloat baselineOffset;
+    TRFloat obliqueness;
+    TRFloat scaleX;
+    TRFloat scaleY;
+    TRReplacementRef replacement;
+    TRTag languageTag;
+    TRFontFeaturesRef fontFeatures;
+} ShapingStyle;
 
 /*
- * Finds the runs of the text of a typesetter, whose text and buffer MUST be set. Each paragraph of
- * the text is split into runs that have a single bidirectional level, script, typeface, size
- * and the other properties that decide the shape. The runs are then shaped.
- *
- * The typesetter receives the runs, which it has to free if this fails. Returns
- * `TRFalse` if some text has no typeface, or on failure.
+ * The style that fills in what the attributes of a text do not set. It keeps its own references,
+ * and a typesetter and its copies share it, since it is the context of the provider that shapes
+ * the paragraphs.
  */
-TR_INTERNAL TRBoolean ShapeResolverResolve(TRTypesetter *typesetter,
-    const TRAttribute *defaultAttributes, TRUInteger defaultAttributeCount);
+typedef struct _ShapeDefaults {
+    ObjectBase _base;
+    ShapingStyle style;
+} ShapeDefaults, *ShapeDefaultsRef;
+
+/*
+ * Creates the defaults from the attributes that decide the shaping, which are the only ones
+ * looked at. Returns `NULL` on failure.
+ */
+TR_INTERNAL ShapeDefaultsRef ShapeDefaultsCreate(const TRAttribute *attributes, TRUInteger count);
+
+TR_INTERNAL ShapeDefaultsRef ShapeDefaultsRetain(ShapeDefaultsRef defaults);
+TR_INTERNAL void ShapeDefaultsRelease(ShapeDefaultsRef defaults);
+
+/*
+ * The provider of the paragraphs of a text, which SheenBidi calls when an edit creates or changes
+ * a paragraph. Its context MUST be the defaults. It returns a `ShapedParagraph` that has the runs
+ * of the paragraph, and which stays unshaped if some of its text has no typeface, or `NULL` on
+ * failure.
+ */
+TR_INTERNAL const void *ShapeResolverProvideParagraph(SBTextRef sbText, SBUInteger index,
+    SBUInteger length, void *context);
 
 #endif

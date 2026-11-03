@@ -41,9 +41,10 @@ typedef struct _AttributeRegistry {
 TR_INTERNAL SBAttributeID AttributeRegistryGetAttributeID(TRAttributeType type);
 
 /**
- * Returns the process-wide text config that uses the attribute registry, creating both on first
- * use. Returns `NULL` if the config could not be created.
+ * Creates a text config that uses the process-wide attribute registry, creating the registry on
+ * first use. The caller sets the rest of the config and releases it, since a text copies what it
+ * needs. Returns `NULL` on failure.
  */
-TR_INTERNAL SBTextConfigRef AttributeRegistryGetDefaultConfig(void);
+TR_INTERNAL SBTextConfigRef AttributeRegistryCreateConfig(void);
 
 #endif

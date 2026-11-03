@@ -30,7 +30,7 @@
 #include <Tehreer/TRFrameResolver.h>
 #include <Tehreer/TRLineLocator.h>
 #include <Tehreer/TRRenderer.h>
-#include <Tehreer/TRText.h>
+#include <Tehreer/TRTypesetter.h>
 #include <Tehreer/TRTypesetter.h>
 
 #include "TestText.h"
@@ -84,7 +84,7 @@ static u16string makeWords(size_t count) {
 
 struct Fixture {
     TRTypefaceRef typeface;
-    TRMutableTextRef text;
+    TRMutableTypesetterRef text;
     TRTypesetterRef typesetter;
     TRFrameResolverRef resolver;
     TRRendererRef renderer;
@@ -92,7 +92,7 @@ struct Fixture {
     explicit Fixture(const u16string &string) {
         typeface = createTestTypeface("Roboto-Regular.abc.ttf");
         text = makeTestText(string, typeface, EmSize);
-        typesetter = TRTypesetterCreate(text, nullptr, 0);
+        typesetter = TRTypesetterCreateCopy(text);
         assert(typesetter != nullptr);
 
         TRSize frameSize = { FrameWidth, 1.0e9f };
@@ -108,7 +108,7 @@ struct Fixture {
     }
 
     TRComposedFrameRef frame() {
-        TRComposedFrameRef result = TRFrameResolverCreateFrame(resolver, 0, TRTextGetLength(text));
+        TRComposedFrameRef result = TRFrameResolverCreateFrame(resolver, 0, TRTypesetterGetLength(text));
         assert(result != nullptr);
 
         return result;
@@ -125,7 +125,7 @@ struct Fixture {
         TRRendererRelease(renderer);
         TRFrameResolverRelease(resolver);
         TRTypesetterRelease(typesetter);
-        TRTextRelease(text);
+        TRTypesetterRelease(text);
         TRTypefaceRelease(typeface);
     }
 };

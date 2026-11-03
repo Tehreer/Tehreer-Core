@@ -28,7 +28,7 @@
 #include <Tehreer/TRGlyphRun.h>
 #include <Tehreer/TRRenderer.h>
 #include <Tehreer/TRReplacement.h>
-#include <Tehreer/TRText.h>
+#include <Tehreer/TRTypesetter.h>
 #include <Tehreer/TRTypesetter.h>
 
 extern "C" {
@@ -97,7 +97,7 @@ constexpr TRFloat Notdef = 908.0f;
 
 struct Fixture {
     TRTypefaceRef typeface;
-    TRMutableTextRef text;
+    TRMutableTypesetterRef text;
     TRTypesetterRef typesetter;
 
     explicit Fixture(const u16string &string, const char *fontName = "Roboto-Regular.abc.ttf",
@@ -111,7 +111,7 @@ struct Fixture {
         if (typesetter) {
             TRTypesetterRelease(typesetter);
         }
-        typesetter = TRTypesetterCreate(text, nullptr, 0);
+        typesetter = TRTypesetterCreateCopy(text);
         assert(typesetter != nullptr);
 
         return typesetter;
@@ -132,7 +132,7 @@ struct Fixture {
         if (typesetter) {
             TRTypesetterRelease(typesetter);
         }
-        TRTextRelease(text);
+        TRTypesetterRelease(text);
         TRTypefaceRelease(typeface);
     }
 };
@@ -410,7 +410,7 @@ void ComposedLineTests::testClusterStartOfComplexScript() {
 
     for (const u16string &string : strings) {
         Fixture f(string, urduFont, 40.0f);
-        TRUInteger length = TRTextGetLength(f.text);
+        TRUInteger length = TRTypesetterGetLength(f.text);
         TRComposedLineRef line = f.line(0, length);
         TRFloat width = TRComposedLineGetWidth(line);
         vector<bool> isHit(length, false);
@@ -652,14 +652,14 @@ void ComposedLineTests::testPaintAttributesSplitRuns() {
     TRAttribute color = {};
     color.type = TRAttributeForegroundColor;
     color.value.foregroundColor = TRColorMake(0xFF, 0x11, 0x22, 0x33);
-    TRTextSetAttribute(f.text, 1, 1, &color);
+    TRTypesetterSetAttribute(f.text, 1, 1, &color);
 
     TRAttribute userData = {};
     userData.type = TRAttributeUserData;
     userData.value.userData = &first;
-    TRTextSetAttribute(f.text, 0, 2, &userData);
+    TRTypesetterSetAttribute(f.text, 0, 2, &userData);
     userData.value.userData = &second;
-    TRTextSetAttribute(f.text, 2, 1, &userData);
+    TRTypesetterSetAttribute(f.text, 2, 1, &userData);
 
     TRComposedLineRef line = f.line(0, 3);
 
@@ -708,22 +708,22 @@ void ComposedLineTests::testDecorationAttributesSplitRuns() {
     TRAttribute background = {};
     background.type = TRAttributeBackgroundColor;
     background.value.backgroundColor = TRColorMake(0xFF, 0x01, 0x02, 0x03);
-    TRTextSetAttribute(f.text, 0, 2, &background);
+    TRTypesetterSetAttribute(f.text, 0, 2, &background);
 
     TRAttribute underline = {};
     underline.type = TRAttributeUnderline;
     underline.value.underline = TRTrue;
-    TRTextSetAttribute(f.text, 1, 1, &underline);
+    TRTypesetterSetAttribute(f.text, 1, 1, &underline);
 
     TRAttribute strikethrough = {};
     strikethrough.type = TRAttributeStrikethrough;
     strikethrough.value.strikethrough = TRTrue;
-    TRTextSetAttribute(f.text, 1, 2, &strikethrough);
+    TRTypesetterSetAttribute(f.text, 1, 2, &strikethrough);
 
     TRAttribute decoration = {};
     decoration.type = TRAttributeDecorationColor;
     decoration.value.decorationColor = TRColorMake(0xFF, 0x04, 0x05, 0x06);
-    TRTextSetAttribute(f.text, 2, 1, &decoration);
+    TRTypesetterSetAttribute(f.text, 2, 1, &decoration);
 
     TRComposedLineRef line = f.line(0, 3);
 
@@ -1018,7 +1018,7 @@ void ComposedLineTests::testReplacementLines() {
     TRAttribute attribute = {};
     attribute.type = TRAttributeReplacement;
     attribute.value.replacement = replacement;
-    TRTextSetAttribute(f.text, 1, 1, &attribute);
+    TRTypesetterSetAttribute(f.text, 1, 1, &attribute);
 
     TRComposedLineRef line = f.line(0, 3);
     assert(TRComposedLineGetGlyphRunCount(line) == 3);
@@ -1055,7 +1055,7 @@ void ComposedLineTests::testBlockLine() {
     TRAttribute attribute = {};
     attribute.type = TRAttributeReplacement;
     attribute.value.replacement = block;
-    TRTextSetAttribute(f.text, 0, 1, &attribute);
+    TRTypesetterSetAttribute(f.text, 0, 1, &attribute);
 
     TRComposedLineRef line = f.line(0, 2);
 
@@ -1068,7 +1068,7 @@ void ComposedLineTests::testBlockLine() {
     TRComposedLineRelease(line);
 
     /* A line that is made for a frame gets the room that the width of the frame gives. */
-    line = LineResolverCreateSimpleLine(f.typesetter, 0, 2, 120.0f);
+    line = LineResolverCreateSimpleLine(&f.typesetter->source, 0, 2, 120.0f);
     assert(TRComposedLineGetWidth(line) >= 120.0f);
     assert(TRGlyphRunGetWidth(TRComposedLineGetGlyphRun(line, 0)) == 120.0f);
     TRComposedLineRelease(line);
@@ -1173,7 +1173,7 @@ void ComposedLineTests::testDefaultTokenEncodings() {
     };
 
     for (TRStringEncoding encoding : encodings) {
-        TRMutableTextRef text = TRTextCreateMutable(encoding);
+        TRMutableTypesetterRef text = TRTypesetterCreateMutable(encoding, nullptr, 0);
         assert(text != nullptr);
 
         const char32_t source[] = U"abc";
@@ -1182,12 +1182,12 @@ void ComposedLineTests::testDefaultTokenEncodings() {
         for (TRUInteger index = 0; index < 3; index++) {
             if (encoding == TRStringEncodingUTF8) {
                 const char unit = static_cast<char>(source[index]);
-                isAppended = TRTextAppendCodeUnits(text, &unit, 1);
+                isAppended = TRTypesetterAppendCodeUnits(text, &unit, 1);
             } else if (encoding == TRStringEncodingUTF16) {
                 const char16_t unit = static_cast<char16_t>(source[index]);
-                isAppended = TRTextAppendCodeUnits(text, &unit, 1);
+                isAppended = TRTypesetterAppendCodeUnits(text, &unit, 1);
             } else {
-                isAppended = TRTextAppendCodeUnits(text, &source[index], 1);
+                isAppended = TRTypesetterAppendCodeUnits(text, &source[index], 1);
             }
 
             assert(isAppended);
@@ -1196,13 +1196,13 @@ void ComposedLineTests::testDefaultTokenEncodings() {
         TRAttribute attribute = {};
         attribute.type = TRAttributeTypeface;
         attribute.value.typeface = typeface;
-        TRTextSetAttribute(text, 0, 3, &attribute);
+        TRTypesetterSetAttribute(text, 0, 3, &attribute);
 
         attribute.type = TRAttributeTypeSize;
         attribute.value.typeSize = EmSize;
-        TRTextSetAttribute(text, 0, 3, &attribute);
+        TRTypesetterSetAttribute(text, 0, 3, &attribute);
 
-        TRTypesetterRef typesetter = TRTypesetterCreate(text, nullptr, 0);
+        TRTypesetterRef typesetter = TRTypesetterCreateCopy(text);
         assert(typesetter != nullptr);
 
         TRComposedLineRef token = TRTypesetterCreateTruncationToken(typesetter, 0, 3,
@@ -1212,7 +1212,7 @@ void ComposedLineTests::testDefaultTokenEncodings() {
 
         TRComposedLineRelease(token);
         TRTypesetterRelease(typesetter);
-        TRTextRelease(text);
+        TRTypesetterRelease(text);
     }
 
     TRTypefaceRelease(typeface);

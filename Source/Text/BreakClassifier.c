@@ -18,6 +18,7 @@
 
 #include <graphemebreak.h>
 #include <linebreak.h>
+#include <wordbreak.h>
 
 #include <Tehreer/TRString.h>
 
@@ -64,6 +65,24 @@ static void ClassifyGraphemeBreaks(const void *codeUnits, TRUInteger length,
     }
 }
 
+static void ClassifyWordBreaks(const void *codeUnits, TRUInteger length,
+    TRStringEncoding encoding, char *types)
+{
+    switch (encoding) {
+    case TRStringEncodingUTF8:
+        set_wordbreaks_utf8(codeUnits, length, NULL, types);
+        break;
+
+    case TRStringEncodingUTF16:
+        set_wordbreaks_utf16(codeUnits, length, NULL, types);
+        break;
+
+    case TRStringEncodingUTF32:
+        set_wordbreaks_utf32(codeUnits, length, NULL, types);
+        break;
+    }
+}
+
 static void FillBreaks(BreakClassifierRef classifier, const void *codeUnits, TRUInteger length,
     TRStringEncoding encoding, char *types)
 {
@@ -85,6 +104,13 @@ static void FillBreaks(BreakClassifierRef classifier, const void *codeUnits, TRU
         for (index = 0; index < length; index++) {
             if (types[index] == GRAPHEMEBREAK_BREAK) {
                 classifier->breaks[index] |= BreakTypeGrapheme;
+            }
+        }
+
+        ClassifyWordBreaks(codeUnits, length, encoding, types);
+        for (index = 0; index < length; index++) {
+            if (types[index] == WORDBREAK_BREAK) {
+                classifier->breaks[index] |= BreakTypeWord;
             }
         }
     }

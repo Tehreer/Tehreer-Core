@@ -121,7 +121,7 @@ set(SB_CONFIG_UNITY ON CACHE BOOL "Enable SheenBidi unity mode" FORCE)
 FetchContent_Declare(
   SheenBidi
   GIT_REPOSITORY https://github.com/Tehreer/SheenBidi.git
-  GIT_TAG db959420f1566d77ae877bd6d13a9ba258d5e466
+  GIT_TAG 18d344225f615f6b89f50c8cdf040609fcd4f7df
 )
 FetchContent_MakeAvailable(SheenBidi)
 
@@ -260,6 +260,7 @@ if(BUILD_TESTS)
     SpinOnceTests
     TextBufferTests
     TextTests
+    TypesetterBoundaryTests
     TypefaceManagerTests
     TypefaceTests
     TypesetterTests
@@ -412,6 +413,10 @@ if(BUILD_TESTS)
   set(TypefaceManagerTests
     Tests/TypefaceManagerTests.h
     Tests/TypefaceManagerTests.cpp
+  )
+  set(TypesetterBoundaryTests
+    Tests/TypesetterBoundaryTests.h
+    Tests/TypesetterBoundaryTests.cpp
   )
   set(TextTests
     Tests/TextTests.h

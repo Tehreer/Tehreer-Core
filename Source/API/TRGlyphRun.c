@@ -106,9 +106,9 @@ static void FinalizeGlyphRun(ObjectRef object)
 #define CARET_EDGES     3
 #define COUNT           4
 
-static TRGlyphRun *AllocateGlyphRun(TextRunRef textRun, TRUInteger codeUnitStart,
-    TRUInteger codeUnitEnd, TRUInteger startExtra, TRUInteger endExtra, TRBoolean hasAdvances,
-    TRUInteger glyphStart, TRUInteger glyphCount)
+static TRGlyphRun *AllocateGlyphRun(TextRunRef textRun, TRUInteger paragraphStart,
+    TRUInteger codeUnitStart, TRUInteger codeUnitEnd, TRUInteger startExtra, TRUInteger endExtra,
+    TRBoolean hasAdvances, TRUInteger glyphStart, TRUInteger glyphCount)
 {
     TRUInteger clusterCount = (codeUnitEnd + endExtra) - (codeUnitStart - startExtra);
     TRUInteger sizes[COUNT] = { 0 };
@@ -124,6 +124,7 @@ static TRGlyphRun *AllocateGlyphRun(TextRunRef textRun, TRUInteger codeUnitStart
 
     if (glyphRun) {
         glyphRun->textRun = TextRunRetain(textRun);
+        glyphRun->paragraphStart = paragraphStart;
         glyphRun->codeUnitStart = codeUnitStart;
         glyphRun->codeUnitEnd = codeUnitEnd;
         glyphRun->startExtra = startExtra;
@@ -277,8 +278,9 @@ static GlyphExtent GetGlyphExtent(TRGlyphRunRef glyphRun)
 static GlyphSpan GetClusterGlyphs(TRGlyphRunRef glyphRun, TRUInteger codeUnitIndex)
 {
     TextRunRef textRun = glyphRun->textRun;
-    TRUInteger clusterStart = TextRunGetClusterStart(textRun, codeUnitIndex);
-    TRUInteger clusterEnd = TextRunGetClusterEnd(textRun, codeUnitIndex);
+    TRUInteger runIndex = codeUnitIndex - glyphRun->paragraphStart;
+    TRUInteger clusterStart = TextRunGetClusterStart(textRun, runIndex);
+    TRUInteger clusterEnd = TextRunGetClusterEnd(textRun, runIndex);
     GlyphSpan glyphs;
     TRUInteger textGlyphStart;
     TRUInteger textGlyphEnd;
@@ -596,9 +598,11 @@ static void DrawDecorations(TRGlyphRunRef glyphRun, TRRendererRef renderer, TRPo
 
 /* ---------- Internal Functions ---------- */
 
-TR_INTERNAL TRGlyphRun *TRGlyphRunCreate(TextRunRef textRun, TRUInteger start, TRUInteger end,
-    const GlyphRunPaint *paint)
+TR_INTERNAL TRGlyphRun *TRGlyphRunCreate(TextRunRef textRun, TRUInteger paragraphStart,
+    TRUInteger start, TRUInteger end, const GlyphRunPaint *paint)
 {
+    TRUInteger runStart;
+    TRUInteger runEnd;
     TRUInteger startExtra = 0;
     TRUInteger endExtra = 0;
     TRUInteger glyphStart = 0;
@@ -606,28 +610,32 @@ TR_INTERNAL TRGlyphRun *TRGlyphRunCreate(TextRunRef textRun, TRUInteger start, T
     TRGlyphRun *glyphRun;
 
     /* The range MUST NOT be empty, and MUST be within the text run. */
-    TRAssert(start < end && start >= textRun->codeUnitStart && end <= textRun->codeUnitEnd);
+    TRAssert(start < end && start >= paragraphStart + textRun->codeUnitStart
+          && end <= paragraphStart + textRun->codeUnitEnd);
+
+    runStart = start - paragraphStart;
+    runEnd = end - paragraphStart;
 
     if (textRun->kind == TextRunKindReplacement) {
-        start = textRun->codeUnitStart;
-        end = textRun->codeUnitEnd;
+        start = paragraphStart + textRun->codeUnitStart;
+        end = paragraphStart + textRun->codeUnitEnd;
     } else {
-        startExtra = start - TextRunGetClusterStart(textRun, start);
-        endExtra = TextRunGetClusterEnd(textRun, end - 1) - end;
-        TextRunGetGlyphRange(textRun, start, end, &glyphStart, &glyphEnd);
+        startExtra = runStart - TextRunGetClusterStart(textRun, runStart);
+        endExtra = TextRunGetClusterEnd(textRun, runEnd - 1) - runEnd;
+        TextRunGetGlyphRange(textRun, runStart, runEnd, &glyphStart, &glyphEnd);
     }
 
-    glyphRun = AllocateGlyphRun(textRun, start, end, startExtra, endExtra, TRFalse, glyphStart,
-        glyphEnd - glyphStart);
+    glyphRun = AllocateGlyphRun(textRun, paragraphStart, start, end, startExtra, endExtra, TRFalse,
+        glyphStart, glyphEnd - glyphStart);
 
     if (glyphRun) {
         TRUInteger actualStart = start - startExtra;
-        TRUInteger offset = actualStart - textRun->codeUnitStart;
+        TRUInteger offset = (actualStart - paragraphStart) - textRun->codeUnitStart;
         TRUInteger clusterCount = (end + endExtra) - actualStart;
         TRUInteger index;
         TRFloat boundary;
 
-        boundary = TextRunGetCaretBoundary(textRun, start, end);
+        boundary = TextRunGetCaretBoundary(textRun, start - paragraphStart, end - paragraphStart);
 
         for (index = 0; index < clusterCount; index++) {
             glyphRun->clusterMap[index] = textRun->clusterMap[offset + index] - glyphStart;
@@ -644,8 +652,8 @@ TR_INTERNAL TRGlyphRun *TRGlyphRunCreate(TextRunRef textRun, TRUInteger start, T
 
 TR_INTERNAL TRGlyphRun *TRGlyphRunCreateCopy(TRGlyphRunRef source)
 {
-    TRGlyphRun *glyphRun = AllocateGlyphRun(source->textRun, source->codeUnitStart,
-        source->codeUnitEnd, source->startExtra, source->endExtra,
+    TRGlyphRun *glyphRun = AllocateGlyphRun(source->textRun, source->paragraphStart,
+        source->codeUnitStart, source->codeUnitEnd, source->startExtra, source->endExtra,
         (source->justifiedAdvances != NULL), source->glyphStart, source->glyphCount);
 
     if (glyphRun) {
@@ -669,9 +677,9 @@ TR_INTERNAL TRGlyphRun *TRGlyphRunCreateCopy(TRGlyphRunRef source)
 
 TR_INTERNAL TRGlyphRun *TRGlyphRunCreateJustified(TRGlyphRunRef source, const TRFloat *advances)
 {
-    TRGlyphRun *glyphRun = AllocateGlyphRun(source->textRun, source->codeUnitStart,
-        source->codeUnitEnd, source->startExtra, source->endExtra, TRTrue, source->glyphStart,
-        source->glyphCount);
+    TRGlyphRun *glyphRun = AllocateGlyphRun(source->textRun, source->paragraphStart,
+        source->codeUnitStart, source->codeUnitEnd, source->startExtra, source->endExtra, TRTrue,
+        source->glyphStart, source->glyphCount);
 
     if (glyphRun) {
         TRUInteger clusterCount = (source->codeUnitEnd + source->endExtra)
@@ -931,7 +939,8 @@ TRUInteger TRGlyphRunGetClusterStart(TRGlyphRunRef run, TRUInteger codeUnitIndex
 
     if (codeUnitIndex >= run->codeUnitStart && codeUnitIndex < run->codeUnitEnd
         && (run->flags & TRGlyphRunFlagToken) == 0) {
-        clusterStart = TextRunGetClusterStart(run->textRun, codeUnitIndex);
+        clusterStart = run->paragraphStart
+                     + TextRunGetClusterStart(run->textRun, codeUnitIndex - run->paragraphStart);
     }
 
     return clusterStart;
@@ -943,7 +952,8 @@ TRUInteger TRGlyphRunGetClusterEnd(TRGlyphRunRef run, TRUInteger codeUnitIndex)
 
     if (codeUnitIndex >= run->codeUnitStart && codeUnitIndex < run->codeUnitEnd
         && (run->flags & TRGlyphRunFlagToken) == 0) {
-        clusterEnd = TextRunGetClusterEnd(run->textRun, codeUnitIndex);
+        clusterEnd = run->paragraphStart
+                   + TextRunGetClusterEnd(run->textRun, codeUnitIndex - run->paragraphStart);
     }
 
     return clusterEnd;
